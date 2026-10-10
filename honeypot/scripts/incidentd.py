@@ -6,6 +6,7 @@ Raw log streams remain authoritative. Journal updates can replay after a crash;
 stable event IDs deduplicate incident evidence. Query logs may contain replay IDs.
 """
 import collections
+import copy
 import datetime as dt
 import hashlib
 import importlib.util
@@ -18,6 +19,8 @@ import shutil
 import time
 from urllib.parse import urlsplit
 from hp_common import ROOT, atomic_json, append_json, runtime_path, sha256, utc, redact
+
+from evidence_store import records as evidence_records, append as evidence_append, commit as evidence_commit, EvidenceIntegrityError, sync_directory
 
 LEVEL={'LOW':0,'MEDIUM':1,'HIGH':2,'CRITICAL':3}
 FIELDS={'source_ports':'source_port','destination_ports':'destination_port','services':'service','session_ids':'session_id','usernames':'username','password_attempts':'password','commands':'command','urls':'url','domains':'domain','user_agents':'user_agent','hashes':'sha256','suricata_signatures':'signature','fingerprints':'fingerprint'}
@@ -107,6 +110,25 @@ class Engine:
         self.artifacts=runtime_path('ARTIFACT_PATH','artifacts',self.root)
         self.captures=runtime_path('PCAP_PATH','captures',self.root)
         self.fast_poll_until=0
+        self.blocked_incidents={}
+        self.inspect_existing_evidence()
+
+    def inspect_existing_evidence(self):
+        """Retain malformed incidents and explicitly block their writes only."""
+        paths=sorted(self.incidents.glob('*/*/events.jsonl'))
+        if len(paths)>4000: raise EvidenceIntegrityError('Startup evidence inventory budget exceeded')
+        for path in paths:
+            try:
+                durable=evidence_records(path)
+                meta=json.loads((path.parent/'incident.json').read_text())
+                if set(meta['related_events'])-set(durable):
+                    raise EvidenceIntegrityError('Metadata references missing evidence')
+            except (EvidenceIntegrityError,ValueError,KeyError,TypeError) as exc:
+                self.blocked_incidents[str(path.parent)]=str(exc)
+                append_json(self.root/'logs/system/evidence-integrity.jsonl',{
+                    'timestamp':utc(),'incident_id':path.parent.name,'path':str(path),
+                    'action':'BLOCK_INCIDENT_WRITES','error':str(exc),
+                    'original_sha256':sha256(path)[0],'original_bytes_preserved':True})
 
     def classify(self,event):
         if event['source']=='suricata':
@@ -143,7 +165,23 @@ class Engine:
                           'timestamp_end':event['timestamp'],'source_ip':event['source_ip'],'related_events':[],
                           'evidence_paths':[],'containment_actions':[],'notes':[], 'correlation_links':[], 'auth_attempt_count':0,
                           **{k:[] for k in FIELDS}}
-            if event_id in incident['related_events']: return
+            if str(path) in self.blocked_incidents:
+                raise EvidenceIntegrityError('Blocked incident: '+self.blocked_incidents[str(path)])
+            durable=evidence_records(path/'events.jsonl')
+            if set(incident['related_events'])-set(durable):
+                raise EvidenceIntegrityError(f'Metadata references missing evidence: {ipath}')
+            if event_id in incident['related_events']:
+                evidence_append(path/'events.jsonl',durable[event_id])
+                evidence_commit(ipath,incident)
+                return
+            orphan_ids=set(durable)-set(incident['related_events'])
+            if orphan_ids-{event_id}:
+                raise EvidenceIntegrityError(f'Uncommitted evidence requires exact-ID replay: {ipath}')
+            if event_id in durable:
+                saved=durable[event_id]
+                if saved['raw']!=raw or saved['normalized']['source']!=source:
+                    raise EvidenceIntegrityError('Replay source differs from retained evidence')
+                event=saved['normalized'].copy()
             if len(incident['related_events'])<self.rules['max_events_per_incident']: break
             segment['segment']+=1
         segment['seen']=now;self.state['groups'][key]=segment
@@ -174,8 +212,9 @@ class Engine:
         for note in event['notes']:
             if note not in incident['notes']: incident['notes'].append(note)
         path.mkdir(parents=True,exist_ok=True)
-        # Write payload before metadata; replay may duplicate events.jsonl after a crash.
-        append_json(path/'events.jsonl',{'event_id':event_id,'normalized':event,'raw':raw})
+        sync_directory(path.parent)
+        sync_directory(self.incidents)
+        evidence_append(path/'events.jsonl',durable.get(event_id,{'event_id':event_id,'normalized':event,'raw':raw}))
         if event['command']:
             with (path/'commands.txt').open('a',encoding='utf-8') as f: f.write(json.dumps(event['command'])+'\n')
         (path/'hashes.txt').write_text('\n'.join(incident['hashes'])+'\n')
@@ -184,7 +223,7 @@ class Engine:
         if LEVEL[incident['severity']]>=2:
             self.fast_poll_until=time.time()+300
             self.preserve(path,incident,event)
-        atomic_json(ipath,incident)
+        evidence_commit(ipath,incident)
         self.report(path,incident)
         append_json(self.root/'logs/normalized/events.jsonl',event,rotate=True)
         if source in ('cowrie', 'opencanary'):
@@ -259,6 +298,14 @@ class Engine:
         (path/'incident.md').write_text(text,encoding='utf-8')
 
     def poll(self):
+        before=copy.deepcopy(self.state)
+        try:
+            return self._poll()
+        except Exception:
+            self.state=before
+            raise
+
+    def _poll(self):
         modpath=Path(__file__).with_name('hash-artifacts.py')
         spec=importlib.util.spec_from_file_location('hasher',modpath);mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
         mod.scan(self.artifacts)
@@ -290,7 +337,7 @@ class Engine:
                         append_json(self.root/'logs/system/parser-errors.jsonl',{'timestamp':utc(),'source':source,'offset':pos,'error':type(exc).__name__},rotate=True)
                     offset=f.tell()
             self.state['offsets'][name]={'inode':ident,'offset':offset}
-        atomic_json(self.statepath,self.state)
+        evidence_commit(self.statepath,self.state)
         hb=self.root/'state/incidentd/heartbeat';hb.parent.mkdir(parents=True,exist_ok=True);hb.touch()
 
 if __name__=='__main__':
