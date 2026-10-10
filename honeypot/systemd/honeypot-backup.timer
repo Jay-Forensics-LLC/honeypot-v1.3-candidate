@@ -1,0 +1,8 @@
+[Unit]
+Description=Honeypot backup schedule
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=24h
+AccuracySec=20s
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,7 @@
+{
+  "directory": "logs/cowrie",
+  "filename_pattern": "^cowrie\\.(json|log)\\.\\d{4}-\\d{2}-\\d{2}(\\.gz)?$",
+  "retention_variable": "LOG_RETENTION_DAYS",
+  "exclude": ["incidents", "artifacts", "state/cowrie/tty"],
+  "description": "Cold native daily raw-log rotations only. Compress after one day and expire after configured raw-log retention; protected evidence never included."
+}

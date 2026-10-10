@@ -1,0 +1,11 @@
+[Unit]
+Description=Honeypot Rotate live raw logs
+After=docker.service
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+ExecStart=/usr/sbin/logrotate -s @ROOT@/state/logrotate.status @ROOT@/state/logrotate.conf
+ExecStart=/usr/bin/python3 @ROOT@/scripts/cold-log-retention.py
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true

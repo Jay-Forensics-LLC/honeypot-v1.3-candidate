@@ -1,0 +1,53 @@
+{
+  "window_seconds": 900,
+  "auth_threshold": 8,
+  "service_threshold": 3,
+  "max_events_per_incident": 1000,
+  "max_field_values": 100,
+  "max_line_bytes": 1048576,
+  "suricata_severity": {
+    "1000001": "HIGH",
+    "1000002": "HIGH",
+    "1000003": "HIGH",
+    "1000004": "HIGH",
+    "1000005": "MEDIUM",
+    "1000006": "MEDIUM",
+    "1000007": "MEDIUM",
+    "1000008": "HIGH",
+    "1000009": "HIGH",
+    "1000010": "HIGH",
+    "1000011": "HIGH"
+  },
+  "command_rules": [
+    {
+      "id": "command.persistence",
+      "regex": "(?i)(crontab|authorized_keys|/etc/systemd|\\.bashrc)",
+      "severity": "HIGH"
+    },
+    {
+      "id": "command.reverse_shell",
+      "regex": "(?i)(/dev/tcp/|\\bnc\\b.*\\s-e\\s|bash\\s+-i|socat.*exec)",
+      "severity": "HIGH"
+    },
+    {
+      "id": "command.tunnel",
+      "regex": "(?i)(ssh\\s+.*-[DRL]\\s|chisel|frpc)",
+      "severity": "HIGH"
+    },
+    {
+      "id": "command.mining",
+      "regex": "(?i)(xmrig|minerd|stratum\\+tcp)",
+      "severity": "HIGH"
+    },
+    {
+      "id": "command.logging_disable",
+      "regex": "(?i)(history\\s+-c|systemctl\\s+stop\\s+(auditd|rsyslog)|/dev/null.*log)",
+      "severity": "HIGH"
+    },
+    {
+      "id": "command.escape_indicator",
+      "regex": "(?i)(/var/run/docker.sock|nsenter|/proc/1/root|mount.*cgroup)",
+      "severity": "HIGH"
+    }
+  ]
+}

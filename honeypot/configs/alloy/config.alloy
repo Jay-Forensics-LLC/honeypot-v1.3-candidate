@@ -1,0 +1,24 @@
+logging { level = "warn" }
+local.file_match "source_logs" {
+  path_targets = [
+    {"__path__" = "/logs/normalized/cowrie.jsonl", "job" = "honeypot", "source" = "cowrie"},
+    {"__path__" = "/logs/normalized/opencanary.jsonl", "job" = "honeypot", "source" = "opencanary"},
+    {"__path__" = "/logs/suricata/eve.json", "job" = "honeypot", "source" = "suricata"},
+    {"__path__" = "/logs/firewall/events.jsonl", "job" = "honeypot", "source" = "firewall"},
+    {"__path__" = "/logs/system/health.jsonl", "job" = "honeypot", "source" = "health"},
+    {"__path__" = "/logs/system/parser-errors.jsonl", "job" = "honeypot", "source" = "parser"},
+    {"__path__" = "/logs/system/audit.jsonl", "job" = "honeypot", "source" = "audit"},
+    {"__path__" = "/logs/system/containment.jsonl", "job" = "honeypot", "source" = "containment"},
+    {"__path__" = "/logs/normalized/events.jsonl", "job" = "honeypot", "source" = "normalized"},
+    {"__path__" = "/logs/normalized/incidents.jsonl", "job" = "honeypot", "source" = "incidents"},
+  ]
+  sync_period = "10s"
+}
+loki.source.file "source_logs" {
+  targets = local.file_match.source_logs.targets
+  forward_to = [loki.write.local.receiver]
+  // Position state is persisted. IPs, sessions and credentials remain fields, never labels.
+}
+loki.write "local" {
+  endpoint { url = "http://loki:3100/loki/api/v1/push" }
+}

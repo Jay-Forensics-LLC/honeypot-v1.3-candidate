@@ -1,0 +1,11 @@
+.env
+secrets
+state
+logs
+captures
+artifacts
+incidents
+backups
+work
+.git
+__pycache__

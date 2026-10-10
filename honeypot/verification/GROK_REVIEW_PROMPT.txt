@@ -1,0 +1,17 @@
+**Historical review prompt.** Item 3 below asks about an OPEN Docker embedded DNS issue. That issue was closed in the current tree with per-decoy blackhole DNS (Cowrie `172.29.40.254`, OpenCanary `172.29.41.254`). See `verification/OPEN_BLOCKERS.md`. Do not reopen it as a current blocker. The observed 2026-09-28 failure remains in `verification/LIVE_EVIDENCE_SUMMARY.md` as history.
+
+Perform an independent defensive-security review of this honeypot bundle. Do not assume that prior conclusions are correct.
+
+Priorities:
+1. Verify that the architecture safely isolates Cowrie and OpenCanary from the protected LAN and Internet while preserving telemetry.
+2. Review the Docker 29 workaround that makes the Cowrie/Canary bridges non-internal and relies on nftables `hp_guard` for egress containment.
+3. Investigate the OPEN Docker embedded DNS issue documented in `verification/OPEN_BLOCKERS.md`: both decoys can resolve external names through 127.0.0.11 even though direct TCP egress is blocked. Propose the narrowest durable fix and explain how to test it from both containers without weakening observability/management.
+4. Verify PCAP design: dual bridge capture, bounded rotation, `/var/lib/honeypot/captures`, group-readable pcapng, incidentd read-only access, and evidence preservation behavior.
+5. Review systemd privilege/sandbox settings and the GID 2000 / `honeypot-evidence` handling.
+6. Review health/readiness logic for false positives and false negatives.
+7. Review nftables rule ordering, Docker forwarding interactions, IPv4/IPv6 considerations, Docker embedded DNS behavior, and whether any bypass exists around the `forward` hook assumptions.
+8. Review startup/reboot safety. Design a fail-closed boot order where `hp_guard` is verified before attacker-facing services can start. Treat persistent firewall/startup changes as approval-required.
+9. Check for secret leakage, unsafe permissions, destructive commands, excessive privileges, or accidental public management exposure.
+10. Re-run/static-review tests where possible and identify missing tests.
+
+Separate findings into OBSERVED, INFERRED, and UNKNOWN. Rank technical findings by severity, but do not mark the system Internet-ready while the documented DNS blocker remains unresolved. Provide exact file/line references and concrete patch suggestions, but do not recommend hack-back or any action outside the authorized honeypot environment.

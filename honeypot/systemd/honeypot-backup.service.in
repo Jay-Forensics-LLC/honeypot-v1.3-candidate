@@ -1,0 +1,10 @@
+[Unit]
+Description=Honeypot Metadata backup
+After=docker.service
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+ExecStart=/usr/bin/python3 @ROOT@/scripts/backup.py
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true

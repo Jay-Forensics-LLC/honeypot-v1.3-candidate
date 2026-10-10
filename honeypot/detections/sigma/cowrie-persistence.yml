@@ -1,0 +1,14 @@
+title: Cowrie Persistence Command Indicator
+id: 4d1b12d7-30a4-4224-a49a-20ddf0e7acc0
+status: experimental
+description: Emulated shell input contains persistence paths; this is intent, not host execution.
+author: Honeypot deployment maintainers
+date: 2026-09-27
+logsource: {product: cowrie, category: application}
+detection:
+  selection:
+    eventid: cowrie.command.input
+    input|contains: [crontab, authorized_keys, /etc/systemd]
+  condition: selection
+falsepositives: [Authorized local exercises, Pasted text]
+level: high
