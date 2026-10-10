@@ -112,6 +112,13 @@ def verify_import_records(root, original, manifest):
 
 def main():
     manifest = json.loads((ROOT / 'docs/source-sync-manifest.json').read_text())
+    workflow = ROOT / '.github/workflows/source-baseline.yml'
+    require(digest(workflow.read_bytes()) == manifest['offline_workflow_sha256'], 'Offline workflow hash differs')
+    import yaml
+    workflow_config = yaml.safe_load(workflow.read_text())
+    require(workflow_config['permissions'] == {'contents': 'read'}, 'Offline workflow permissions differ')
+    steps = workflow_config['jobs']['offline-validation']['steps']
+    require(steps[0]['with']['persist-credentials'] is False, 'Checkout credentials must not persist')
     original = verify_archives(ROOT)
     verify_source(ROOT, manifest)
     verify_import_records(ROOT, original, manifest)

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "created_utc": "2026-10-10T03:13:35.869035+00:00",
+  "created_utc": "2026-10-10T03:17:29.908271+00:00",
   "source_commit": "538b3f550c4aa0a0c48cf550c081f97c527f8528",
   "source_branch": "master",
   "source_clean": true,
@@ -8,6 +8,7 @@
   "stage7": "BLOCKED",
   "stage8": "BLOCKED / NOT TESTED",
   "wan_authorized": false,
+  "offline_workflow_sha256": "2c2004ad9bf3a677c978cdb83e374dee7a081fbacdecb224ad4580ffd1c91999",
   "files": [
     {
       "path": "honeypot/.dockerignore",
@@ -1338,8 +1339,8 @@
     },
     {
       "path": "tools/validate_baseline.py",
-      "bytes": 6002,
-      "sha256": "c62ddedfb2acae3a628c9575b58dd9d0bcc227fdd840a8d94fe1a4d4a414e3ac",
+      "bytes": 6531,
+      "sha256": "a278ecd60721073d90d0e0763e584c465b2d9aaea6ce6dfbd97ac0ab1b972784",
       "mode": "0o644"
     }
   ],

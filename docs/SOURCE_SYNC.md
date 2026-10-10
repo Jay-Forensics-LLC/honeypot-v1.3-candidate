@@ -111,6 +111,16 @@ firewall/routing changes, boot changes or deployment were performed for this
 checkpoint. The three unavailable native/environment-dependent validation checks
 remain NOT TESTED. Neither reconciliation nor offline test counts clear live gates.
 
+## Offline Actions runtime
+
+The workflow pins reviewed official `actions/checkout` and `actions/setup-python`
+v6 commit SHAs. Both pinned action manifests declare Node.js 24, replacing the
+Node.js 20 deprecation warning reported on the original v4/v5 actions. Python
+3.12, the existing PyYAML pin, read-only repository permissions, disabled credential
+persistence and the offline validation command are unchanged. The workflow hash
+is recorded and verified by the source-sync manifest. This changes GitHub CI only,
+not host services, deployment, application dependencies or boot policy.
+
 ## Remaining qualification obligation
 
 The latest local reconciliation recorded `RECONCILED_CURRENT_SAFE` and postflight
