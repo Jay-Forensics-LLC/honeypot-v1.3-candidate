@@ -84,9 +84,9 @@ python3 -B tools/validate_baseline.py
 
 This validates both ZIPs, original archive entries, the complete current source
 inventory, explicit old/new hashes, executable modes, source exclusions and
-Python/JSON/YAML/bash syntax. It then runs five checkpoint-validator regression
+Python/JSON/YAML/bash syntax. It then runs six checkpoint-validator regression
 tests and, from `honeypot/`, `make stage7-test`, `make test`, and `make verify`.
-Local verification returned exit 0: 5 checkpoint tests, 87 offline
+Local verification returned exit 0: 6 checkpoint tests, 87 offline
 Stage 7 tests, 259 application tests; verification repeats 259 tests and reports
 16 static PASS / 3 NOT TESTED. Local stdout/stderr, exit codes and acquisition
 UTC times are retained privately, outside this source tree. GitHub Actions uses
@@ -99,6 +99,12 @@ normalized source modes before computing the manifest. The new validator rejects
 work, live environment files, symlinks, traversal, binary content and unaccounted
 changes to imported source. Content review accompanies these automated checks;
 file extensions alone were not treated as evidence of safe content.
+
+The first published snapshot failed Actions because a newly constructed fixture
+was recorded with local mode `0664`, which Git checks out as `0644`. Its copied
+source mode and manifest were corrected, and a regression now rejects modes
+outside Git-representable `0644`/`0755`. Original source/evidence permissions were
+not changed. Fresh-checkout validation is required for the correction.
 
 No privileged/live tests, container operations, listener changes, packet generation,
 firewall/routing changes, boot changes or deployment were performed for this

@@ -31,6 +31,11 @@ class SourceCheckpointTests(unittest.TestCase):
     def test_exact_reviewed_source_accepted(self):
         validator.verify_source(self.root, self.manifest())
 
+    def test_non_git_mode_rejected_even_when_local_mode_matches(self):
+        self.path.chmod(0o664)
+        with self.assertRaisesRegex(ValueError, 'Non-Git source mode'):
+            validator.verify_source(self.root, self.manifest())
+
     def test_changed_missing_or_extra_source_rejected(self):
         manifest = self.manifest()
         self.path.write_text('print("changed fixture")\n')

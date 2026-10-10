@@ -67,6 +67,7 @@ def verify_source(root, manifest):
     require(allowed_work <= names, 'Qualification source allowlist not fully inventoried')
     for entry in entries:
         name = entry['path']
+        require(entry['mode'] in {'0o644', '0o755'}, f'Non-Git source mode: {name}')
         path = safe_path(root, name)
         require(Path(name).parts[0] in {'honeypot', 'tools'}, f'Outside source roots: {name}')
         parts = Path(name).parts

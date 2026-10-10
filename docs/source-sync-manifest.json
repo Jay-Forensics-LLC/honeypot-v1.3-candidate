@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "created_utc": "2026-10-10T03:08:13.676668+00:00",
+  "created_utc": "2026-10-10T03:13:35.869035+00:00",
   "source_commit": "538b3f550c4aa0a0c48cf550c081f97c527f8528",
   "source_branch": "master",
   "source_clean": true,
@@ -1279,7 +1279,7 @@
       "path": "honeypot/work/live-qualification/synthetic_stage7.py",
       "bytes": 4827,
       "sha256": "58cab9e03d01f241431fa5ce33df17018f3113a235675357ae46990d4bfb6a00",
-      "mode": "0o664"
+      "mode": "0o644"
     },
     {
       "path": "honeypot/work/live-qualification/test-stage7-evidence-durability.py",
@@ -1332,14 +1332,14 @@
     },
     {
       "path": "tools/tests/test_source_sync.py",
-      "bytes": 4376,
-      "sha256": "104d616c7cb0f4fa7f759a14e3d955f20b6d7b219a0219885022c8726314d5e8",
+      "bytes": 4615,
+      "sha256": "8d311e1a8716894b18443ac859a6593f566aba0c9f3f79947156835b2bd75982",
       "mode": "0o644"
     },
     {
       "path": "tools/validate_baseline.py",
-      "bytes": 5917,
-      "sha256": "165a9ec6a295cd2d46b1bec0a10578dfef61b35ae9943b199d79516dd9ef84eb",
+      "bytes": 6002,
+      "sha256": "c62ddedfb2acae3a628c9575b58dd9d0bcc227fdd840a8d94fe1a4d4a414e3ac",
       "mode": "0o644"
     }
   ],
