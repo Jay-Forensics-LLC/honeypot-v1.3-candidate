@@ -1,5 +1,13 @@
 # Portable defensive honeypot — v1.3 production candidate
 
+## HoneyTrace prototype demo
+
+Run `python3 -B scripts/hp.py demo` for an unprivileged demonstration using the
+real incident pipeline and an offline browser report. Replay is explicitly
+synthetic; it does not claim live sensors, containment, PCAP, or Loki are healthy.
+See [DEMO.md](DEMO.md) for the guarded local live workflow and
+[PROJECT_STATUS.md](PROJECT_STATUS.md) for current evidence and limitations.
+
 An Ubuntu deployment bundle for a dedicated Lenovo IdeaPad Slim 3 (Ryzen 7,
 16 GB RAM, approximately 500 GB SSD). The build contains configuration, application
 code, rules and operator tooling; it does not include Docker images or an offline
@@ -7,7 +15,7 @@ Ubuntu package mirror. Nothing automatically forwards router ports.
 
 See [WAN criteria](docs/WAN_CRITERIA.md) for the technical gates. See
 [production readiness](verification/PRODUCTION_READINESS.md) for what is
-repository-complete versus live-only. Unit tests in this tree: 63.
+repository-complete versus live-only. Run `make test` for the current test count.
 
 **Deployment candidate, not a claim of production certification.** Read
 [validation results](docs/VALIDATION_REPORT.md) and the

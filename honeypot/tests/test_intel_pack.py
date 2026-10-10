@@ -29,7 +29,10 @@ class IntelPackTests(unittest.TestCase):
             (incident / 'events.jsonl').write_text(json.dumps({
                 'event_id': '1', 'normalized': event, 'raw': {'password': 's3cret', 'input': event['command']},
             }) + '\n', encoding='utf-8')
-            out, combined = intel_pack.build_pack(root, '7d', now=dt.datetime(2026, 9, 30, 13, tzinfo=dt.timezone.utc))
+            # Keep the fixed fixture within its intended window regardless of
+            # the host date; exercise the existing injectable clock.
+            now = dt.datetime(2026, 10, 1, tzinfo=dt.timezone.utc)
+            out, combined = intel_pack.build_pack(root, '7d', now=now)
             self.assertNotIn('s3cret', combined)
             self.assertNotIn('HPAKIAabcdef12345678', combined)
             self.assertNotIn('TTYDUMP', combined)
@@ -44,7 +47,7 @@ class IntelPackTests(unittest.TestCase):
             stix = json.loads((out / 'pack.stix.json').read_text(encoding='utf-8'))
             self.assertEqual(stix['type'], 'bundle')
             self.assertTrue(all(obj.get('spec_version') == '2.1' for obj in stix['objects']))
-            again, _combined = intel_pack.build_pack(root, '7d', now=dt.datetime(2026, 9, 30, 13, tzinfo=dt.timezone.utc))
+            again, _combined = intel_pack.build_pack(root, '7d', now=now)
             self.assertEqual(json.loads((out / 'pack.json').read_text())['clusters'], json.loads((again / 'pack.json').read_text())['clusters'])
             manifest = (out / 'MANIFEST.sha256').read_text(encoding='utf-8')
             self.assertIn('pack.json', manifest)

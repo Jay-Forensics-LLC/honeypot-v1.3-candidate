@@ -13,3 +13,23 @@ __pycache__/
 *.pcap
 *.pcapng
 *.key
+
+# Reviewed qualification source only; runtime outputs remain ignored.
+!/work/
+/work/*
+!/work/live-qualification/
+/work/live-qualification/*
+!/work/live-qualification/stage7-evidence-integrity-sweep.py
+!/work/live-qualification/stage7-reconciled-evidence.py
+!/work/live-qualification/stage7-restart-resilience.py
+!/work/live-qualification/stage7-evidence-recovery-remediation.py
+!/work/live-qualification/stage7-live-remediation-and-restart.py
+!/work/live-qualification/stage7-runtime-drift-diagnosis.py
+!/work/live-qualification/test-stage7-evidence-durability.py
+!/work/live-qualification/test-stage7-evidence-integrity-sweep.py
+!/work/live-qualification/test-stage7-live-remediation.py
+!/work/live-qualification/test-stage7-network-restart.py
+!/work/live-qualification/test-stage7-recovery-record-verifier.py
+!/work/live-qualification/test-stage7-restart-resilience.py
+!/work/live-qualification/test-stage7-runtime-drift-diagnosis.py
+!/work/live-qualification/synthetic_stage7.py
