@@ -1,0 +1,17 @@
+[Unit]
+Description=Bounded honeypot packet capture
+After=docker.service
+[Service]
+Type=simple
+WorkingDirectory=@ROOT@
+ExecStart=/usr/bin/python3 @ROOT@/scripts/pcap.py
+UMask=0027
+Group=@EVIDENCE_GROUP@
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=@PCAP@
+ProtectHome=read-only
+PrivateTmp=true
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN CAP_DAC_OVERRIDE
+# Manual restart after watermark stop; never restart into a disk-full condition.
+Restart=no

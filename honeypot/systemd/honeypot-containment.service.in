@@ -1,0 +1,10 @@
+[Unit]
+Description=Honeypot Opt-in critical containment hook
+After=docker.service
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+ExecStart=/usr/bin/python3 @ROOT@/scripts/containment-hook.py
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true

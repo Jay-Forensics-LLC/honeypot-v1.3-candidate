@@ -1,0 +1,9 @@
+# Copy to configs/alert-bus.yml to enable. Default is disabled.
+# No reputation lookup. Webhook egress is operator-chosen and redacted.
+enabled: false
+webhook_url: ""
+smtp_host: ""
+smtp_port: 25
+smtp_to: ""
+smtp_from: "honeypot@localhost"
+max_per_10min: 5

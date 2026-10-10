@@ -1,0 +1,596 @@
+{
+  "uid": "honeypot-overview",
+  "title": "Honeypot Overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "utc",
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "tags": [
+    "honeypot"
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Events over time",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({source=\"normalized\"}[$__interval]))",
+          "queryType": "range"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "Events by severity",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (severity) (count_over_time({source=\"normalized\"} | json [$__interval]))",
+          "queryType": "range"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "Top source IPs",
+      "type": "barchart",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10,sum by (source_ip) (count_over_time({source=\"normalized\"} | json | source_ip != \"\" [$__range])))",
+          "queryType": "instant"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Targeted services",
+      "type": "barchart",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (service) (count_over_time({source=\"normalized\"} | json [$__range]))",
+          "queryType": "instant"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "Username attempts",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{source=\"normalized\"} | json | username != \"\"",
+          "queryType": "range"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "Password attempts count",
+      "type": "stat",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({source=\"normalized\"} | json | password_present = \"true\" [$__range]))",
+          "queryType": "instant"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "title": "Cowrie commands",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{source=\"normalized\"} | json | command != \"\"",
+          "queryType": "range"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "title": "Suricata signatures",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{source=\"normalized\"} | json | signature != \"\"",
+          "queryType": "range"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "title": "File uploads and downloads",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{source=\"normalized\"} | json | event_type =~ \".*(file_upload|file_download).*\"",
+          "queryType": "range"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "title": "Artifact hashes",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{source=\"normalized\"} | json | sha256 != \"\"",
+          "queryType": "range"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "title": "Outbound blocks",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{source=\"firewall\"}",
+          "queryType": "range"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 12,
+      "title": "Incident updates by severity",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (severity) (count_over_time({source=\"incidents\"} | json [$__interval]))",
+          "queryType": "range"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 13,
+      "title": "Disk utilization percent",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max_over_time({source=\"health\"} | json | unwrap disk_percent | __error__=\"\" [$__interval])",
+          "queryType": "range"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 14,
+      "title": "Container health",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{source=\"health\"} | json | line_format \"{{.containers}}\"",
+          "queryType": "range"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 15,
+      "title": "Packet capture status",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{source=\"health\"} | json | line_format \"PCAP={{.pcap_running}} severity={{.severity}}\"",
+          "queryType": "range"
+        }
+      ],
+      "options": {},
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "type": "timeseries",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "id": 16,
+      "title": "Log pipeline freshness",
+      "description": "Last file write age by source at each health check; absent sources have no sample. Quiet sources may be old. Not delivery latency.",
+      "gridPos": {
+        "x": 0,
+        "y": 64,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max_over_time({source=\"health\"} | json age=\"pipeline_sources.cowrie.last_write_age\" | unwrap age | __error__=\"\" [$__interval])",
+          "legendFormat": "cowrie"
+        },
+        {
+          "refId": "B",
+          "expr": "max_over_time({source=\"health\"} | json age=\"pipeline_sources.opencanary.last_write_age\" | unwrap age | __error__=\"\" [$__interval])",
+          "legendFormat": "opencanary"
+        },
+        {
+          "refId": "C",
+          "expr": "max_over_time({source=\"health\"} | json age=\"pipeline_sources.suricata.last_write_age\" | unwrap age | __error__=\"\" [$__interval])",
+          "legendFormat": "suricata"
+        },
+        {
+          "refId": "D",
+          "expr": "max_over_time({source=\"health\"} | json age=\"pipeline_sources.firewall.last_write_age\" | unwrap age | __error__=\"\" [$__interval])",
+          "legendFormat": "firewall"
+        },
+        {
+          "refId": "E",
+          "expr": "max_over_time({source=\"health\"} | json age=\"pipeline_sources.health.last_write_age\" | unwrap age | __error__=\"\" [$__interval])",
+          "legendFormat": "health"
+        },
+        {
+          "refId": "F",
+          "expr": "max_over_time({source=\"health\"} | json age=\"pipeline_sources.parser.last_write_age\" | unwrap age | __error__=\"\" [$__interval])",
+          "legendFormat": "parser"
+        },
+        {
+          "refId": "G",
+          "expr": "max_over_time({source=\"health\"} | json age=\"pipeline_sources.audit.last_write_age\" | unwrap age | __error__=\"\" [$__interval])",
+          "legendFormat": "audit"
+        },
+        {
+          "refId": "H",
+          "expr": "max_over_time({source=\"health\"} | json age=\"pipeline_sources.containment.last_write_age\" | unwrap age | __error__=\"\" [$__interval])",
+          "legendFormat": "containment"
+        },
+        {
+          "refId": "I",
+          "expr": "max_over_time({source=\"health\"} | json age=\"pipeline_sources.normalized.last_write_age\" | unwrap age | __error__=\"\" [$__interval])",
+          "legendFormat": "normalized"
+        },
+        {
+          "refId": "J",
+          "expr": "max_over_time({source=\"health\"} | json age=\"pipeline_sources.incidents.last_write_age\" | unwrap age | __error__=\"\" [$__interval])",
+          "legendFormat": "incidents"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "type": "timeseries",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "id": 17,
+      "title": "hp_guard drop counters",
+      "description": "Cumulative packets; reset when the table is reapplied. UNKNOWN if guard query fails.",
+      "gridPos": {
+        "x": 12,
+        "y": 64,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max_over_time({source=\"health\"} | json packets=\"guard_counters.protected_drop\" | unwrap packets | __error__=\"\" [$__interval])",
+          "legendFormat": "protected_drop"
+        },
+        {
+          "refId": "B",
+          "expr": "max_over_time({source=\"health\"} | json packets=\"guard_counters.egress_drop\" | unwrap packets | __error__=\"\" [$__interval])",
+          "legendFormat": "egress_drop"
+        },
+        {
+          "refId": "C",
+          "expr": "max_over_time({source=\"health\"} | json packets=\"guard_counters.host_drop\" | unwrap packets | __error__=\"\" [$__interval])",
+          "legendFormat": "host_drop"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "title": "Audit actions",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "Allowlisted operator audit; no credential values.",
+      "gridPos": {
+        "x": 0,
+        "y": 72,
+        "w": 24,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{source=\"audit\"} | json | line_format \"{{.timestamp}} {{.action}} uid={{.actor}} success={{.success}}\""
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "title": "Bait hits",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "OBSERVED tripwire ids from normalized events. Passwords are not selected. Intel-pack files are under work/intel-packs.",
+      "gridPos": {
+        "x": 0,
+        "y": 79,
+        "w": 24,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{source=\"normalized\"} | json | bait_ids != \"\" | line_format \"{{.timestamp}} {{.source_ip}} bait={{.bait_ids}}\""
+        }
+      ]
+    }
+  ],
+  "annotations": {
+    "list": []
+  },
+  "templating": {
+    "list": []
+  },
+  "description": "Local-only honeypot telemetry. Password fields are removed from new searchable decoy streams; raw credentials remain in protected evidence. Historical data may remain sensitive."
+}

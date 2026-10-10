@@ -1,0 +1,15 @@
+.env
+secrets/
+state/**
+!state/wan-approval.example.json
+logs/**
+captures/**
+artifacts/**
+incidents/**
+backups/**
+work/
+__pycache__/
+*.pyc
+*.pcap
+*.pcapng
+*.key

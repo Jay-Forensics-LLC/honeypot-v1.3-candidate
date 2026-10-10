@@ -1,0 +1,25 @@
+[Unit]
+Description=Fail-closed honeypot decoy control
+
+Requires=docker.service
+Requires=honeypot-hp-guard.service
+BindsTo=honeypot-hp-guard.service
+
+After=docker.service
+After=honeypot-hp-guard.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+
+Environment=COMPOSE_PROJECT_NAME=honeypot
+
+ExecStartPre=/usr/sbin/nft list table inet hp_guard
+
+ExecStart=/usr/bin/python3 @ROOT@/scripts/ops.py boot-start
+
+ExecStop=/usr/bin/docker compose stop cowrie opencanary
+
+RemainAfterExit=yes
+TimeoutStartSec=180
+TimeoutStopSec=60

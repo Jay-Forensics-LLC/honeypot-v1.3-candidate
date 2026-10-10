@@ -1,0 +1,104 @@
+{
+  "timestamp": "2026-09-29T08:05:25.974938Z",
+  "counts": {
+    "PASS": 15,
+    "NOT TESTED": 4
+  },
+  "results": [
+    {
+      "check": "Required deliverables",
+      "status": "PASS",
+      "detail": "All required source/docs/scripts present"
+    },
+    {
+      "check": "JSON syntax",
+      "status": "PASS",
+      "detail": "6 JSON documents parsed"
+    },
+    {
+      "check": "YAML syntax",
+      "status": "PASS",
+      "detail": "6 YAML documents parsed"
+    },
+    {
+      "check": "Compose safety invariants",
+      "status": "PASS",
+      "detail": "No privileged containers or socket mounts; separate non-internal decoy bridges; DNS blackholes; loopback defaults; no published Loki"
+    },
+    {
+      "check": "Compose relative paths",
+      "status": "PASS",
+      "detail": "All static bind mounts and Dockerfile paths resolve: []"
+    },
+    {
+      "check": "Python compilation",
+      "status": "PASS",
+      "detail": "26 Python files compiled without writing pycache"
+    },
+    {
+      "check": "Cowrie INI syntax",
+      "status": "PASS",
+      "detail": "Cowrie INI parsed; protocol forwarding disabled"
+    },
+    {
+      "check": "Duplicate paths",
+      "status": "PASS",
+      "detail": "No case-insensitive duplicate relative paths; repeated basenames in different config directories are intentional"
+    },
+    {
+      "check": "Documentation relative links",
+      "status": "PASS",
+      "detail": "Markdown relative links resolve; []"
+    },
+    {
+      "check": "Script references",
+      "status": "PASS",
+      "detail": "Shell wrapper Python references resolve"
+    },
+    {
+      "check": "Build secret and evidence scan",
+      "status": "PASS",
+      "detail": "No private key blocks, packaged .env, or capture files: []"
+    },
+    {
+      "check": "Bash syntax",
+      "status": "PASS",
+      "detail": "bash -n passed for 26 scripts"
+    },
+    {
+      "check": "YARA syntax",
+      "status": "PASS",
+      "detail": "Compiled with libyara via yara-python"
+    },
+    {
+      "check": "Behavioral unit tests",
+      "status": "PASS",
+      "detail": "test_auth_threshold (test_engine.EngineTests.test_auth_threshold) ... ok\ntest_backup_verification_and_tamper_detection (test_engine.EngineTests.test_backup_verification_and_tamper_detection) ... ok\ntest_dedup (test_engine.EngineTests.test_dedup) ... ok\ntest_firewall_denial_not_compromise (test_engine.EngineTests.test_firewall_denial_not_compromise) ... ok\ntest_firewall_scoped (test_engine.EngineTests.test_firewall_scoped) ... ok\ntest_hash_manifest_replayed_after_restart (test_engine.EngineTests.test_hash_manifest_replayed_after_restart) ... ok\ntest_hash_stable_bytes (test_engine.EngineTests.test_hash_stable_bytes) ... ok\ntest_invalid_egress_rejected (test_engine.EngineTests.test_invalid_egress_rejected) ... ok\ntest_low_to_high_preservation (test_engine.EngineTests.test_low_to_high_preservation) ... ok\ntest_malicious_timestamp_no_path (test_engine.EngineTests.test_malicious_timestamp_no_path) ... ok\ntest_manifest_idempotent (test_engine.EngineTests.test_manifest_idempotent) ... ok\ntest_no_critical_from_attacker_text (test_engine.EngineTests.test_no_critical_from_attacker_text) ... ok\ntest_normalization_password (test_engine.EngineTests.test_normalization_password) ... ok\ntest_partial_line_checkpoint (test_engine.EngineTests.test_partial_line_checkpoint) ... ok\ntest_pcap_preserves_closed_segment_only (test_engine.EngineTests.test_pcap_preserves_closed_segment_only) ... ok\ntest_report_distinguishes_evidence (test_engine.EngineTests.test_report_distinguishes_evidence) ... ok\ntest_rotation_truncate (test_engine.EngineTests.test_rotation_truncate) ... ok\ntest_session_ip_enrichment (test_engine.EngineTests.test_session_ip_enrichment) ... ok\ntest_shared_username_links_not_merge (test_engine.EngineTests.test_shared_username_links_not_merge) ... ok\ntest_splitting_caps_incident_size (test_engine.EngineTests.test_splitting_caps_incident_size) ... ok\ntest_success_high (test_engine.EngineTests.test_success_high) ... ok\ntest_suricata_mapping (test_engine.EngineTests.test_suricata_mapping) ... ok\ntest_verified_boundary (test_engine.EngineTests.test_verified_boundary) ... ok\ntest_watermarks (test_engine.EngineTests.test_watermarks) ... ok\ntest_compose_dns_constants (test_hardening.GuardTests.test_compose_dns_constants) ... ok\ntest_loss_and_semantic_drift (test_hardening.GuardTests.test_loss_and_semantic_drift) ... ok\ntest_preview_never_stops_and_stop_failure_is_reported (test_hardening.GuardTests.test_preview_never_stops_and_stop_failure_is_reported) ... ok\ntest_rollback_rejects_other_tables_and_include (test_hardening.GuardTests.test_rollback_rejects_other_tables_and_include) ... ok\ntest_runtime_dns_rejects_extra_resolver (test_hardening.GuardTests.test_runtime_dns_rejects_extra_resolver) ... ok\ntest_table_deleted_unit_still_active_stops_only_decoys (test_hardening.GuardTests.test_table_deleted_unit_still_active_stops_only_decoys) ... ok\ntest_unreadable_policy_is_unsafe (test_hardening.GuardTests.test_unreadable_policy_is_unsafe) ... ok\ntest_valid_policy_and_counters (test_hardening.GuardTests.test_valid_policy_and_counters) ... ok\ntest_verdict_only_strips_log_limit (test_hardening.GuardTests.test_verdict_only_strips_log_limit) ... ok\ntest_boot_inspection_failure_after_start_stops_only_decoys (test_hardening.StartupTests.test_boot_inspection_failure_after_start_stops_only_decoys) ... ok\ntest_explicit_start_can_create_and_stops_on_postcheck_failure (test_hardening.StartupTests.test_explicit_start_can_create_and_stops_on_postcheck_failure) ... ok\ntest_exposure_requires_both_flag_and_fresh_pass (test_hardening.StartupTests.test_exposure_requires_both_flag_and_fresh_pass) ... ok\ntest_rendered_dns_and_actual_hostip_gates (test_hardening.StartupTests.test_rendered_dns_and_actual_hostip_gates) ... ok\ntest_start_stops_before_compose_when_guard_missing (test_hardening.StartupTests.test_start_stops_before_compose_when_guard_missing) ... ok\ntest_alloy_uses_sanitized_decoy_sources (test_hardening.TelemetryTests.test_alloy_uses_sanitized_decoy_sources) ... ok\ntest_approved_preview_install_never_enables_or_starts (test_hardening.TelemetryTests.test_approved_preview_install_never_enables_or_starts) ... ok\ntest_audit_allowlist_and_nested_redaction (test_hardening.TelemetryTests.test_audit_allowlist_and_nested_redaction) ... ok\ntest_backup_age_warning_is_optional_and_cumulative_drops_are_not_failure (test_hardening.TelemetryTests.test_backup_age_warning_is_optional_and_cumulative_drops_are_not_failure) ... ok\ntest_backup_failure_is_audited (test_hardening.TelemetryTests.test_backup_failure_is_audited) ... ok\ntest_drop_rate_counter_reset_and_initial_sample (test_hardening.TelemetryTests.test_drop_rate_counter_reset_and_initial_sample) ... ok\ntest_freshness_and_parser_last_hour (test_hardening.TelemetryTests.test_freshness_and_parser_last_hour) ... ok\ntest_password_never_enters_searchable_stream (test_hardening.TelemetryTests.test_password_never_enters_searchable_stream) ... ok\ntest_unit_preview_has_no_side_effects (test_hardening.TelemetryTests.test_unit_preview_has_no_side_effects) ... ok\n\n----------------------------------------------------------------------\nRan 47 tests in 0.232s\n\nOK"
+    },
+    {
+      "check": "Docker Compose validation",
+      "status": "NOT TESTED",
+      "detail": "docker unavailable on build host; target validation required"
+    },
+    {
+      "check": "Suricata config validation",
+      "status": "NOT TESTED",
+      "detail": "suricata unavailable on build host; target validation required"
+    },
+    {
+      "check": "Alloy configuration validation",
+      "status": "NOT TESTED",
+      "detail": "alloy unavailable on build host; target validation required"
+    },
+    {
+      "check": "POSIX executable permissions",
+      "status": "PASS",
+      "detail": "All shell entrypoints executable"
+    },
+    {
+      "check": "Ubuntu live integration",
+      "status": "NOT TESTED",
+      "detail": "Build-only execution; no daemon, network listener, capture, or firewall action started"
+    }
+  ]
+}

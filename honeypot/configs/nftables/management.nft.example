@@ -1,0 +1,17 @@
+# OPTIONAL TEMPLATE ONLY. Applying changes management access and requires approval.
+# Replace interface/address/subnet first; check existing nftables/UFW/Docker behavior.
+# This table never gets applied by apply-containment.sh.
+table inet hp_management {
+    chain input {
+        type filter hook input priority -20; policy accept;
+        iifname "lo" accept
+        tcp dport { 22, 3000 } ip saddr 192.0.2.0/24 accept
+        tcp dport { 22, 3000 } drop
+    }
+    # Docker published ports use FORWARD after DNAT; input rules alone are insufficient.
+    chain forward {
+        type filter hook forward priority -20; policy accept;
+        ct status dnat tcp dport 3000 ip saddr 192.0.2.0/24 accept
+        ct status dnat tcp dport 3000 drop
+    }
+}

@@ -1,0 +1,249 @@
+{
+  "checked_at": "2026-09-27T20:41:18.548330+00:00",
+  "images": [
+    {
+      "image": "cowrie/cowrie:3.0.15",
+      "digest": "sha256:fc57120d88c2bfb5817f63f6c132ce5c2969b641c2f1ac67887652b6f294148d",
+      "reference": "cowrie/cowrie:3.0.15@sha256:fc57120d88c2bfb5817f63f6c132ce5c2969b641c2f1ac67887652b6f294148d",
+      "source": "https://hub.docker.com/v2/repositories/cowrie/cowrie/tags/3.0.15",
+      "last_updated": "2026-09-21T03:15:30.627085Z",
+      "platforms": [
+        {
+          "architecture": "amd64",
+          "os": "linux",
+          "digest": "sha256:461f1070bd118bb1e4052429b6b180a3b9933b03a776f10a0b7cd74fec2b567f"
+        },
+        {
+          "architecture": "arm64",
+          "os": "linux",
+          "digest": "sha256:e14466eba607705ece7f64f067572ea6927e29d35eb25c2898120686ecc5c116"
+        }
+      ]
+    },
+    {
+      "image": "grafana/loki:3.6.7",
+      "digest": "sha256:3c8fd3570dd9219951a60d3f919c7f31923d10baee578b77bc26c4a0b32d092d",
+      "reference": "grafana/loki:3.6.7@sha256:3c8fd3570dd9219951a60d3f919c7f31923d10baee578b77bc26c4a0b32d092d",
+      "source": "https://hub.docker.com/v2/repositories/grafana/loki/tags/3.6.7",
+      "last_updated": "2026-02-23T10:28:27.227068Z",
+      "platforms": [
+        {
+          "architecture": "amd64",
+          "os": "linux",
+          "digest": "sha256:13e00a4f6aa64db624e78365d11ce2ee868cf49e202e511cadbd6fbc6c8b0e3a"
+        },
+        {
+          "architecture": "arm64",
+          "os": "linux",
+          "digest": "sha256:aec81b0ab063f30d942e2a34d7fc92e6fcce6dacdb3cc0a8dac8bc02ba88805b"
+        },
+        {
+          "architecture": "arm",
+          "os": "linux",
+          "digest": "sha256:f97d757c04401b3708e883deb417667e06a36425e8760fc3a6d7bbdefea600c0"
+        }
+      ]
+    },
+    {
+      "image": "grafana/grafana:12.4.1",
+      "digest": "sha256:e932bd6ed0e026595b08483cd0141e5103e1ab7ff8604839ff899b8dc54cabcb",
+      "reference": "grafana/grafana:12.4.1@sha256:e932bd6ed0e026595b08483cd0141e5103e1ab7ff8604839ff899b8dc54cabcb",
+      "source": "https://hub.docker.com/v2/repositories/grafana/grafana/tags/12.4.1",
+      "last_updated": "2026-03-09T15:21:01.492641Z",
+      "platforms": [
+        {
+          "architecture": "amd64",
+          "os": "linux",
+          "digest": "sha256:fab4d86718ecf6aec45961ae01c5f743a955e11fad0adb8f43c5f52a961b5144"
+        },
+        {
+          "architecture": "arm64",
+          "os": "linux",
+          "digest": "sha256:904cd1e709d196f6c433466f2effb295768d98f7fffd8edf9a3d8b93827317f9"
+        },
+        {
+          "architecture": "arm",
+          "os": "linux",
+          "digest": "sha256:13df0984417c8a794dee693010dedb3768be44f0b827987959a67e3e65eee8cf"
+        }
+      ]
+    },
+    {
+      "image": "grafana/alloy:v1.14.1",
+      "digest": "sha256:8f5666aebb871ba43ee2d65159c5d1c26c903720efafaf2d9ed4e237afc3bc88",
+      "reference": "grafana/alloy:v1.14.1@sha256:8f5666aebb871ba43ee2d65159c5d1c26c903720efafaf2d9ed4e237afc3bc88",
+      "source": "https://hub.docker.com/v2/repositories/grafana/alloy/tags/v1.14.1",
+      "last_updated": "2026-03-17T15:48:00.049218Z",
+      "platforms": [
+        {
+          "architecture": "amd64",
+          "os": "linux",
+          "digest": "sha256:e3a1fff5eee8e2535fb75b350d0ccb722149720c788e57fd8d93b33e9163d85b"
+        },
+        {
+          "architecture": "ppc64le",
+          "os": "linux",
+          "digest": "sha256:72dafeb23436cc8039a05ee4a5b87a61a540c872391f9510d2b9e4a01d9176b5"
+        },
+        {
+          "architecture": "arm64",
+          "os": "linux",
+          "digest": "sha256:ebd1be79271ade60d6b33883ee6782f9c12b60a3e9d364dfeca93ba7c19024da"
+        },
+        {
+          "architecture": "s390x",
+          "os": "linux",
+          "digest": "sha256:ea8c184355a6e6bf249fb644c97c45f703fd1c19d92b6d64727698d124d77d36"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown",
+          "digest": "sha256:42a1015fb9ebc478cd083ca9cbcbb16689976d3ff02a5ba6108b0252888a2f83"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown",
+          "digest": "sha256:3927226cad2c3e00054f4e549d2980fa85265acd73e08e5962ec2b912332c7d1"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown",
+          "digest": "sha256:41268185ad871938a3571a42c13b2dbf7dc355896e0b2629d30583d29b719971"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown",
+          "digest": "sha256:e717366d2cccb5590038df88c1bd0f4035008511d8e9dcb7a05ef70ae4ec85d9"
+        }
+      ]
+    },
+    {
+      "image": "python:3.12.13-slim-bookworm",
+      "digest": "sha256:4766d8b510c428e595d74b9cc5bbb2fae8e26316fffb4adc89908d79aacd58a2",
+      "reference": "python:3.12.13-slim-bookworm@sha256:4766d8b510c428e595d74b9cc5bbb2fae8e26316fffb4adc89908d79aacd58a2",
+      "source": "https://hub.docker.com/v2/repositories/library/python/tags/3.12.13-slim-bookworm",
+      "last_updated": "2026-08-05T08:11:27.317232Z",
+      "platforms": [
+        {
+          "architecture": "amd64",
+          "os": "linux",
+          "digest": "sha256:6e13e65c55e33adf203d77ee371cf8bf5d81bd4902ef07565721f46bf44917af"
+        },
+        {
+          "architecture": "ppc64le",
+          "os": "linux",
+          "digest": "sha256:c4b341911c6e09a3b3bd770314225f940ce25ca907ed77541e8d386d62cdfc11"
+        },
+        {
+          "architecture": "386",
+          "os": "linux",
+          "digest": "sha256:4ba37ff4c7545ca5aa58524a02ca77645e4bb298dfa724dc8514cc14fe76e1d1"
+        },
+        {
+          "architecture": "arm",
+          "os": "linux",
+          "digest": "sha256:b41a0915943ba965dd301bd9fc69eb4f4e971b83677038d19c6e270f9129a823"
+        },
+        {
+          "architecture": "arm64",
+          "os": "linux",
+          "digest": "sha256:3f9c7f75b916e8279e24136d7a57769aba9e193715be52570417698c52d6eed0"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown",
+          "digest": "sha256:149742d6367f099ea485faebd5730dc0077030a7e8e46cda1e07b5ab87340a80"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown",
+          "digest": "sha256:1f46863a593e6105c6117e103149dc6396e2e48a2c9971212b760656e0715598"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown",
+          "digest": "sha256:bd7623f3aacf3f166a60f21f280f32dff0ce18392a033b2840d3a85cb2b7cc5a"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown",
+          "digest": "sha256:f8c3b8d2840fdb48b48343826daad60c239b85a4c83d22461104da269823baa1"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown",
+          "digest": "sha256:079eff6ae1c6d362889d289b74237d60bac73f61db09a8934e16a35f21855d99"
+        }
+      ]
+    },
+    {
+      "image": "ubuntu:24.04",
+      "digest": "sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3",
+      "reference": "ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3",
+      "source": "https://hub.docker.com/v2/repositories/library/ubuntu/tags/24.04",
+      "last_updated": "2026-09-18T19:04:13.980942Z",
+      "platforms": [
+        {
+          "architecture": "amd64",
+          "os": "linux",
+          "digest": "sha256:496754492fb28b4d3049432f2ca787449331e23fb14f0dd3fffea86bf5a93eb4"
+        },
+        {
+          "architecture": "ppc64le",
+          "os": "linux",
+          "digest": "sha256:7704779ab473d740d5ad97dba05d773f2085746304621e01f85e08573dff7609"
+        },
+        {
+          "architecture": "s390x",
+          "os": "linux",
+          "digest": "sha256:d19ffc6e735c9a4c282af623ef469514567c89eda922a3e0706720eb03149de3"
+        },
+        {
+          "architecture": "arm",
+          "os": "linux",
+          "digest": "sha256:816a8105707d2552d1acf082c7c881938bd535ddc08a29ced7fb078bbb22af0d"
+        },
+        {
+          "architecture": "arm64",
+          "os": "linux",
+          "digest": "sha256:11dc1ccb427f0464a2369e645454c272bb0baece7357c892ba69d313b3a332cf"
+        },
+        {
+          "architecture": "riscv64",
+          "os": "linux",
+          "digest": "sha256:9646bf7809ba79c80eb888c7ef3d29971b2d04c0082140a6a724a8394f02d465"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown",
+          "digest": "sha256:35ccf75e9064a8d052eb2c706a2f547711fd1b2bd13a7c389b4e9da3cf8ca7f8"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown",
+          "digest": "sha256:3f1235d4b08be9731a8f8219b00dac3d764c5987d0f8cb9a45ace21bb8baabe7"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown",
+          "digest": "sha256:e795cf95294e03b50f9512a90f1b5d3104e4bdcc826cc937166395a9177a770b"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown",
+          "digest": "sha256:1d4a662c37ae1068ece02e79e04932dc3cd25ed366224340303633e4322038ea"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown",
+          "digest": "sha256:22b9a64b65db28504ad1f4dd940fd969ae047da9f81377d98ee2955f5ad9d644"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown",
+          "digest": "sha256:916413a85c87b36478d7c942010bd9dc613c0978744da8b2aa45596c1385b9fd"
+        }
+      ]
+    }
+  ]
+}

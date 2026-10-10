@@ -1,0 +1,14 @@
+# Rendered by bootstrap; operated by the project timer, never includes incidents/artifacts.
+# copytruncate is needed for long-lived writers; a small concurrent-write loss window exists.
+"@ROOT@/logs/cowrie/cowrie.json" "@ROOT@/logs/cowrie/cowrie.log" "@ROOT@/logs/suricata/eve.json" "@ROOT@/logs/suricata/suricata.log" {
+    daily
+    maxsize 100M
+    rotate @DAYS@
+    maxage @DAYS@
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+    su root root
+}

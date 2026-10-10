@@ -1,0 +1,12 @@
+Recovery review executed against a fresh extraction of:
+honeypot-v1.2-wan-polish-2026-09-30.zip
+SHA256: bd66da224e0aecb44a5acc9178d33cf03ef6799457a63fd7b0cc681f571d6bab
+
+python3 -B -m unittest discover -s tests -v
+RESULT: Ran 60 tests — OK
+
+python3 -B scripts/validate.py
+RESULT: PASS 14 / NOT TESTED 5 / FAIL 0
+NOT TESTED: YARA syntax, Docker Compose validation, Suricata config validation, Alloy configuration validation, Ubuntu live integration.
+
+No live system/network/router/firewall/service changes were performed.

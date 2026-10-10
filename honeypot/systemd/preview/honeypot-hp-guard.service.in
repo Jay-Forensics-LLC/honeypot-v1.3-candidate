@@ -1,0 +1,29 @@
+[Unit]
+Description=Honeypot containment firewall
+Documentation=file://@ROOT@/DEPLOYMENT.md
+
+# Docker establishes the persistent bridge networks first.
+After=docker.service
+
+# When these units participate in the same transaction, containment
+# must exist before capture and before the honeypot stack.
+Before=honeypot-pcap.service
+Before=honeypot-stack.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+
+ExecStart=/usr/bin/bash @ROOT@/scripts/apply-containment.sh --apply
+
+# Do not report success unless every expected owned chain exists.
+ExecStartPost=/usr/sbin/nft list table inet hp_guard
+ExecStartPost=/usr/sbin/nft list chain inet hp_guard outbound
+ExecStartPost=/usr/sbin/nft list chain inet hp_guard forward
+ExecStartPost=/usr/sbin/nft list chain inet hp_guard input
+ExecStartPost=/usr/bin/python3 @ROOT@/scripts/guard_watch.py
+
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

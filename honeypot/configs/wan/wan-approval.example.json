@@ -1,0 +1,10 @@
+{
+  "approved": false,
+  "approver": "",
+  "timestamp": "",
+  "allowed_ports": [],
+  "bind_address": "",
+  "test_source_cidr": "",
+  "residual_risk_acknowledged": false,
+  "notes": "Copy to state/wan-approval.json and fill every field. This example is never an approval. Scripts do not create router rules."
+}

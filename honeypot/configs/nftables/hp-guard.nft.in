@@ -1,0 +1,31 @@
+# Generated substitutions accept validated IP addresses only.
+# inet covers IPv4 and IPv6. Empty allowlists mean no new decoy egress.
+table inet hp_guard {
+    set blocked4 { type ipv4_addr; flags timeout; timeout 1h; }
+    set blocked6 { type ipv6_addr; flags timeout; timeout 1h; }
+    chain outbound {
+        # Replies to approved inbound decoy sessions must remain possible.
+        ct state established,related accept
+        ip daddr @PROTECTED@ limit rate 5/second burst 10 packets log prefix "HP_PROTECTED_DENY "
+        ip daddr @PROTECTED@ counter drop
+        ip daddr { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16 } counter drop
+        @APPROVED_EGRESS@
+        # Independent of container resolver configuration; approved DNS above only.
+        iifname { "br-hp-cowrie", "br-hp-canary" } udp dport 53 counter drop
+        iifname { "br-hp-cowrie", "br-hp-canary" } tcp dport 53 counter drop
+        limit rate 5/second burst 10 packets log prefix "HP_EGRESS_DENY "
+        counter drop
+    }
+    chain forward {
+        type filter hook forward priority -10; policy accept;
+        oifname { "br-hp-cowrie", "br-hp-canary" } ip saddr @blocked4 counter drop
+        oifname { "br-hp-cowrie", "br-hp-canary" } ip6 saddr @blocked6 counter drop
+        iifname { "br-hp-cowrie", "br-hp-canary" } jump outbound
+    }
+    chain input {
+        type filter hook input priority -10; policy accept;
+        iifname { "br-hp-cowrie", "br-hp-canary" } ct state established,related accept
+        iifname { "br-hp-cowrie", "br-hp-canary" } limit rate 5/second burst 10 packets log prefix "HP_HOST_DENY "
+        iifname { "br-hp-cowrie", "br-hp-canary" } counter drop
+    }
+}

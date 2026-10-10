@@ -1,0 +1,8 @@
+[Unit]
+Description=Honeypot firewall-log schedule
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=20s
+[Install]
+WantedBy=timers.target

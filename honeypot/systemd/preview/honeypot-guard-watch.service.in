@@ -1,0 +1,10 @@
+[Unit]
+Description=PREVIEW check live hp_guard semantics and stop only decoys on loss
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=@ROOT@
+ExecStart=/usr/bin/python3 @ROOT@/scripts/guard_watch.py --stop-decoys
+UMask=0027
+TimeoutStartSec=150

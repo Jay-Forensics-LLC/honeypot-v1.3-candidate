@@ -1,0 +1,44 @@
+# WAN-eligible published decoy ports. Loopback may still publish non-eligible ports.
+# Redis stays default deny: high scanner noise, low unique intel, extra abuse surface.
+# Extra OpenCanary examples (MySQL/MSSQL/VNC/SIP/SNMP) are not listed and stay disabled.
+ports:
+  - service: cowrie
+    container_port: 2222
+    host_port: 2222
+    proto: tcp
+    wan_eligible: true
+    intel_value: high
+    require_source_preservation: true
+    notes: SSH session telemetry
+  - service: cowrie
+    container_port: 2223
+    host_port: 2223
+    proto: tcp
+    wan_eligible: true
+    intel_value: medium
+    require_source_preservation: true
+    notes: Telnet session telemetry
+  - service: opencanary
+    container_port: 8080
+    host_port: 8080
+    proto: tcp
+    wan_eligible: true
+    intel_value: high
+    require_source_preservation: true
+    notes: HTTP bait and scanner paths
+  - service: opencanary
+    container_port: 2121
+    host_port: 2121
+    proto: tcp
+    wan_eligible: true
+    intel_value: medium
+    require_source_preservation: true
+    notes: FTP authentication attempts
+  - service: opencanary
+    container_port: 16379
+    host_port: 16379
+    proto: tcp
+    wan_eligible: false
+    intel_value: low
+    require_source_preservation: true
+    notes: Redis default deny for WAN

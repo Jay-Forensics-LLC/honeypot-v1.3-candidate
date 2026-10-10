@@ -1,0 +1,12 @@
+[Unit]
+Description=PREVIEW containment polling; approval required, default OFF
+Documentation=file://@ROOT@/docs/OPERATOR_MODEL.md
+
+[Timer]
+OnActiveSec=10s
+OnUnitInactiveSec=10s
+AccuracySec=1s
+Unit=honeypot-guard-watch.service
+
+[Install]
+WantedBy=timers.target
