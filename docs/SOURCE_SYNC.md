@@ -1,7 +1,14 @@
 # Reviewed HoneyTrace source synchronization
 
-This is a preservation checkpoint for review, not a production-qualified release.
-Stage 7: **BLOCKED**. Stage 8: **BLOCKED / NOT TESTED**. WAN remains unauthorized.
+Current frozen source: `2054c4f7762b01d969619629f785185e81413c09`.
+See [the October 10 source freeze](SOURCE_FREEZE_2026-10-10.md) for the current
+provenance and gates: the seven-row operator matrix PASS is retained;
+independent Stage 7 closeout remains pending; Phase 8 source work is gated,
+execution NOT TESTED, and WAN unauthorized. This export changes no live stack.
+
+The following sections retain the original `538b3f5` synchronization history.
+They are historical validation and qualification observations; the new source
+hash manifest identifies the frozen export and preserves those archive records.
 
 ## Provenance and archive preservation
 
@@ -121,7 +128,7 @@ persistence and the offline validation command are unchanged. The workflow hash
 is recorded and verified by the source-sync manifest. This changes GitHub CI only,
 not host services, deployment, application dependencies or boot policy.
 
-## Remaining qualification obligation
+## Historical remaining qualification obligation at 538b3f5
 
 The latest local reconciliation recorded `RECONCILED_CURRENT_SAFE` and postflight
 PASS. It established current observation only. A complete, fresh seven-service

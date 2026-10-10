@@ -1,14 +1,105 @@
 # HoneyTrace demonstration
 
-> **Source checkpoint:** this checkout contains sanitized source and constructed
-> offline test fixtures. The historical local report paths and supervised wrapper
-> below are private artifacts, excluded from GitHub. They are not available in a
-> fresh clone. Stage 7 and Stage 8 remain BLOCKED; reconciliation is not restart
-> qualification. See [source provenance](../docs/SOURCE_SYNC.md) for current limits.
-
 HoneyTrace is a defensive deception prototype. It records activity aimed at
 decoy services, turns telemetry into incidents, and retains supporting evidence
 for an operator to review. It never attacks an outside system.
+
+## Current Phase 7 closeout
+
+The operator's `stage7-fresh-ewnrhtur` matrix completed all seven restart rows
+with **PASS**, final postflight PASS and exit 0. The report records Stage 7 PASS
+and Stage 8 `READY_FOR_OPERATOR_DIRECTION`. **Independent closeout is pending
+protected packet/evidence access; Stage 8 execution is NOT TESTED and separately
+authorized. WAN remains unauthorized.** Do not rerun the completed matrix or
+the guarded demo merely to reconfirm these milestones.
+
+Report: `work/live-qualification/stage7-fresh-ewnrhtur/report.json`, SHA-256
+`97bee3ef001e17c0c65b376cf472ea183fff5ce6e37db6c938278dcf50fcbdbc`.
+Full row, strict runtime, eight raw/normalized/incident/classification/Loki
+relationships, final sweep accounting and postflight metadata were independently
+verified locally. The agent could not read the protected captures; `sudo -n`
+requires interactive authentication. This is an access boundary, not a failed
+packet test. PROJECT_STATUS.md records the exact coverage and remaining limits.
+
+Run this single **read-only completion check**, not another restart matrix:
+
+```bash
+sudo python3 -B "/home/joe/Jay Forensics/HoneyTrace/honeypot-v1.3-polish2/honeypot/work/stage7-verified-completion-phaovlwf/verify-completion.py"
+stage7_closeout_exit=$?
+printf 'EXIT_CODE: %s\n' "$stage7_closeout_exit"
+```
+
+It verifies the original report/baseline/row hashes, tested implementation and
+only explicitly allowed handoff-documentation differences. It preserves private
+copies of the linked evidence, re-parses all eight exact packet markers, checks
+complete final evidence accounting/recovery hashes and finite baseline prefixes,
+and checks the retained final runtime/postflight. It changes no live data or
+permissions, makes no decoy connections, restarts nothing and runs no Stage 8
+test. It uses a 120-second deadline and finite copy/prefix allowances. Every
+invocation creates a new private audit bundle; originals are never overwritten.
+
+Expected result: `VERIFIED_STAGE7_PASS`, Stage 7 PASS, Stage 8
+`READY_FOR_OPERATOR_DIRECTION`, exit 0, with report path and SHA-256. Keep those
+outputs for final independent handoff review. Any failed or unreadable mandatory
+evidence leaves closeout blocked; diagnose it without automatically retrying
+traffic or restarts. This verifier does not collect a new live runtime inventory
+or prove host-reboot continuity, zero packet loss or power-loss durability.
+
+## Historical Phase 7 retry handoff — already executed
+
+**Stage 7 BLOCKED; Stage 8 eligibility BLOCKED, execution NOT TESTED;
+WAN unauthorized.** Phase 7 means the existing seven-service restart matrix,
+not host boot/recovery. The guarded FTP demo below is retained historical PASS;
+do not repeat it merely to reconfirm that milestone.
+
+The operator's October 10 `stage7-fresh-u4vb87q6` matrix stopped after the first
+OpenCanary restart. The FTP event correctly became MEDIUM after its incident
+reached three distinct services; the harness incorrectly required LOW. The
+exact username packet was preserved and independently found retrospectively.
+The original run remains FAILED, with six rows not run. Its row postflight
+passed; the outer postflight failed against the old start/endpoint/MAC anchor
+and discarded its observation. Do not resume that checkpoint or rerun its old
+wrapper. PROJECT_STATUS.md links the immutable reports and packet hashes.
+
+Source-only verifier/reporting repairs pass 42 focused tests, 87 retained Stage 7
+tests and 275 application tests, with no skips. `make verify` passes; native
+Suricata/Alloy validation and Ubuntu live integration remain NOT TESTED.
+
+The reviewed command below was executed to produce the completed matrix above.
+It is retained as historical provenance; do not run it again for closeout:
+
+```bash
+bash "/home/joe/Jay Forensics/HoneyTrace/honeypot-v1.3-polish2/honeypot/work/stage7-classification-repair-epbyx9vc/run-stage7.sh" --execute-restarts
+```
+
+It checks the clean source checkpoint, current validation and preserved failure
+hashes before sudo. It first performs read-only current reconciliation against
+the verified recovered OpenCanary state: complete integrity/preservation,
+exact failed-run event/Loki/packet linkage, configuration, two-bridge capture,
+stable second observation and postflight. Any failure prevents the matrix.
+Only then does it acquire fresh active prerequisites and a stable formal
+baseline. It restarts the seven existing staging containers once, in order:
+OpenCanary, Cowrie, Suricata, Alloy, Loki, Grafana, incidentd. The full sweep keeps
+the 512 MiB / 16 MiB event / 1 MiB metadata / 4,000 incident / 120-second limits.
+Restart response, readiness (150 seconds), unique localhost packet/pipeline
+probes, preservation and bounded postflight are mandatory. A failed gate stops
+further restarts; Ctrl+C retains ABORTED and exit 130. No automatic retry occurs.
+
+The runner retains immutable baseline, per-row and final JSON reports. The
+wrapper prints `EXIT_CODE`, `REPORT` and `SHA256`; keep stdout/stderr and those
+outputs for independent verification. Do not claim completion from shell exit 0
+or a summary alone: require all seven linked PASS rows, final independent packet
+verification, complete evidence sweep and successful final postflight. A failure
+requires diagnosis/reconciliation before any new matrix. `--reconcile-only`
+performs just the new read-only reconciliation; `--check-source` checks the
+local pins without sudo or live inspection. Neither mode restarts capture, recreates
+containers, deploy source, change boot/security settings or execute Stage 8.
+
+Historical preparation: `work/stage7-classification-repair-epbyx9vc/diagnosis-report.json`,
+`validation.json` and `handoff.json`; the previous contract's requirements and
+finite safety limits are unchanged. Older wrappers describe historical attempts;
+the current closeout command is at the top of this document. Historical capture gap and original
+corruption cause remain UNKNOWN; reconstruction is separate derivative evidence.
 
 ## What this prototype demonstrates
 

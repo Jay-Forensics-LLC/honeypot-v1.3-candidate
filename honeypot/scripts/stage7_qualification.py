@@ -18,6 +18,7 @@ import time
 import demo
 from evidence_store import records
 from hp_common import sha256, utc
+from incidentd import normalize
 import live_capture
 from pcap_demo_recovery import compare_runtime, storage_gate
 import stage7_preservation as preservation
@@ -444,6 +445,72 @@ def ssh_banner(port, marker):
         time.sleep(0.25)
 
 
+def probe_classification(raw, event, context, protocol):
+    """Check this controlled input and the engine's receipt-order thresholds.
+
+    A unique marker does not create a new correlation group: localhost probes
+    can share an incident with earlier activity. Only the history through this
+    exact event contributes; the incident's later aggregate severity does not.
+    This is read-only and never constructs an Engine against live state.
+    """
+    source = {'ftp': 'opencanary', 'ssh_banner': 'cowrie'}[protocol]
+    expected = normalize(source, raw)
+    if (expected['severity'] != 'LOW' or expected['service'] != ('ftp' if protocol == 'ftp' else 'ssh') or
+            expected['event_type'] != ('2000' if protocol == 'ftp' else 'cowrie.client.version')):
+        raise ValueError('Unexpected controlled probe input')
+    for field in ('source', 'service', 'event_type', 'username', 'fingerprint',
+                  'password_present', 'command', 'url', 'sha256'):
+        if event.get(field) != expected[field]:
+            raise ValueError('Controlled probe normalization differs: ' + field)
+    if event.get('bait_ids'):
+        raise ValueError('Unexpected bait classification on controlled probe')
+    rules_data = context['rules_json'].encode()
+    if hashlib.sha256(rules_data).hexdigest() != context['rules_sha256']:
+        raise ValueError('Retained classification rules hash differs')
+    rules = json.loads(rules_data)
+    for field in ('auth_threshold', 'service_threshold', 'max_field_values', 'max_events_per_incident'):
+        if type(rules.get(field)) is not int or rules[field] < 1:
+            raise ValueError('Invalid reviewed correlation threshold: ' + field)
+    history = context['history']
+    if (not isinstance(history, list) or not history or len(history) > rules['max_events_per_incident'] or
+            history[-1].get('event_id') != event['event_id']):
+        raise ValueError('Classification history must end at the exact probe event')
+    seen, services, auth = set(), [], 0
+    for row in history:
+        eid = row['event_id']
+        if (not isinstance(eid, str) or not eid or eid in seen or type(row.get('password_present')) is not bool or
+                not isinstance(row.get('service'), str) or not isinstance(row.get('event_type'), str)):
+            raise ValueError('Invalid/duplicate classification history')
+        seen.add(eid)
+        service = row['service']
+        if service and service not in services and len(services) < rules['max_field_values']:
+            services.append(service)
+        if row['password_present'] or 'login.failed' in row['event_type']:
+            auth += 1
+    last = history[-1]
+    if any(last[field] != event[field] for field in ('service', 'password_present', 'event_type')):
+        raise ValueError('Classification history differs from exact probe event')
+    severity = 'MEDIUM' if auth >= rules['auth_threshold'] or len(services) >= rules['service_threshold'] else 'LOW'
+    if event.get('severity') != severity:
+        raise ValueError(f'Controlled probe classification differs: expected {severity}, observed {event.get("severity")} '
+                         f'(auth={auth}, services={len(services)})')
+    return {'status': 'PASS', 'expected_severity': severity, 'observed_severity': event['severity'],
+            'auth_attempt_count_at_event': auth, 'services_at_event': services, 'history_count': len(history),
+            'auth_threshold': rules['auth_threshold'], 'service_threshold': rules['service_threshold'],
+            'rules_sha256': context['rules_sha256'],
+            'scope': 'Exact event classification; containing incident may have higher severity'}
+
+
+def classification_context(retained, event, rules_json, rules_hash):
+    history = []
+    for eid, row in retained.items():
+        normalized = row['normalized']
+        history.append({'event_id': eid, **{k: normalized[k] for k in ('service', 'password_present', 'event_type')}})
+        if eid == event['event_id']:
+            return {'history': history, 'rules_json': rules_json, 'rules_sha256': rules_hash}
+    raise ValueError('Exact probe event absent from classification history')
+
+
 def probe(runtime, folder, marker, protocol='ftp'):
     service, network, port = ('opencanary', 'honeypot-canary-net', 2121) if protocol == 'ftp' else ('cowrie', 'honeypot-cowrie-net', 2222)
     bindings = runtime['containers'][service]['ports'][str(port) + '/tcp']
@@ -456,54 +523,75 @@ def probe(runtime, folder, marker, protocol='ftp'):
                'demo_run_id': marker, 'protocol': protocol, 'started_epoch': started,
                'target_ip': target, 'target_port': port, 'loopback_port': int(bindings[0]['HostPort'])}
     save(folder / 'interaction-intent.json', {**attempt, 'interaction': 'NOT YET COMPLETED'})
-    interaction = demo.ftp_interaction if protocol == 'ftp' else ssh_banner
-    interaction(int(bindings[0]['HostPort']), marker)
-    save(folder / 'interaction-completed.json', {**attempt, 'interaction': 'PASS', 'completed_utc': utc()})
-    pending = time.monotonic() + 60
     last_missing = []
-    while time.monotonic() < pending:
-        raw = [v for v in demo.rows(RUNTIME / f'logs/{service}/{service}.json') if
-               (v.get('logdata', {}).get('USERNAME') == marker if protocol == 'ftp' else
-                v.get('eventid') == 'cowrie.client.version' and v.get('version') == 'SSH-2.0-' + marker)]
-        normalized = [v for v in demo.rows(RUNTIME / 'logs/normalized/events.jsonl') if v.get('source') == service and
-                      (v.get('username') == marker if protocol == 'ftp' else v.get('fingerprint') == 'SSH-2.0-' + marker)]
-        if len(raw) > 1 or len(normalized) > 1:
-            raise ValueError('Ambiguous/duplicated unique probe records')
-        last_missing = ['raw' if not raw else '', 'normalized' if not normalized else '']
-        if raw and normalized:
-            event = normalized[0]
-            if event['severity'] != 'LOW' or event['service'] != ('ftp' if protocol == 'ftp' else 'ssh'):
-                raise ValueError('Controlled probe classification differs')
-            incident = demo.evidence_for(RUNTIME, event)
-            if incident:
-                record = records(Path(incident['evidence_path']))[event['event_id']]
-                if record['raw'] != raw[0] or record['normalized'] != event:
-                    raise ValueError('Raw/normalized records differ from retained incident evidence')
-                try:
-                    central = loki_event(runtime, event)
-                except ValueError as exc:
-                    if not str(exc).startswith('Exact unchanged normalized event absent'):
-                        raise
-                    central = None
-                if central:
-                    packet = live_capture.packet_proof(RUNTIME, folder, marker, target, started, protocol=protocol)
-                    if packet['ok']:
-                        if time.monotonic() >= pending:
-                            raise TimeoutError('Packet verification completed after the probe deadline')
-                        attempt.update(status='PASS', event=event, incident=incident, loki=central, packet=packet,
-                                       raw_artifact=save(folder / 'raw.json', raw[0]),
-                                       normalized_artifact=save(folder / 'normalized.json', event),
-                                       record_artifact=save(folder / 'incident-record.json', record))
-                        save(folder / 'probe.json', attempt)
-                        return attempt
-                    attempt['packet_attempt'] = packet
+    try:
+        interaction = demo.ftp_interaction if protocol == 'ftp' else ssh_banner
+        interaction(int(bindings[0]['HostPort']), marker)
+        save(folder / 'interaction-completed.json', {**attempt, 'interaction': 'PASS', 'completed_utc': utc()})
+        pending = time.monotonic() + 60
+        while time.monotonic() < pending:
+            raw = [v for v in demo.rows(RUNTIME / f'logs/{service}/{service}.json') if
+                   (v.get('logdata', {}).get('USERNAME') == marker if protocol == 'ftp' else
+                    v.get('eventid') == 'cowrie.client.version' and v.get('version') == 'SSH-2.0-' + marker)]
+            normalized = [v for v in demo.rows(RUNTIME / 'logs/normalized/events.jsonl') if v.get('source') == service and
+                          (v.get('username') == marker if protocol == 'ftp' else v.get('fingerprint') == 'SSH-2.0-' + marker)]
+            attempt['observed_records'] = {'raw': raw, 'normalized': normalized}
+            if len(raw) > 1 or len(normalized) > 1:
+                raise ValueError('Ambiguous/duplicated unique probe records')
+            last_missing = ['raw' if not raw else '', 'normalized' if not normalized else '']
+            if raw and normalized:
+                event = normalized[0]
+                incident = demo.evidence_for(RUNTIME, event)
+                central = None
+                if incident:
+                    path = Path(incident['evidence_path'])
+                    before = preservation.regular(path)
+                    if before.st_size > review.EVIDENCE_FILE_LIMIT:
+                        raise ValueError('Probe evidence exceeds reviewed per-file allowance')
+                    retained = records(path)
+                    after = preservation.regular(path)
+                    if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
+                        raise ValueError('Probe evidence changed during classification read')
+                    record = retained[event['event_id']]
+                    if record['raw'] != raw[0] or record['normalized'] != event:
+                        raise ValueError('Raw/normalized records differ from retained incident evidence')
+                    rules_json = preservation.stable_bytes(RUNTIME / 'detections/correlation/rules.json', 1024**2).decode()
+                    context = classification_context(retained, event, rules_json,
+                                                     runtime['mounted_config_hashes']['detections/correlation/rules.json'])
+                    attempt['classification'] = probe_classification(raw[0], event, context, protocol)
+                    try:
+                        central = loki_event(runtime, event)
+                    except ValueError as exc:
+                        if not str(exc).startswith('Exact unchanged normalized event absent'):
+                            raise
+                    if central:
+                        packet = live_capture.packet_proof(RUNTIME, folder, marker, target, started, protocol=protocol)
+                        if packet['ok']:
+                            if time.monotonic() >= pending:
+                                raise TimeoutError('Packet verification completed after the probe deadline')
+                            attempt.update(status='PASS', event=event, incident=incident, loki=central, packet=packet,
+                                           raw_artifact=save(folder / 'raw.json', raw[0]),
+                                           normalized_artifact=save(folder / 'normalized.json', event),
+                                           record_artifact=save(folder / 'incident-record.json', record),
+                                           classification_artifact=save(folder / 'classification-context.json', context))
+                            save(folder / 'probe.json', attempt)
+                            return attempt
+                        attempt['packet_attempt'] = packet
                 last_missing = ['incident' if not incident else '', 'loki' if not central else '', 'packet']
-        time.sleep(1)
-    save(folder / 'failed-probe.json', {**attempt, 'status': 'FAILED', 'missing': last_missing})
-    raise TimeoutError('Probe verification deadline exceeded: ' + ', '.join(x for x in last_missing if x))
+            time.sleep(1)
+        raise TimeoutError('Probe verification deadline exceeded: ' + ', '.join(x for x in last_missing if x))
+    except (Exception, KeyboardInterrupt) as exc:
+        failure = {'status': 'FAILED', 'error': type(exc).__name__ + ': ' + str(exc), 'missing': last_missing}
+        try:
+            failure['artifact'] = save(folder / 'failed-probe.json', {**attempt, **failure})
+        except (Exception, KeyboardInterrupt) as retention_error:
+            failure['retention_error'] = type(retention_error).__name__ + ': ' + str(retention_error)
+        exc.probe_failure = failure
+        raise
 
 
 def postflight(row, expected=None):
+    runtime = resources = None
     try:
         with deadline(60):
             runtime, resources = observe()
@@ -512,11 +600,12 @@ def postflight(row, expected=None):
     except KeyboardInterrupt:
         row['interrupted'] = True
         row.setdefault('error', 'KeyboardInterrupt: operator interrupted qualification')
-        row['postflight'] = {'status': 'FAILED', 'error': 'KeyboardInterrupt: postflight interrupted; current safety not established'}
+        row['postflight'] = {'status': 'FAILED', 'error': 'KeyboardInterrupt: postflight interrupted; current safety not established',
+                             'runtime': runtime, 'capture_resources': resources}
     except Exception as exc:
         row['postflight'] = {'status': 'FAILED', 'error': type(exc).__name__ + ': ' + str(exc),
-                             'runtime': getattr(exc, 'runtime_observation', None),
-                             'capture_resources': getattr(exc, 'capture_observation', None)}
+                             'runtime': runtime if runtime is not None else getattr(exc, 'runtime_observation', None),
+                             'capture_resources': resources if resources is not None else getattr(exc, 'capture_observation', None)}
 
 
 def acquire_preservation(folder, name):
@@ -633,12 +722,14 @@ def restart_row(name, anchor, base, folder, events, index):
             row['preservation_comparison'] = preservation.compare(RUNTIME, preserved_before, acquired)
             preservation.compare(RUNTIME, base['preservation'], acquired)
             row['checks']['preservation'] = 'PASS'
-    except KeyboardInterrupt:
+    except KeyboardInterrupt as exc:
         row['interrupted'] = True
         row['error'] = 'KeyboardInterrupt: operator interrupted ' + row['phase'] + '; no further restart or probe'
+        row['probe_failure'] = getattr(exc, 'probe_failure', None)
     except Exception as exc:
         row['error'] = type(exc).__name__ + ': ' + str(exc)
         row['failed_runtime_observation'] = getattr(exc, 'runtime_observation', None)
+        row['probe_failure'] = getattr(exc, 'probe_failure', None)
     finally:
         postflight(row, recovered)
         # A healthy postflight after interrupted recovery still requires the
@@ -683,7 +774,7 @@ def complete_rows(rows):
             raise ValueError('Incidentd protected startup check absent')
 
 
-def verify_packets(rows):
+def verify_packets(rows, rules_hash):
     seen = set()
     evidence = []
     for row in rows:
@@ -705,6 +796,11 @@ def verify_packets(rows):
                     artifacts['record_artifact']['normalized'] != probe_row['event'] or
                     artifacts['record_artifact']['raw'] != artifacts['raw_artifact']):
                 raise ValueError('Independent raw/normalized/incident relationship differs')
+            context = load_verified(Path(probe_row['classification_artifact']['path']), probe_row['classification_artifact']['sha256'])
+            if context['rules_sha256'] != rules_hash:
+                raise ValueError('Probe classification rules differ from baseline')
+            if probe_classification(artifacts['raw_artifact'], probe_row['event'], context, probe_row['protocol']) != probe_row['classification']:
+                raise ValueError('Independent probe classification differs')
             # Parse an identical private /tmp copy again. No live traffic or ring reads.
             with tempfile.TemporaryDirectory(prefix='stage7-packet-verify-') as tmp:
                 path = Path(tmp) / 'capture.pcapng'
@@ -744,8 +840,19 @@ def execute_matrix(base, link, folder):
             row['report'] = save(row_folder / 'row.json', row)
             print('ROW: ' + name + ' ' + row['status'], flush=True)
             if row.get('interrupted'):
-                if row.get('postflight', {}).get('status') == 'PASS':
-                    anchor = row['postflight']['runtime']
+                # Retain interruption even if the separate anchor check fails.
+                result['interrupted'] = True
+            if row.get('postflight', {}).get('status') == 'PASS':
+                current = row['postflight']['runtime']
+                cid = anchor.get('containers', {}).get(name, {}).get('id')
+                intended = cid and row.get('restart_command') == ['docker', 'restart', '--timeout', '15', cid]
+                started = intended and current['containers'][name]['started_at'] != anchor['containers'][name]['started_at']
+                comparison = strict_compare(anchor, current, name if started else None,
+                                            base['execution_configuration']['dynamic_mac'][name] if started else False)
+                result['postflight_anchor'] = {'service': name, 'comparison': comparison,
+                                              'scope': 'Verified current runtime only; failed row remains failed'}
+                anchor = current
+            if row.get('interrupted'):
                 raise KeyboardInterrupt
             if row['status'] != 'PASS':
                 raise ValueError('Restart matrix stopped at first failure: ' + name)
@@ -766,7 +873,7 @@ def execute_matrix(base, link, folder):
             result['final_preservation'] = acquired
             result['final_preservation_comparison'] = preservation.compare(RUNTIME, base['preservation'], acquired)
             result['final_existing_loki'] = [loki_event(final, event) for event in events]
-            result['final_packets'] = verify_packets(result['rows'])
+            result['final_packets'] = verify_packets(result['rows'], base['runtime']['mounted_config_hashes']['detections/correlation/rules.json'])
             result['final_startup_protection'] = integrity_startup(result['rows'][-1]['restart_requested_utc'])
             if source_revision() != base['source_commit'] or implementation() != base['implementation']:
                 raise ValueError('Tested implementation changed before final verification')
