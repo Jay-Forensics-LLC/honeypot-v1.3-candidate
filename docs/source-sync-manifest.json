@@ -1155,6 +1155,24 @@
       "bytes": 6591,
       "sha256": "f612c02b8e4361fc4b54d1367ef4a600431005767477d8a7b229ac892cc41507",
       "mode": "0o644"
+    },
+    {
+      "path": "honeypot/scripts/docker_ownership.py",
+      "bytes": 21088,
+      "sha256": "a6353dbe4459f148cafc416b9564e7327ad03a07752df586497f4ef95c766dc5",
+      "mode": "0o644"
+    },
+    {
+      "path": "honeypot/tests/test_docker_ownership.py",
+      "bytes": 15444,
+      "sha256": "f408236eb18c103d2663cec9be44536e2abc50c50bb18f30bd7dbacac59eac58",
+      "mode": "0o644"
+    },
+    {
+      "path": "honeypot/docs/DOCKER_OWNERSHIP.md",
+      "bytes": 8686,
+      "sha256": "e4193125324b9cc4451e85f68894a575ed055762b641325b0589c659507d84bd",
+      "mode": "0o644"
     }
   ],
   "qualification_source_allowlist": [
@@ -1278,5 +1296,9 @@
     "honeypot/work/live-qualification/test-stage7-restart-resilience.py",
     "honeypot/work/live-qualification/test-stage7-runtime-drift-diagnosis.py",
     "honeypot/verification/LIVE_EVIDENCE_SUMMARY.md"
-  ]
+  ],
+  "docker_ownership_diagnostic": {
+    "reviewed_base": "a240e772eb7d0523f413e3ae07f06c8e1a3820a0",
+    "scope": "Standalone read-only diagnostic; live Ubuntu ownership NOT TESTED; qualification gates unchanged"
+  }
 }
