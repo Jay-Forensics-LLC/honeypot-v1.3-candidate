@@ -1,8 +1,35 @@
 # Stage 8 supervised boot and recovery handoff
 
-Current disposition: **BLOCKED pending a complete verified Stage 7 restart
-matrix**. Stage 8 execution is NOT TESTED and requires separate operator
+Current disposition: the `stage7-fresh-ewnrhtur` report records **Stage 7 PASS**,
+all seven restart rows PASS and Stage 8 `READY_FOR_OPERATOR_DIRECTION`.
+**Independent completion verification is pending protected packet/evidence
+access.** Stage 8 execution remains NOT TESTED and requires separate operator
 direction. WAN remains unauthorized. This document installs or enables nothing.
+
+The locally hash-verified matrix report is
+`work/live-qualification/stage7-fresh-ewnrhtur/report.json`, SHA-256
+`97bee3ef001e17c0c65b376cf472ea183fff5ce6e37db6c938278dcf50fcbdbc`.
+Qualification source is `1a2b8c73106763d824999091c4e56c64f061f59e`; boot ID
+`67a93065-7f07-40e5-aa12-806d9ff14dcc`. The completed run's final health,
+containment, capture, logging and complete evidence checks passed. Independent
+local metadata verification confirms all required rows/checks and eight exact
+event relationships. Re-parsing protected packet copies and checking finite
+baseline prefixes require the single read-only command in DEMO.md. Do not
+repeat the completed restart matrix. Finish that closeout before issuing the
+verified Stage 8 handoff; an authentication failure does not imply packet loss.
+
+Historical result (October 10, 2026 UTC): `stage7-fresh-u4vb87q6` FAILED after the
+OpenCanary restart. Its exact FTP event correctly reached MEDIUM at the
+three-service correlation threshold; the harness required LOW. Retrospective
+packet discovery proves that marker was captured but does not complete the row.
+The row postflight passed. The outer postflight used the pre-restart anchor,
+failed, and discarded its observation; that historical result stays FAILED.
+
+Source-only classification and postflight/reporting repairs have offline
+regression coverage and were exercised by the later completed matrix. No
+deployment, restart-policy or capture-policy change occurred. The original
+failed report stays unchanged. Source publication, healthy reconciliation and
+offline CI alone cannot qualify a restart matrix or boot/recovery behavior.
 
 Stage 7 checks process/container restarts on one unchanged host boot, with the
 existing capture process running throughout. Stage 8 must establish safe boot

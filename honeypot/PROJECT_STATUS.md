@@ -1,11 +1,5 @@
 # HoneyTrace
 
-> **Source checkpoint:** this checkout contains sanitized source and constructed
-> offline test fixtures. The historical local report paths and supervised wrapper
-> below are private artifacts, excluded from GitHub. They are not available in a
-> fresh clone. Stage 7 and Stage 8 remain BLOCKED; reconciliation is not restart
-> qualification. See [source provenance](../docs/SOURCE_SYNC.md) for current limits.
-
 Current Prototype Version: local-demo slice 0.3, based on v1.3 polish2
 
 Date: 2026-10-10 UTC
@@ -18,7 +12,127 @@ The prototype has **working replay and a verified operator-run guarded localhost
 FTP demonstration**. Production qualification remains incomplete; this is not
 an Internet-exposure certification.
 
-## Current Stage 7 disposition — verified reconciliation
+## Current Phase 7 disposition — seven restart rows passed; closeout pending
+
+The operator's `stage7-fresh-ewnrhtur` report records **Stage 7 PASS**, all seven
+restart rows PASS, postflight PASS and exit 0. Its Stage 8 gate is
+`READY_FOR_OPERATOR_DIRECTION`; Stage 8 execution remains **NOT TESTED** and
+separately authorized. **Independent closeout is pending protected packet and
+evidence reads; a verified Stage 8 handoff has not yet been issued.** WAN remains
+unauthorized. Do not rerun the completed restart matrix.
+
+The locally hash-verified report is
+`work/live-qualification/stage7-fresh-ewnrhtur/report.json`, SHA-256
+`97bee3ef001e17c0c65b376cf472ea183fff5ce6e37db6c938278dcf50fcbdbc`.
+The formal baseline SHA-256 is
+`35d4ee88fbb460c22085dae858b204cdfede5a0d98e7e045d4b2ac811661e9d2`;
+it was acquired at **2026-10-10 06:38:38 UTC**, on boot
+`67a93065-7f07-40e5-aa12-806d9ff14dcc`, qualified source
+`1a2b8c73106763d824999091c4e56c64f061f59e`. The matrix ran from
+**06:38:38 to 06:47:48 UTC**. These observations describe that completed run,
+not a new current runtime inventory.
+
+Independent non-root verification passed for the full linked rows in approved
+order: OpenCanary, Cowrie, Suricata, Alloy, Loki, Grafana and incidentd. Each row
+contains all 11 mandatory PASS checks. Container/image identities, unchanged
+boot and security properties, intended target lifecycle changes, bounded
+recovery, metadata/count/dedup/custody/offset relationships, eight exact
+raw/normalized/incident/classification/Loki links, and final postflight
+observations were checked. Hash-pinned implementation still matches the
+executed offline validation: 42 focused, 87 retained Stage 7, 275 application
+and 7 handoff tests. No old failed row was combined with this matrix.
+
+The runner's final evidence sweep covered **1,183/1,183 incidents**:
+**284,951,608 bytes planned / 284,953,028 bytes read**, with accounted growth,
+within the unchanged 512 MiB allowance. Preservation verified the baseline's
+**1,174 incidents and 22 log prefixes**, event counts, offsets and custody.
+The final recorded capture PID/start identity stayed **35114 / 238919**, on
+both decoy bridges; hp_guard fingerprint stayed
+`7d71bbf63586343b61d6ccf80bfe2fe99c3235df6d438531fcf900f65eec1ddd`.
+Seven services were healthy, restart counts stayed 0, WAN was disabled, and
+the historical original and separate recovery/provenance checks passed in
+the retained run. Eight uniquely marked packet proofs are linked by hash.
+
+The agent independently verified the metadata and artifact links, but a direct
+read of the protected capture was denied. Its narrow `sudo -n` verification
+attempt returned **interactive authentication required**, exit 1. Packet bytes,
+offline parser matches and current finite baseline-prefix verification are
+therefore **NOT TESTED by the closeout verifier yet**. This access boundary is
+not evidence of capture failure and does not alter the original PASS report.
+
+Private closeout preparation and preserved acquisitions:
+`work/stage7-verified-completion-phaovlwf/`. Metadata verification report SHA-256:
+`88f92bab6e88ee19fdb432a8938fcae3d6e53778d8f8f031d054b1b5ba5f2161`.
+**Exact next action:** run DEMO.md's single read-only privileged completion
+verifier, retain its report/hash/exit code, and independently inspect the result.
+It never restarts services, generates traffic or executes Stage 8. Historical
+capture gaps, corruption cause and power-loss durability remain unresolved;
+recovery remains derivative evidence. No deployment or security-policy change
+occurred during this closeout preparation.
+
+## Historical Phase 7 disposition — classification verifier repaired
+
+**Phase 7 is the implementation's Stage 7. Stage 7: BLOCKED.
+Stage 8 eligibility: BLOCKED; execution: NOT TESTED / separately authorized.
+WAN remains unauthorized.**
+
+The operator's `stage7-fresh-u4vb87q6` run failed after OpenCanary restarted and
+recovered. Its baseline was acquired at **2026-10-10 05:23:33 UTC**, boot
+`67a93065-7f07-40e5-aa12-806d9ff14dcc`; SHA-256
+`732c43897cd64ee41f34b626563286b2b3a6f8af3171ad0c43853661ee3dbf52`.
+Fresh prerequisite coverage was **1,149/1,149 incidents**, **282,575,558 bytes
+planned/read**, within the unchanged 512 MiB allowance. These are that run's
+observations, not today's current inventory.
+
+The immutable FAILED report SHA-256 is
+`cf23d6b6460e88fb8d483d92298b752a65883bbea62996b43f9720e0b7f94ed4`.
+Only OpenCanary restarted; identity, configuration, runtime comparison and its
+row postflight passed. The probe failed because the harness required LOW, while
+the correct event severity was MEDIUM. The six later rows did not run.
+
+Retained raw/normalized/incident records prove the exact probe was the third
+distinct service in its correlation group: `firewall`, `failed`, `ftp`. That
+meets the configured service threshold of three. The auth count at that event
+was one; the containing incident's HIGH aggregate severity is separate.
+The exact FTP username was also found retrospectively in packet frame 33,
+TCP stream 0, from `172.29.41.1:47758` to `172.29.41.2:2121` at
+`1791609881.295612578` epoch seconds. Its retained 8,032-byte segment hash is
+`73ee6078d0301eb374abeaefb241b4cd09727f16c99bbec02eea3bf0cd5c3242`.
+Independent offline parsing passed. This does not qualify the incomplete row.
+
+The original outer postflight failed against a stale pre-restart anchor and
+discarded its observation on the comparison exception. Its historical result
+remains FAILED. Future failed comparisons retain their observations; a verified
+target lifecycle can anchor final safety checks without qualifying a failed row.
+Source-only repairs now derive exact LOW/MEDIUM expectations from hash-pinned
+rules and receipt-order history, retain early probe failure diagnostics, and
+independently recheck classification alongside the mandatory packet evidence.
+Wrong source/service/severity, altered rules, missing packets and unrelated
+runtime/security drift remain rejected. No incidentd deployment is required.
+
+Current offline validation: **42 focused tests**, `make stage7-test` (**87**),
+`make test` (**275**), and `make verify` all pass, exit 0, no unit-test skips.
+Static validation: **16 PASS / 3 NOT TESTED** (native Suricata, native Alloy,
+Ubuntu live integration). The initial targeted failures were retained and fixed:
+an interruption flag had to survive anchor rejection; a test's mocked rules
+reader incorrectly intercepted its private artifact read.
+
+Private preservation/diagnosis: `work/stage7-classification-repair-epbyx9vc/`.
+Diagnosis SHA-256:
+`8f966d90507b7bb3fd5c6cd0e78e949b99e56dd2ccaf3af3070d557b82a3d9a1`.
+Original failed reports, source checkpoint, adjacent captures and matching
+incident records are preserved locally; no retained data is staged for Git.
+Current privileged reconciliation and a complete new matrix remain required.
+
+**Exact next action:** the new command in DEMO.md first reconciles this failed
+run read-only, verifies current complete evidence/preservation and stable safety,
+then conditionally establishes a new baseline and runs one full seven-service
+matrix. It never resumes or combines old rows. Stage 8 remains blocked until
+all rows and final independent verification pass. Historical corruption cause,
+power-loss durability and reboot capture gap remain UNKNOWN; recovery remains
+a separate derivative. No staging deployment or security-policy change occurred.
+
+## Historical Stage 7 disposition — verified reconciliation
 
 **Stage 7: BLOCKED pending a complete fresh restart matrix.
 Stage 8: BLOCKED / NOT TESTED. WAN unauthorized.**

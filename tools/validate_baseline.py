@@ -127,7 +127,7 @@ def main():
                    cwd=ROOT, check=True, timeout=30)
     for target in ('stage7-test', 'test', 'verify'):
         subprocess.run(['make', target], cwd=ROOT / 'honeypot', check=True, timeout=120)
-    print('Stage 7: BLOCKED; Stage 8: BLOCKED / NOT TESTED. No live, privileged, boot or deployment qualification.', flush=True)
+    print('Offline source validation only: independent Stage 7 closeout required; Stage 8 NOT TESTED; WAN unauthorized. No live, privileged, boot or deployment qualification.', flush=True)
 
 
 if __name__ == '__main__':
