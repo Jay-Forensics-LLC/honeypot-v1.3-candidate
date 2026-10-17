@@ -2,6 +2,10 @@
 
 This is a review baseline, not a deployment or production-readiness certification.
 
+Current validation separates the immutable archive receipt from evolving source.
+See [dependency update policy](DEPENDENCY_UPDATE_POLICY.md) for the current checks;
+the original import chronology below remains historical.
+
 ## Provenance
 
 Imported from `honeypot-v1.3-production-candidate-2026-09-30-polish2.zip`, 493,390 bytes, verified SHA-256 `918badc9d84c81cbef12ac5262e812c86f0816db1384e676031569044ffa45e6`.
