@@ -14,6 +14,17 @@ SERVICES = {'cowrie', 'opencanary', 'suricata', 'loki', 'alloy', 'grafana', 'inc
 PLACEMENT = {'cowrie': {'honeypot-cowrie-net'}, 'opencanary': {'honeypot-canary-net'},
              'suricata': {'host'}, 'grafana': {'honeypot-observability', 'honeypot-management'},
              **{n: {'honeypot-observability'} for n in ('loki', 'alloy', 'incidentd')}}
+# Candidate policy, independent of the deployed Compose rendering and inventory.
+# Keep this exact set in sync with reviewed static binds in docker-compose.yml.
+STATIC_MOUNTS = {
+    'cowrie': {'/cowrie/cowrie-git/etc/cowrie.cfg': 'configs/cowrie/cowrie.cfg'},
+    'opencanary': {'/etc/opencanaryd/opencanary.conf': 'configs/opencanary/opencanary.conf'},
+    'suricata': {'/etc/suricata/suricata.yaml': 'configs/suricata/suricata.yaml', '/rules': 'detections/suricata'},
+    'loki': {'/etc/loki/config.yml': 'configs/loki/config.yml'},
+    'alloy': {'/etc/alloy/config.alloy': 'configs/alloy/config.alloy'},
+    'grafana': {'/etc/grafana/provisioning': 'configs/grafana/provisioning', '/var/lib/grafana/dashboards': 'dashboards'},
+    'incidentd': {'/hp/detections': 'detections'},
+}
 
 
 def fingerprint(value):
@@ -44,6 +55,7 @@ def _validate_runtime(rendered, containers, networks, root, stopped=frozenset())
     problems = []
     if set(containers) != SERVICES or set(rendered.get('services', {})) != SERVICES:
         return ['Exactly the seven expected services must be present']
+    problems.extend(static_mount_problems(rendered, root))
     for name, c in containers.items():
         spec = rendered['services'][name]
         host = c['HostConfig']
@@ -95,6 +107,12 @@ def _validate_runtime(rendered, containers, networks, root, stopped=frozenset())
         if set(expected) != allowed_targets:
             problems.append(name + ': unexpected published service')
         mounts = {v['Destination']: v for v in c.get('Mounts', [])}
+        for target in (host.get('Tmpfs') or {}):
+            if overlaps_static(target, STATIC_MOUNTS[name]):
+                problems.append(name + ': actual tmpfs masks candidate static configuration at ' + target)
+        for mount in c.get('Mounts', []):
+            if mount.get('Type') == 'tmpfs' and overlaps_static(mount['Destination'], STATIC_MOUNTS[name]):
+                problems.append(name + ': actual tmpfs mount masks candidate static configuration')
         expected_mounts = set()
         for volume in spec.get('volumes', []):
             target = volume['target']; expected_mounts.add(target)
@@ -219,15 +237,54 @@ def static_configuration_hashes(rendered, root):
     return mounted
 
 
+def static_mount_problems(rendered, root):
+    """Require reviewed sources, destinations and modes even when runtime agrees."""
+    problems = []
+    root = Path(root)
+    for name, required in STATIC_MOUNTS.items():
+        spec = rendered.get('services', {}).get(name, {})
+        volumes = spec.get('volumes', [])
+        for entry in spec.get('tmpfs', []):
+            target = entry.partition(':')[0]
+            if overlaps_static(target, required):
+                problems.append(name + ': tmpfs masks candidate static configuration at ' + target)
+        by_target = {}
+        for volume in volumes:
+            target = volume.get('target', '')
+            if target in by_target: problems.append(name + ': duplicate mount target ' + target)
+            by_target[target] = volume
+            if target not in required:
+                source = Path(volume.get('source', ''))
+                if (any(source.is_relative_to(root/p) for p in ('configs', 'detections', 'dashboards')) or
+                        overlaps_static(target, required)):
+                    problems.append(name + ': unreviewed static mount ' + target)
+        for target, relative in required.items():
+            volume = by_target.get(target, {})
+            if (volume.get('type') != 'bind' or volume.get('source') != str(root/relative) or
+                    volume.get('read_only') is not True):
+                problems.append(name + ': candidate static mount differs at ' + target)
+    return problems
+
+
+def overlaps_static(target, required):
+    if type(target) is not str or not target.startswith('/') or target.startswith('//'):
+        return True
+    path = Path(target)
+    if str(path) != target or '..' in path.parts: return True
+    return any(path.is_relative_to(value) or Path(value).is_relative_to(path) for value in required)
+
+
+def static_mount_policy(root):
+    return {'services': {name: {'volumes': [
+        {'type': 'bind', 'source': str(Path(root)/relative), 'target': target, 'read_only': True}
+        for target, relative in mounts.items()]} for name, mounts in STATIC_MOUNTS.items()}}
+
+
 def verify_static_configuration(rendered, root, source_root):
+    problems = static_mount_problems(rendered, root)
+    if problems: raise ValueError('; '.join(problems))
     deployed = static_configuration_hashes(rendered, root)
-    # Remap the same mounts into candidate source, retaining exact file-set comparison.
-    candidate = json.loads(json.dumps(rendered))
-    for service in candidate['services'].values():
-        for volume in service.get('volumes', []):
-            path = Path(volume['source'])
-            if path.is_relative_to(root): volume['source'] = str(source_root / path.relative_to(root))
-    expected = static_configuration_hashes(candidate, source_root)
+    expected = static_configuration_hashes(static_mount_policy(source_root), source_root)
     if deployed != expected: raise ValueError('Mounted static configuration differs from candidate source')
     return deployed
 

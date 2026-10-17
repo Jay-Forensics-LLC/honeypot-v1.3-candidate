@@ -104,3 +104,34 @@ fixtures do not certify current host identity, crash/power-loss durability, old
 capture continuity, fresh target installation, or beta acceptance. No service,
 Docker daemon, firewall, live capture, runtime file, or historical evidence was
 changed. Independent Stage 7 remains pending; Phase 8 remains untested.
+
+## PR 19 replay and migration correction — 2026-10-17
+
+This correction follows reviewed head `489269b339d87204396572bac7d7c8c89da66ca8`
+and addresses issue #20 plus the five reproduced PR 19 findings. Stable event
+locations are reserved durably before evidence append and resolved before current
+receipt-window grouping. Orphan metadata uses the retained normalized record;
+metadata-committed replay republishes the incident summary before checkpointing.
+Integrity diagnostics include safely available original hashes, and candidate
+static-mount policy rejects bind/tmpfs masking and unreviewed source redirection.
+
+Initial migration uses a durable, bounded inventory/inspection queue. Recognizable
+complete-prefix/NUL-tail history is preserved and quarantined with original and
+metadata hashes pinned; affected IDs cannot replay into another incident. This
+retains healthy unrelated ingestion without accepting damaged records. Other
+unknown damage blocks migration. Duplicate historical IDs preserve both locations
+and block ambiguous replay. File/directory changes during migration block its
+completion. Invalid locator state holds checkpoints and emits an integrity
+diagnostic. See `honeypot/docs/OPERATIONS.md` for limits and recovery behavior.
+
+The corrected application suite passes 415 tests; the unchanged separate Stage 7
+offline suite passes 89 tests. `make verify` passes with 17 static categories PASS
+and two NOT TESTED. A prior isolated verification reported a unit failure without
+retaining its assertion; a subsequent diagnostic retained full output and passed,
+as did the normal check targets. That earlier failure's cause remains unknown;
+these results do not establish an explanation or power-loss acceptance.
+
+This is a source correction for review. Issue closure, merge, deployment, current
+host identity, actual mount/packet verification, independent Stage 7 closeout and
+Phase 8 acceptance remain separate. No live operation or historical evidence edit
+is performed by this patch. Other-session Stage 8 working-tree changes are excluded.

@@ -170,15 +170,17 @@ class RuntimeTrust(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)/'runtime';source=Path(tmp)/'source'
             for folder in [root,source]:
-                (folder/'configs/alloy').mkdir(parents=True);(folder/'configs/alloy/config').write_text('reviewed')
-            rendered={'services':{'alloy':{'volumes':[{'source':str(root/'configs/alloy')}]}}}
+                for name in ('configs', 'detections', 'dashboards'):
+                    shutil.copytree(ROOT/name, folder/name)
+            rendered=runtime.static_mount_policy(root)
             self.assertTrue(runtime.verify_static_configuration(rendered,root,source))
-            (root/'configs/alloy/config').write_text('altered')
+            config=root/'configs/alloy/config.alloy';original=config.read_bytes()
+            config.write_text('altered')
             with self.assertRaisesRegex(ValueError,'differs'):runtime.verify_static_configuration(rendered,root,source)
-            (root/'configs/alloy/config').write_text('reviewed');(root/'configs/alloy/extra').write_text('extra')
+            config.write_bytes(original);(root/'detections/extra').write_text('extra')
             with self.assertRaisesRegex(ValueError,'differs'):runtime.verify_static_configuration(rendered,root,source)
-            (root/'configs/alloy/extra').unlink();(root/'configs/alloy/config').unlink()
-            with self.assertRaisesRegex(ValueError,'differs'):runtime.verify_static_configuration(rendered,root,source)
+            (root/'detections/extra').unlink();config.unlink()
+            with self.assertRaisesRegex(ValueError,'Static configuration missing'):runtime.verify_static_configuration(rendered,root,source)
 
     def test_static_configuration_symlink_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
