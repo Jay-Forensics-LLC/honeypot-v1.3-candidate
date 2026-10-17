@@ -26,6 +26,10 @@ def fixture():
                           'Dns':[inventory.DNS[name]] if name in inventory.DNS else [],'PortBindings':copy.deepcopy(mappings)},
             'NetworkSettings':{'Networks':{n:{} for n in inventory.PLACEMENT[name]},'Ports':copy.deepcopy(mappings)},'Mounts':[]}
     containers['grafana']['Mounts']=[{'Destination':'/run/secrets/grafana_admin_password','Source':str(root/'secrets/grafana_admin_password'),'RW':False}]
+    for name, spec in inventory.static_mount_policy(root)['services'].items():
+        services[name]['volumes'] = spec['volumes']
+        containers[name]['Mounts'].extend({'Destination':v['target'], 'Source':v['source'], 'RW':False, 'Type':'bind'}
+                                        for v in spec['volumes'])
     for suffix,subnet in [('cowrie-net','40'),('canary-net','41'),('observability','42'),('management','43')]:
         name='honeypot-'+suffix
         networks.append({'Name':name,'IPAM':{'Config':[{'Subnet':'172.29.'+subnet+'.0/24','Gateway':'172.29.'+subnet+'.1'}]},'Internal':suffix=='observability',

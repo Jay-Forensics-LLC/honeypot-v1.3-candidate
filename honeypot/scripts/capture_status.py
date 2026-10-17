@@ -1,10 +1,11 @@
 """Read-only capture identity checks. No restart, recovery, or evidence mutation."""
 from pathlib import Path
 import subprocess
+import os
 from hp_common import config, runtime_path, run, utc
 
 
-def inspect_capture(root, runner=run, proc=Path('/proc')):
+def inspect_capture(root, runner=run, proc=Path('/proc'), expected_executable=Path('/usr/bin/dumpcap')):
     cfg = config(root)
     row = {'timestamp': utc(), 'ok': False, 'problems': [], 'continuity': 'NOT TESTED'}
     try:
@@ -21,6 +22,11 @@ def inspect_capture(root, runner=run, proc=Path('/proc')):
         # comm can contain spaces and parentheses; field 22 is starttime.
         stat = (proc / str(pid) / 'stat').read_text().rsplit(')', 1)[1].split()
         argv = (proc / str(pid) / 'cmdline').read_bytes().rstrip(b'\0').decode().split('\0')
+        executable = (proc / str(pid) / 'exe').resolve(strict=True)
+        expected_path = Path(expected_executable).resolve(strict=True)
+        if executable != expected_path or not os.path.samefile(proc / str(pid) / 'exe', expected_path):
+            raise ValueError('Capture executable differs from trusted dumpcap')
+        row['executable'] = str(executable)
         expected = [v.strip() for v in cfg.get('PCAP_INTERFACES', cfg.get('HONEYPOT_INTERFACE', '')).split(',') if v.strip()]
         actual = [argv[i + 1] for i, v in enumerate(argv[:-1]) if v == '-i']
         dest = runtime_path('PCAP_PATH', 'captures', root).resolve()
@@ -40,7 +46,8 @@ def inspect_capture(root, runner=run, proc=Path('/proc')):
         if sorted(ring) != sorted(expected_ring) or '-a' in argv:
             raise ValueError('Capture ring differs or has an automatic stop condition')
         after = (proc / str(pid) / 'stat').read_text().rsplit(')', 1)[1].split()
-        if after[19] != stat[19] or after[0] == 'Z':
+        if (after[19] != stat[19] or after[0] == 'Z' or
+                (proc / str(pid) / 'exe').resolve(strict=True) != executable):
             raise ValueError('Capture process changed during inspection')
         row['ok'] = True
     except (OSError, ValueError, IndexError, KeyError, subprocess.SubprocessError) as exc:

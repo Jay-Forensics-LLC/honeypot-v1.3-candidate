@@ -1,5 +1,12 @@
 # Changelog
 
+## Post-merge review fixes (2026-10-17)
+
+- Preserve ingestion across missing metadata and blocked segments; bound startup and evidence indexing.
+- Verify runtime configuration, image provenance and capture executable identity.
+- Reject unconsumed rotations and metadata drift; enforce custody checks under optimized Python.
+- Runtime qualification may now require a reviewed image lock; no live deployment performed.
+
 ## v1.3.0-beta.1 unverified source candidate — 2026-10-13
 
 - Added bounded read-only Docker ownership/context/API diagnostics and startup

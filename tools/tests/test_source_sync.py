@@ -174,3 +174,39 @@ class WorkflowTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ReviewedQualificationUpdates(unittest.TestCase):
+    setUp = SourceCheckpointTests.setUp
+    manifest = SourceCheckpointTests.manifest
+
+    def prepare(self):
+        path=self.root/'honeypot/work/live-qualification/fixture.py'
+        path.parent.mkdir(parents=True);path.write_text('pass\n');path.chmod(0o644)
+        original=self.manifest(path)['files'][0]
+        (self.root/'docs').mkdir()
+        receipt={'qualification_source_allowlist':[original['path']], 'files':[original]}
+        (self.root/'docs/source-sync-manifest.json').write_text(json.dumps(receipt))
+        path.write_text('print("reviewed fix")\n')
+        update=self.manifest(path)['files'][0]
+        update.update(original_sha256=original['sha256'],reason='Reviewed security fix')
+        self.receipt=self.root/'docs/qualification-source-updates.json'
+        self.receipt.write_text(json.dumps({'version':1,'updates':[update]}))
+        return path,update
+
+    def test_new_pin_preserves_original_receipt_and_rejects_later_tampering(self):
+        path,update=self.prepare();original=(self.root/'docs/source-sync-manifest.json').read_bytes()
+        self.assertEqual(validator.verify_source(self.root),2)
+        self.assertEqual((self.root/'docs/source-sync-manifest.json').read_bytes(),original)
+        path.write_text('print("unreviewed")\n')
+        with self.assertRaisesRegex(ValueError,'differs'):validator.verify_source(self.root)
+
+    def test_wrong_origin_duplicate_unknown_path_and_version_rejected(self):
+        path,update=self.prepare()
+        cases=[{'version':2,'updates':[update]},
+               {'version':1,'updates':[{**update,'original_sha256':'wrong'}]},
+               {'version':1,'updates':[update,update]},
+               {'version':1,'updates':[{**update,'path':'honeypot/work/private.py'}]}]
+        for amended in cases:
+            self.receipt.write_text(json.dumps(amended))
+            with self.assertRaises(ValueError):validator.verify_source(self.root)

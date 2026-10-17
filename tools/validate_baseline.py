@@ -58,6 +58,19 @@ def verify_source(root=ROOT):
     records = {row['path']: row for row in receipt.get('files', [])}
     require(all(name.startswith('honeypot/work/live-qualification/') and name.endswith('.py')
                 for name in allowed), 'Invalid qualification source allowlist')
+    updates_path = root / 'docs/qualification-source-updates.json'
+    updates = {}
+    if updates_path.exists():
+        require(not updates_path.is_symlink(), 'Qualification updates receipt symlink')
+        amended = json.loads(updates_path.read_text())
+        require(amended.get('version') == 1, 'Unknown qualification update receipt version')
+        for update in amended.get('updates', []):
+            name = update['path']
+            require(name in allowed and name not in updates, 'Unexpected/duplicate qualification update')
+            require(update.get('original_sha256') == records.get(name, {}).get('sha256'),
+                    'Qualification update original hash differs from export receipt')
+            require(bool(update.get('reason')), 'Qualification update reason missing')
+            updates[name] = update
     observed_work = set()
     count = 0
     for directory in ('honeypot', 'tools'):
@@ -72,7 +85,7 @@ def verify_source(root=ROOT):
                                       'backups', '__pycache__'}, f'Excluded source path: {name}')
             if 'work' in parts:
                 require(name in allowed, f'Unreviewed work file: {name}')
-                record = records.get(name, {})
+                record = updates.get(name, records.get(name, {}))
                 require(digest(path.read_bytes()) == record.get('sha256')
                         and path.stat().st_size == record.get('bytes'),
                         f'Retained qualification source differs from export receipt: {name}')
