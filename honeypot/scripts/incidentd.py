@@ -20,7 +20,7 @@ import time
 from urllib.parse import urlsplit
 from hp_common import ROOT, atomic_json, append_json, runtime_path, sha256, utc, redact
 
-from evidence_store import records as evidence_records, append as evidence_append, commit as evidence_commit, EvidenceIntegrityError, sync_directory
+from evidence_store import records as evidence_records, append as evidence_append, commit as evidence_commit, EvidenceIntegrityError, sync_directory, MAX_INCIDENT_BYTES
 
 LEVEL={'LOW':0,'MEDIUM':1,'HIGH':2,'CRITICAL':3}
 FIELDS={'source_ports':'source_port','destination_ports':'destination_port','services':'service','session_ids':'session_id','usernames':'username','password_attempts':'password','commands':'command','urls':'url','domains':'domain','user_agents':'user_agent','hashes':'sha256','suricata_signatures':'signature','fingerprints':'fingerprint'}
@@ -111,24 +111,41 @@ class Engine:
         self.captures=runtime_path('PCAP_PATH','captures',self.root)
         self.fast_poll_until=0
         self.blocked_incidents={}
+        self.evidence_inventory = iter(self.incidents.glob('*/*'))
         self.inspect_existing_evidence()
 
-    def inspect_existing_evidence(self):
-        """Retain malformed incidents and explicitly block their writes only."""
-        paths=sorted(self.incidents.glob('*/*/events.jsonl'))
-        if len(paths)>4000: raise EvidenceIntegrityError('Startup evidence inventory budget exceeded')
-        for path in paths:
+    def block_incident(self, path, exc):
+        self.blocked_incidents[str(path)] = str(exc)
+        evidence = path/'events.jsonl'
+        append_json(self.root/'logs/system/evidence-integrity.jsonl', {
+            'timestamp':utc(), 'incident_id':path.name, 'path':str(evidence),
+            'action':'BLOCK_INCIDENT_WRITES', 'error':str(exc),
+            'original_bytes_preserved':True}, rotate=True)
+
+    def inspect_incident(self, directory):
+        path = directory/'events.jsonl'
+        durable = evidence_records(path)
+        metadata = directory/'incident.json'
+        # A durable first record without metadata must remain available for exact-ID replay.
+        if not metadata.exists(): return durable
+        if metadata.is_symlink(): raise EvidenceIntegrityError('Symlink incident metadata')
+        if metadata.stat().st_size > 1024**2: raise EvidenceIntegrityError('Incident metadata exceeds bound')
+        meta = json.loads(metadata.read_text())
+        if not isinstance(meta,dict): raise EvidenceIntegrityError('Incident metadata must be an object')
+        if not isinstance(meta.get('related_events'),list) or set(meta['related_events'])-set(durable):
+            raise EvidenceIntegrityError('Metadata references missing evidence')
+        return durable
+
+    def inspect_existing_evidence(self, budget=32):
+        """Incremental historical inspection; active segments are also checked before use."""
+        for _ in range(budget):
+            directory = next(self.evidence_inventory, None)
+            if directory is None: break
             try:
-                durable=evidence_records(path)
-                meta=json.loads((path.parent/'incident.json').read_text())
-                if set(meta['related_events'])-set(durable):
-                    raise EvidenceIntegrityError('Metadata references missing evidence')
-            except (EvidenceIntegrityError,ValueError,KeyError,TypeError) as exc:
-                self.blocked_incidents[str(path.parent)]=str(exc)
-                append_json(self.root/'logs/system/evidence-integrity.jsonl',{
-                    'timestamp':utc(),'incident_id':path.parent.name,'path':str(path),
-                    'action':'BLOCK_INCIDENT_WRITES','error':str(exc),
-                    'original_sha256':sha256(path)[0],'original_bytes_preserved':True})
+                if directory.is_symlink(): raise EvidenceIntegrityError('Symlink incident directory')
+                self.inspect_incident(directory)
+            except (OSError,EvidenceIntegrityError,ValueError,KeyError,TypeError) as exc:
+                self.block_incident(directory, exc)
 
     def classify(self,event):
         if event['source']=='suricata':
@@ -159,30 +176,51 @@ class Engine:
             incident_id=f'{key}-{segment["segment"]:04d}'
             path=self.incidents/dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d')/incident_id
             ipath=path/'incident.json'
+            if path.is_symlink(): raise EvidenceIntegrityError('Symlink incident directory')
+            if str(path) in self.blocked_incidents:
+                segment['segment'] += 1
+                continue
+            try:
+                durable = self.inspect_incident(path)
+            except (OSError,EvidenceIntegrityError,ValueError,KeyError,TypeError) as exc:
+                self.block_incident(path, exc)
+                segment['segment'] += 1
+                continue
             if ipath.exists(): incident=json.loads(ipath.read_text())
             else:
                 incident={'incident_id':incident_id,'severity':'LOW','confidence':0.6,'timestamp_start':event['timestamp'],
                           'timestamp_end':event['timestamp'],'source_ip':event['source_ip'],'related_events':[],
                           'evidence_paths':[],'containment_actions':[],'notes':[], 'correlation_links':[], 'auth_attempt_count':0,
                           **{k:[] for k in FIELDS}}
-            if str(path) in self.blocked_incidents:
-                raise EvidenceIntegrityError('Blocked incident: '+self.blocked_incidents[str(path)])
-            durable=evidence_records(path/'events.jsonl')
             if set(incident['related_events'])-set(durable):
                 raise EvidenceIntegrityError(f'Metadata references missing evidence: {ipath}')
             if event_id in incident['related_events']:
                 evidence_append(path/'events.jsonl',durable[event_id])
                 evidence_commit(ipath,incident)
+                # Checkpoint replay is at-least-once for searchable telemetry too.
+                # A crash after metadata commit must not permanently omit this event.
+                saved_event = durable[event_id]['normalized']
+                append_json(self.root/'logs/normalized/events.jsonl',saved_event,rotate=True)
+                if source in ('cowrie','opencanary'):
+                    append_json(self.root/'logs/normalized'/f'{source}.jsonl',saved_event,rotate=True)
                 return
             orphan_ids=set(durable)-set(incident['related_events'])
             if orphan_ids-{event_id}:
-                raise EvidenceIntegrityError(f'Uncommitted evidence requires exact-ID replay: {ipath}')
+                # Leave the orphan bytes available for operator review; never invent metadata.
+                self.block_incident(path, 'Uncommitted evidence requires exact-ID replay')
+                segment['segment'] += 1
+                continue
             if event_id in durable:
                 saved=durable[event_id]
                 if saved['raw']!=raw or saved['normalized']['source']!=source:
                     raise EvidenceIntegrityError('Replay source differs from retained evidence')
                 event=saved['normalized'].copy()
-            if len(incident['related_events'])<self.rules['max_events_per_incident']: break
+            record = durable.get(event_id, {'event_id':event_id,'normalized':event,'raw':raw})
+            record_bytes = len((json.dumps(record,ensure_ascii=True,separators=(',',':'))+'\n').encode())
+            current_bytes = (path/'events.jsonl').stat().st_size if (path/'events.jsonl').exists() else 0
+            if record_bytes > MAX_INCIDENT_BYTES: raise EvidenceIntegrityError('Single event exceeds evidence bound')
+            if (len(incident['related_events'])<self.rules['max_events_per_incident'] and
+                    (event_id in durable or current_bytes+record_bytes<=MAX_INCIDENT_BYTES)): break
             segment['segment']+=1
         segment['seen']=now;self.state['groups'][key]=segment
         for dst,src in FIELDS.items():
@@ -306,6 +344,7 @@ class Engine:
             raise
 
     def _poll(self):
+        self.inspect_existing_evidence()
         modpath=Path(__file__).with_name('hash-artifacts.py')
         spec=importlib.util.spec_from_file_location('hasher',modpath);mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
         mod.scan(self.artifacts)

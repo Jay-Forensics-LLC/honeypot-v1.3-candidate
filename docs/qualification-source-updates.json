@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "updates": [
+    {
+      "path": "honeypot/work/live-qualification/stage7-reconciled-evidence.py",
+      "original_sha256": "a391411cf57852afe5aa869789d4e168b6a5f54737aff23b3e0d29447d527864",
+      "sha256": "92dd1e84c775ff92bd9967edc93ce954cef91379776bd4ffb2a1f678f5d3c2c7",
+      "bytes": 5229,
+      "reason": "Replace security assertions with unconditional checks, including optimized Python; original export receipt preserved."
+    }
+  ]
+}

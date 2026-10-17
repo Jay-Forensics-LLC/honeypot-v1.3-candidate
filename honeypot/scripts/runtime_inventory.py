@@ -2,6 +2,7 @@
 import hashlib
 import ipaddress
 import json
+import re
 from pathlib import Path
 import subprocess
 from hp_common import config, utc
@@ -100,7 +101,14 @@ def _validate_runtime(rendered, containers, networks, root, stopped=frozenset())
             actual = mounts.get(target, {})
             if volume['type'] != 'bind' or actual.get('Type') != 'bind' or actual.get('Source') != volume['source'] or actual.get('RW') != (not volume.get('read_only', False)):
                 problems.append(name + ': mount differs at ' + target)
-        expected_mounts.update((host.get('Tmpfs') or {}).keys())
+        expected_tmpfs = {}
+        for entry in spec.get('tmpfs', []):
+            target, _, options = entry.partition(':')
+            if target in expected_tmpfs: raise ValueError('Duplicate declared tmpfs target')
+            expected_tmpfs[target] = options
+        if tmpfs_options(host.get('Tmpfs') or {}) != tmpfs_options(expected_tmpfs):
+            problems.append(name + ': tmpfs settings differ from rendered configuration')
+        expected_mounts.update(expected_tmpfs)
         if name=='cowrie':
             declared=set(c['Config'].get('Volumes') or {})
             known={'/cowrie/cowrie-git/etc','/cowrie/cowrie-git/var'}
@@ -152,6 +160,78 @@ def _validate_runtime(rendered, containers, networks, root, stopped=frozenset())
     return problems
 
 
+def tmpfs_options(entries):
+    result = {}
+    for target, options in entries.items():
+        if not target.startswith('/') or target in result: raise ValueError('Invalid tmpfs target')
+        normalized = {}
+        for token in options.split(','):
+            key, _, value = token.partition('=')
+            if key in normalized: raise ValueError('Duplicate tmpfs option')
+            if key == 'size':
+                match = re.fullmatch(r'(\d+)([kKmMgG]?)', value)
+                if not match: raise ValueError('Invalid tmpfs size')
+                value = str(int(match[1]) * {'':1,'k':1024,'m':1024**2,'g':1024**3}[match[2].lower()])
+            if key == 'mode': value = str(int(value, 8))
+            normalized[key] = value
+        result[target] = normalized
+    return result
+
+
+def image_reference(reference):
+    if '@' not in reference: return reference
+    name, digest = reference.rsplit('@', 1)
+    prefix, slash, leaf = name.rpartition('/')
+    # Docker RepoDigests omit the optional tag before @sha256, while Config.Image may keep it.
+    leaf = leaf.split(':', 1)[0]
+    return (prefix + slash + leaf) + '@' + digest
+
+
+def validate_image_ids(containers, locked):
+    if not isinstance(locked, list): raise ValueError('Reviewed image lock must be an image-inspect list')
+    mapping = {}
+    for image in locked:
+        image_id = image.get('Id', '')
+        if not re.fullmatch(r'sha256:[0-9a-f]{64}', image_id): raise ValueError('Invalid locked image ID')
+        for reference in (image.get('RepoTags') or []) + (image.get('RepoDigests') or []):
+            reference = image_reference(reference)
+            if reference in mapping and mapping[reference] != image_id: raise ValueError('Ambiguous reviewed image reference')
+            mapping[reference] = image_id
+    return [name + ': immutable image ID absent from or differs from reviewed lock'
+            for name, c in containers.items() if mapping.get(image_reference(c['Config']['Image'])) != c.get('Image')]
+
+
+def static_configuration_hashes(rendered, root):
+    from hp_common import sha256
+    root = Path(root)
+    mounted = {}
+    for service in rendered['services'].values():
+        for volume in service.get('volumes', []):
+            path = Path(volume['source'])
+            if not any(path.is_relative_to(root/name) for name in ('configs','detections','dashboards')): continue
+            if path.resolve() != path.absolute(): raise ValueError('Static config symlink requires review')
+            if not path.exists(): raise ValueError('Static configuration missing: ' + str(path))
+            files = sorted(path.rglob('*')) if path.is_dir() else [path]
+            if len(files)>500: raise ValueError('Static config inventory budget exceeded')
+            for file in files:
+                if file.is_symlink(): raise ValueError('Static config symlink requires review')
+                if file.is_file(): mounted[str(file.relative_to(root))] = sha256(file)[0]
+    return mounted
+
+
+def verify_static_configuration(rendered, root, source_root):
+    deployed = static_configuration_hashes(rendered, root)
+    # Remap the same mounts into candidate source, retaining exact file-set comparison.
+    candidate = json.loads(json.dumps(rendered))
+    for service in candidate['services'].values():
+        for volume in service.get('volumes', []):
+            path = Path(volume['source'])
+            if path.is_relative_to(root): volume['source'] = str(source_root / path.relative_to(root))
+    expected = static_configuration_hashes(candidate, source_root)
+    if deployed != expected: raise ValueError('Mounted static configuration differs from candidate source')
+    return deployed
+
+
 def collect(root, source_root, probe_readiness=True):
     root = Path(root).resolve()
     run = lambda argv, **kw: command(root, argv, **kw)
@@ -173,6 +253,11 @@ def collect(root, source_root, probe_readiness=True):
         containers = {c['Config']['Labels']['com.docker.compose.service']: c for c in inspected}
         nets = json.loads(run(['docker', 'network', 'inspect', 'honeypot-cowrie-net', 'honeypot-canary-net', 'honeypot-observability', 'honeypot-management']).stdout)
         row['problems'] += validate_runtime(rendered, containers, nets, root)
+        lock = root/'state/images.lock.json'
+        if lock.is_symlink() or lock.stat().st_size > 1024**2:
+            raise ValueError('Reviewed image lock is symlinked or oversized')
+        row['problems'] += validate_image_ids(containers, json.loads(lock.read_text()))
+        row['image_lock_sha256'] = hashlib.sha256(lock.read_bytes()).hexdigest()
         row['stopped_decoy_configuration'] = stopped_decoy_configuration(rendered, containers, nets, root)
         nft = json.loads(run(['nft', '-j', 'list', 'table', 'inet', 'hp_guard']).stdout)
         row['guard'] = evaluate(nft, cfg)
@@ -209,7 +294,7 @@ print(json.dumps(result))
         row['containers'] = {n: {'id': c['Id'], 'image_id': c['Image'], 'created': c['Created'], 'started_at': c['State']['StartedAt'],
                                'health': c['State']['Health']['Status'], 'restart_count': c['RestartCount'],
                                'networks': c['NetworkSettings']['Networks'], 'ports': c['NetworkSettings']['Ports'],
-                               'mounts': c['Mounts'], 'environment_hash': fingerprint(c['Config'].get('Env', []))} for n,c in containers.items()}
+                               'mounts': c['Mounts'], 'tmpfs':c['HostConfig'].get('Tmpfs') or {}, 'environment_hash': fingerprint(c['Config'].get('Env', []))} for n,c in containers.items()}
         row['networks'] = nets
         row['compose_hash'] = hashlib.sha256((root / 'docker-compose.yml').read_bytes()).hexdigest()
         row['rendered_config_hash'] = fingerprint(rendered)
@@ -220,17 +305,7 @@ print(json.dumps(result))
         row['deployed_source_commit']='UNKNOWN: selected deployed module hashes verified; image revision label not established'
         row['network_fingerprint']=fingerprint({n['Name']:{'driver':n['Driver'],'internal':n['Internal'],'ipam':n['IPAM'],'options':n.get('Options'),
                  'members':sorted(service for service in containers if n['Name'] in PLACEMENT[service])} for n in nets})
-        mounted={}
-        from hp_common import sha256
-        for service in rendered['services'].values():
-            for volume in service.get('volumes',[]):
-                path=Path(volume['source'])
-                if not any(path.is_relative_to(root/name) for name in ('configs','detections','dashboards')): continue
-                if path.is_symlink(): raise ValueError('Static config symlink requires review')
-                files=sorted(path.rglob('*')) if path.is_dir() else [path]
-                if len(files)>500: raise ValueError('Static config inventory budget exceeded')
-                for file in files:
-                    if file.is_file(): mounted[str(file.relative_to(root))]=sha256(file)[0]
+        mounted = verify_static_configuration(rendered, root, Path(source_root))
         row['mounted_config_hashes']=mounted
         row['observation_fingerprint']=fingerprint({k:row[k] for k in ('config_hash','rendered_config_hash','deployed_source_hashes','guard_fingerprint','network_fingerprint','mounted_config_hashes')})
         row['wan_enabled'] = False
