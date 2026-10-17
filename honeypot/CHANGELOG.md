@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.3.0-beta.1 unverified source candidate — 2026-10-13
+
+- Added bounded read-only Docker ownership/context/API diagnostics and startup
+  gates. Concurrent daemons, denied access and cross-checkout ownership block.
+- Bounded CLI log reads; empty, unreadable, malformed and partial telemetry
+  remain distinct. Structured secret redaction is retained.
+- Added focused negative-case tests and beta quickstart/acceptance guidance.
+- Corrected the Stage 8 claim: current critical-disk handling stops PCAP only.
+
+Source-only, not deployed, not published. Independent Stage 7 closeout pending;
+Phase 8 NOT TESTED; WAN unauthorized. This is not a qualified beta release.
+
 ## v1.3 second polish - 2026-09-30
 
 - Non-loopback start now uses `readiness.evidence_passes` for source

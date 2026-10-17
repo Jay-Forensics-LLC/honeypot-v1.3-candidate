@@ -136,6 +136,8 @@ class StartupTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name)
         self.patch=patch.object(ops,'ROOT',self.root);self.patch.start()
+        daemon=patch.object(ops,'require_local_daemon',return_value={'ok':True})
+        daemon.start();self.addCleanup(daemon.stop)
         (self.root/'state').mkdir()
     def tearDown(self): self.patch.stop();self.tmp.cleanup()
     def ready(self,age=0): (self.root/'state/readiness.json').write_text(json.dumps({'ready':True,'checked_epoch':time.time()-age}))

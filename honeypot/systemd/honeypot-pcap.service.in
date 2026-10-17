@@ -15,3 +15,6 @@ PrivateTmp=true
 CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN CAP_DAC_OVERRIDE
 # Manual restart after watermark stop; never restart into a disk-full condition.
 Restart=no
+
+[Install]
+WantedBy=multi-user.target

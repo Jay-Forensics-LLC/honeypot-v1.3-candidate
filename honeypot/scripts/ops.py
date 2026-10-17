@@ -14,6 +14,7 @@ import sys
 import time
 from hp_common import ROOT, config, runtime_path, run, require_root, atomic_json, utc, audited
 from guard_policy import DNS, require_guard, inspect_dns
+from daemon_check import require_local_daemon
 
 SERVICES=['cowrie','opencanary','suricata','loki','alloy','grafana','incidentd']
 
@@ -148,7 +149,7 @@ def rendered_start_gate(rendered, approved=False):
 
 @audited('start')
 def start():
-    require_root();cfg=config()
+    require_root();require_local_daemon(ROOT);cfg=config()
     if not (ROOT/'secrets/grafana_admin_password').exists():raise SystemExit('Run bootstrap first')
     for p in (ROOT/'state/quarantine').glob('*.json'):
         if json.loads(p.read_text()).get('active'):raise SystemExit('Outstanding quarantine: investigate and explicitly unquarantine before startup')
@@ -181,6 +182,7 @@ def boot_start():
     This intentionally does not build, pull, create, or recreate containers.
     """
     require_root()
+    require_local_daemon(ROOT, require_existing=True)
     cfg=config()
 
     if not (ROOT/'secrets/grafana_admin_password').exists():
@@ -318,8 +320,26 @@ def status():
 def update():
     require_root()
     if '--apply' not in sys.argv:raise SystemExit('Review pinned image/package versions and release notes first. --apply performs backup, stops stack, pulls/builds, validates and restarts.')
+    require_local_daemon(ROOT, require_existing=True)
+    import grafana_backup
+    ids=compose('ps','--all','--quiet','grafana').stdout.split()
+    if len(ids)!=1 or len(ids[0])!=64 or any(c not in '0123456789abcdef' for c in ids[0]):
+        raise ValueError('Expected one Grafana container; update has not begun')
+    current=json.loads(run(['docker','inspect',ids[0]]).stdout)
+    if len(current)!=1 or current[0].get('Id')!=ids[0]:
+        raise ValueError('Grafana inspection ambiguous; update has not begun')
+    identity=grafana_backup.container_identity(ROOT,current[0])
     run(['bash','scripts/backup.sh'],timeout=1200)
-    stop();compose('pull','--ignore-buildable');compose('build','--pull')
+    stop()
+    before=json.loads(run(['docker','inspect',ids[0]]).stdout)
+    if len(before)!=1 or grafana_backup.stopped_identity(ROOT,before[0])!=identity:
+        raise ValueError('Grafana identity changed or did not stop; update remains stopped')
+    snapshot=grafana_backup.create_backup(ROOT,before[0])
+    after=json.loads(run(['docker','inspect',ids[0]]).stdout)
+    if len(after)!=1 or grafana_backup.stopped_identity(ROOT,after[0])!=identity:
+        raise ValueError('Grafana identity/state changed during backup; update remains stopped')
+    print('Verified private Grafana state backup: '+str(snapshot)+'; restore acceptance NOT TESTED')
+    compose('pull','--ignore-buildable');compose('build','--pull')
     run(['bash','scripts/validate.sh'],timeout=1200);start()
     # Docker's content digests form the deployment lock; retain old images for rollback.
     atomic_json(ROOT/'state/images.lock.json',json.loads(run(['docker','image','inspect',*['honeypot-opencanary:0.9.10-local','honeypot-suricata:ubuntu24.04-local','honeypot-incidentd:v1-local',config()['COWRIE_IMAGE'],config()['LOKI_IMAGE'],config()['GRAFANA_IMAGE'],config()['ALLOY_IMAGE']]]).stdout))
