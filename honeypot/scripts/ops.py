@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import secrets
 import shutil
 import subprocess
@@ -148,7 +149,7 @@ def rendered_start_gate(rendered, approved=False):
         raise SystemExit('WAN port matrix rejected: ' + '; '.join(exposed) + '. No router rules were changed.')
 
 @audited('start')
-def start():
+def start(*, build=True):
     require_root();require_local_daemon(ROOT);cfg=config()
     if not (ROOT/'secrets/grafana_admin_password').exists():raise SystemExit('Run bootstrap first')
     for p in (ROOT/'state/quarantine').glob('*.json'):
@@ -166,10 +167,11 @@ def start():
         if reason:
             raise SystemExit(reason)
     try:
-        compose('up','-d','--build','loki','alloy','grafana','incidentd','cowrie','opencanary')
+        creation = ('--build',) if build else ('--no-build', '--pull', 'never')
+        compose('up','-d',*creation,'loki','alloy','grafana','incidentd','cowrie','opencanary')
         require_guard(cfg)
         if not all(inspect_dns().values()): raise SystemExit('Runtime DNS check failed after creation')
-        compose('up','-d','--build','suricata')
+        compose('up','-d',*creation,'suricata')
     except (Exception,SystemExit):
         compose('stop','cowrie','opencanary',check=False)
         raise
@@ -329,6 +331,14 @@ def update():
     if len(current)!=1 or current[0].get('Id')!=ids[0]:
         raise ValueError('Grafana inspection ambiguous; update has not begun')
     identity=grafana_backup.container_identity(ROOT,current[0])
+    import image_approval
+    try:
+        approval_sha256 = sys.argv[sys.argv.index('--image-approval-sha256')+1]
+    except (ValueError, IndexError) as exc:
+        raise ValueError('Update requires --image-approval-sha256 from separate image review') from exc
+    rendered = json.loads(compose('config','--format','json').stdout)
+    references = {name: spec['image'] for name, spec in rendered['services'].items()}
+    approval = image_approval.load(ROOT, references, approval_sha256)
     run(['bash','scripts/backup.sh'],timeout=1200)
     stop()
     before=json.loads(run(['docker','inspect',ids[0]]).stdout)
@@ -340,9 +350,28 @@ def update():
         raise ValueError('Grafana identity/state changed during backup; update remains stopped')
     print('Verified private Grafana state backup: '+str(snapshot)+'; restore acceptance NOT TESTED')
     compose('pull','--ignore-buildable');compose('build','--pull')
-    run(['bash','scripts/validate.sh'],timeout=1200);start()
-    # Docker's content digests form the deployment lock; retain old images for rollback.
-    atomic_json(ROOT/'state/images.lock.json',json.loads(run(['docker','image','inspect',*['honeypot-opencanary:0.9.10-local','honeypot-suricata:ubuntu24.04-local','honeypot-incidentd:v1-local',config()['COWRIE_IMAGE'],config()['LOKI_IMAGE'],config()['GRAFANA_IMAGE'],config()['ALLOY_IMAGE']]]).stdout))
+    run(['bash','scripts/validate.sh'],timeout=1200)
+    try:
+        image_approval.check_available(approval, lambda reference: json.loads(
+            run(['docker','image','inspect',reference]).stdout))
+        image_approval.load(ROOT, references, approval_sha256)
+        # Builds/pulls are complete and checked. Startup must not replace them.
+        start(build=False)
+        container_ids = compose('ps','--all','--quiet').stdout.split()
+        if len(container_ids) != 7 or any(not re.fullmatch(r'[0-9a-f]{64}', value) for value in container_ids):
+            raise ValueError('Expected seven exact post-update container identities')
+        rows = json.loads(run(['docker','inspect',*container_ids]).stdout)
+        containers = {row.get('Config',{}).get('Labels',{}).get('com.docker.compose.service'): row for row in rows}
+        if len(rows) != 7: raise ValueError('Ambiguous post-update image observations')
+        image_approval.check_containers(approval, containers)
+        image_approval.load(ROOT, references, approval_sha256)
+        atomic_json(ROOT/'state/images.observed.json', {
+            'observed_utc':utc(), 'approval_sha256':approval['sha256'],
+            'images':{name:row['Image'] for name,row in containers.items()},
+            'scope':'Post-start observations only; not an image approval'})
+    except (Exception, SystemExit):
+        stop()
+        raise
 
 if __name__=='__main__':
     os.umask(0o027)

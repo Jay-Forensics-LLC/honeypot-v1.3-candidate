@@ -5,8 +5,21 @@ Readiness, `wan check`, and lab scripts write `state/` in the directory you run 
 Daily: status, health JSON, failed timers, parser errors, incident queue and storage.
 Weekly: verify a backup checksum/read, review inactive sensors and capture losses,
 review image/security advisories and test a restoration into a new directory.
-No broad automated updates are enabled. update.sh --apply performs metadata backup,
-stops, pulls/builds reviewed versions, validates and restarts. Keep prior image digests.
+No broad automated updates are enabled. An approved update now also requires
+`--image-approval-sha256 SHA256`, pinning a separately reviewed
+`configs/images.approved.json`. The document must have version 1 and exactly the
+seven service names, each with its exact Compose `reference` and immutable image
+`id` (`sha256:` plus 64 lowercase hex digits). The shipped empty document is an
+unapproved template and intentionally blocks updates and runtime qualification.
+Establish expected IDs from independently reviewed build/download provenance
+before authorizing an update; current running IDs and post-start receipts are
+observations only. Do not generate approval from them or fill it merely to pass.
+The updater checks this input before backup/stop, retains the verified stopped
+Grafana backup requirement, pulls/builds, compares available images before
+startup, and starts without rebuilding or pulling. It checks the resulting
+containers and writes `state/images.observed.json` only; it never overwrites the
+approval or historical `images.lock.json`. A mismatch leaves services stopped.
+Keep previous image identities and obtain separate deployment/rollback approval.
 
 `sudo journalctl -u honeypot-health.service` shows health failures. Inspect
 logs/system/health.jsonl and state/health.json. Systemd timers execute as root because
@@ -69,6 +82,10 @@ missing/inconsistent metadata, or unreadable history keeps migration blocked for
 operator review. Duplicate stable IDs across intact legacy locations quarantine
 both incidents and block ambiguous replay; they do not select an original or erase
 either copy. Their disposition requires separate provenance review.
+Conflicts discovered after migration are also committed to SQLite before
+reporting a diagnostic failure. All conflicting incidents remain blocked for
+new appends and ambiguous replay across writer restarts; deleting the locator
+would erase that fence and is not a repair.
 
 Inspect logs/system/evidence-integrity.jsonl, including original_sha256 when the
 file can be safely hashed. Invalid locator state emits HOLD_CHECKPOINT in

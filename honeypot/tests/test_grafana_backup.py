@@ -14,6 +14,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import grafana_backup as backup
 import ops
+import image_approval
 
 
 def restore_fixture(archive, destination):
@@ -161,11 +162,34 @@ class GrafanaSnapshot(GrafanaFixture):
 
 
 class UpdateBackupOrdering(GrafanaFixture):
-    def exercise(self, failure=None, after_running=False):
+    def exercise(self, failure=None, after_running=False, image_drift=None, bad_approval=False):
         events = []
         inspections = 0
+        references = {name: 'synthetic-'+name+':reviewed' for name in image_approval.SERVICES}
+        references['grafana'] = self.inspection['Config']['Image']
+        approved = {'version':1, 'images':{name:{'reference':references[name], 'id':'sha256:'+f'{i+1:064x}'}
+                                         for i,name in enumerate(sorted(references))}}
+        approval_path = self.root/image_approval.APPROVAL_PATH
+        approval_path.parent.mkdir(parents=True, exist_ok=True)
+        approval_path.write_text(json.dumps(approved))
+        approval_hash = hashlib.sha256(approval_path.read_bytes()).hexdigest()
+        container_ids = {name:('a'*64 if name=='grafana' else f'{i+1:064x}') for i,name in enumerate(sorted(references))}
+        old_lock = self.root/'state/images.lock.json'
+        old_lock.write_text('Preserved old observation, not an approval')
         def run(argv, **kwargs):
             nonlocal inspections
+            if argv[:3] == ['docker', 'image', 'inspect']:
+                events.append('inspect-image')
+                name = next(name for name,reference in references.items() if reference == argv[3])
+                image_id = approved['images'][name]['id']
+                if image_drift == 'before' and name == 'incidentd': image_id = 'sha256:'+'f'*64
+                return subprocess.CompletedProcess(argv, 0, json.dumps([{'Id':image_id}]), '')
+            if argv[:2] == ['docker', 'inspect'] and len(argv) > 3:
+                rows = [{'Id':container_ids[name], 'Image':expected['id'],
+                         'Config':{'Image':expected['reference'],'Labels':{'com.docker.compose.service':name}}}
+                        for name,expected in approved['images'].items()]
+                if image_drift == 'after': rows[0]['Image'] = 'sha256:'+'f'*64
+                return subprocess.CompletedProcess(argv, 0, json.dumps(rows), '')
             if argv[:2] == ['docker', 'inspect']:
                 inspections += 1
                 row = copy.deepcopy(self.inspection)
@@ -176,7 +200,10 @@ class UpdateBackupOrdering(GrafanaFixture):
             return subprocess.CompletedProcess(argv, 0, '[]', '')
         def compose(*args, **kwargs):
             events.append(args[0])
-            return subprocess.CompletedProcess(args, 0, 'a' * 64 + '\n' if args[0] == 'ps' else '', '')
+            output = ''
+            if args[0] == 'config': output = json.dumps({'services':{name:{'image':ref} for name,ref in references.items()}})
+            elif args[0] == 'ps': output = 'a'*64 if args[-1]=='grafana' else '\n'.join(container_ids.values())
+            return subprocess.CompletedProcess(args, 0, output, '')
         def snapshot(*args):
             events.append('snapshot-verified')
             if failure:
@@ -187,15 +214,19 @@ class UpdateBackupOrdering(GrafanaFixture):
              patch.object(ops, 'require_local_daemon', side_effect=lambda *a, **kw: events.append('daemon-owned')), \
              patch.object(ops, 'run', side_effect=run), patch.object(ops, 'compose', side_effect=compose), \
              patch.object(ops, 'stop', side_effect=lambda: events.append('stop')), \
-             patch.object(ops, 'start', side_effect=lambda: events.append('start')), \
-             patch.object(ops, 'config', return_value=cfg), patch.object(ops, 'atomic_json'), \
+             patch.object(ops, 'start', side_effect=lambda **kwargs: events.append('start' if kwargs == {'build':False} else 'unsafe-start')), \
+             patch.object(ops, 'config', return_value=cfg), \
+             patch.object(ops, 'atomic_json', side_effect=lambda path,doc: events.append('observation-write') if path.name=='images.observed.json' else self.fail('Approval/old lock was overwritten')), \
              patch.object(backup, 'create_backup', side_effect=snapshot), \
-             patch.object(sys, 'argv', ['ops.py', 'update', '--apply']):
+             patch.object(sys, 'argv', ['ops.py', 'update', '--apply', '--image-approval-sha256',
+                                      '0'*64 if bad_approval else approval_hash]):
             try:
                 ops.update()
             except (OSError, ValueError):
-                if failure is None and not after_running:
+                if failure is None and not after_running and not image_drift and not bad_approval:
                     raise
+        self.assertEqual(hashlib.sha256(approval_path.read_bytes()).hexdigest(), approval_hash)
+        self.assertEqual(old_lock.read_text(), 'Preserved old observation, not an approval')
         return events
 
     def test_verified_snapshot_precedes_pull_build_and_start(self):
@@ -211,6 +242,29 @@ class UpdateBackupOrdering(GrafanaFixture):
         self.assertNotIn('pull', events)
         self.assertNotIn('build', events)
         self.assertNotIn('start', events)
+
+    def test_unapproved_built_image_cannot_start_or_self_approve(self):
+        events = self.exercise(image_drift='before')
+        self.assertIn('build', events)
+        self.assertNotIn('start', events)
+        self.assertNotIn('observation-write', events)
+
+    def test_post_start_drift_stops_stack_without_an_approval_receipt(self):
+        events = self.exercise(image_drift='after')
+        self.assertIn('start', events)
+        self.assertEqual(events[-1], 'stop')
+        self.assertNotIn('observation-write', events)
+
+    def test_wrong_approval_hash_prevents_backup_stop_pull_build_and_start(self):
+        events = self.exercise(bad_approval=True)
+        for operation in ('stop','snapshot-verified','pull','build','start'):
+            self.assertNotIn(operation, events)
+
+    def test_success_retains_approval_and_writes_observations_only(self):
+        events = self.exercise()
+        self.assertNotIn('unsafe-start', events)
+        self.assertLess(events.index('inspect-image'), events.index('start'))
+        self.assertLess(events.index('start'), events.index('observation-write'))
 
     def test_resumed_container_stops_update_before_pull_or_restart(self):
         events = self.exercise(after_running=True)

@@ -29,6 +29,10 @@ def security_projection(observed):
         if len({row[key] for row in rows})!=len(rows):raise ValueError('Duplicate inventory identity')
         return {row[key]:row for row in rows}
     projected={key:observed[key] for key in SECURITY_FIELDS}
+    # Older retained observations predate this field. A current observation
+    # always includes it; appearance, removal or change is runtime drift.
+    if 'image_approval_sha256' in observed:
+        projected['image_approval_sha256'] = observed['image_approval_sha256']
     projected['containers']={name:{**container,'mounts':ordered(container['mounts'],'Destination')}
                              for name,container in observed['containers'].items()}
     projected['networks']=ordered(observed['networks'],'Name')

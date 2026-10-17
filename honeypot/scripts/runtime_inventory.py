@@ -3,12 +3,14 @@ import hashlib
 import ipaddress
 import json
 import re
+import stat
 from pathlib import Path
 import subprocess
 from hp_common import config, utc
 from guard_policy import evaluate, canonical, DNS
 from capture_status import inspect_capture
 from daemon_check import inspect as inspect_daemon
+import image_approval
 
 SERVICES = {'cowrie', 'opencanary', 'suricata', 'loki', 'alloy', 'grafana', 'incidentd'}
 PLACEMENT = {'cowrie': {'honeypot-cowrie-net'}, 'opencanary': {'honeypot-canary-net'},
@@ -220,20 +222,32 @@ def validate_image_ids(containers, locked):
 
 
 def static_configuration_hashes(rendered, root):
-    from hp_common import sha256
     root = Path(root)
     mounted = {}
+    entries = 0
     for service in rendered['services'].values():
         for volume in service.get('volumes', []):
             path = Path(volume['source'])
             if not any(path.is_relative_to(root/name) for name in ('configs','detections','dashboards')): continue
             if path.resolve() != path.absolute(): raise ValueError('Static config symlink requires review')
             if not path.exists(): raise ValueError('Static configuration missing: ' + str(path))
-            files = sorted(path.rglob('*')) if path.is_dir() else [path]
-            if len(files)>500: raise ValueError('Static config inventory budget exceeded')
-            for file in files:
+            pending = [path]
+            while pending:
+                file = pending.pop()
+                entries += 1
+                if entries > 500: raise ValueError('Static config inventory budget exceeded')
+                mode = file.lstat().st_mode
                 if file.is_symlink(): raise ValueError('Static config symlink requires review')
-                if file.is_file(): mounted[str(file.relative_to(root))] = sha256(file)[0]
+                if stat.S_ISDIR(mode):
+                    for child in file.iterdir():
+                        if entries + len(pending) >= 500:
+                            raise ValueError('Static config inventory budget exceeded')
+                        pending.append(child)
+                elif stat.S_ISREG(mode):
+                    data = image_approval.read_regular(file, 8*1024**2)
+                    mounted[str(file.relative_to(root))] = hashlib.sha256(data).hexdigest()
+                else:
+                    raise ValueError('Special/nonregular static configuration entry: '+str(file))
     return mounted
 
 
@@ -310,11 +324,11 @@ def collect(root, source_root, probe_readiness=True):
         containers = {c['Config']['Labels']['com.docker.compose.service']: c for c in inspected}
         nets = json.loads(run(['docker', 'network', 'inspect', 'honeypot-cowrie-net', 'honeypot-canary-net', 'honeypot-observability', 'honeypot-management']).stdout)
         row['problems'] += validate_runtime(rendered, containers, nets, root)
-        lock = root/'state/images.lock.json'
-        if lock.is_symlink() or lock.stat().st_size > 1024**2:
-            raise ValueError('Reviewed image lock is symlinked or oversized')
-        row['problems'] += validate_image_ids(containers, json.loads(lock.read_text()))
-        row['image_lock_sha256'] = hashlib.sha256(lock.read_bytes()).hexdigest()
+        # The separately reviewed candidate tree is the trust anchor. Mutable
+        # post-start state/images.lock.json is only a historical observation.
+        approval = image_approval.load(source_root, {name: spec['image'] for name, spec in rendered['services'].items()})
+        image_approval.check_containers(approval, containers)
+        row['image_approval_sha256'] = approval['sha256']
         row['stopped_decoy_configuration'] = stopped_decoy_configuration(rendered, containers, nets, root)
         nft = json.loads(run(['nft', '-j', 'list', 'table', 'inet', 'hp_guard']).stdout)
         row['guard'] = evaluate(nft, cfg)
