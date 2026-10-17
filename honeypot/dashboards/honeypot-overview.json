@@ -1,8 +1,8 @@
 {
   "uid": "honeypot-overview",
-  "title": "Honeypot Overview",
+  "title": "HoneyTrace \u2014 Defensive Deception",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "timezone": "utc",
   "refresh": "30s",
   "time": {
@@ -582,6 +582,29 @@
         {
           "refId": "A",
           "expr": "{source=\"normalized\"} | json | bait_ids != \"\" | line_format \"{{.timestamp}} {{.source_ip}} bait={{.bait_ids}}\""
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "title": "Local demo markers \u2014 verify run ID against demo report",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "Matching usernames identify demo candidates, not trusted provenance. Compare the unique run ID and event ID with the operator-generated report. Replay mode is isolated and does not appear here. No passwords selected.",
+      "gridPos": {
+        "x": 0,
+        "y": 85,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "range",
+          "expr": "{source=\"normalized\"} | json | __error__ = \"\" | username =~ \"honeytrace-demo-[a-f0-9]{32}\" | line_format \"{{.timestamp}} severity={{.severity}} service={{.service}} source={{.source_ip}} run={{.username}} event={{.event_id}}\""
         }
       ]
     }

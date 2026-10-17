@@ -14,6 +14,7 @@ import sys
 import time
 from hp_common import ROOT, config, runtime_path, run, require_root, atomic_json, utc, audited
 from guard_policy import DNS, require_guard, inspect_dns
+from daemon_check import require_local_daemon
 
 SERVICES=['cowrie','opencanary','suricata','loki','alloy','grafana','incidentd']
 
@@ -148,7 +149,7 @@ def rendered_start_gate(rendered, approved=False):
 
 @audited('start')
 def start():
-    require_root();cfg=config()
+    require_root();require_local_daemon(ROOT);cfg=config()
     if not (ROOT/'secrets/grafana_admin_password').exists():raise SystemExit('Run bootstrap first')
     for p in (ROOT/'state/quarantine').glob('*.json'):
         if json.loads(p.read_text()).get('active'):raise SystemExit('Outstanding quarantine: investigate and explicitly unquarantine before startup')
@@ -181,6 +182,7 @@ def boot_start():
     This intentionally does not build, pull, create, or recreate containers.
     """
     require_root()
+    require_local_daemon(ROOT, require_existing=True)
     cfg=config()
 
     if not (ROOT/'secrets/grafana_admin_password').exists():
@@ -318,6 +320,7 @@ def status():
 def update():
     require_root()
     if '--apply' not in sys.argv:raise SystemExit('Review pinned image/package versions and release notes first. --apply performs backup, stops stack, pulls/builds, validates and restarts.')
+    require_local_daemon(ROOT, require_existing=True)
     import grafana_backup
     ids=compose('ps','--all','--quiet','grafana').stdout.split()
     if len(ids)!=1 or len(ids[0])!=64 or any(c not in '0123456789abcdef' for c in ids[0]):

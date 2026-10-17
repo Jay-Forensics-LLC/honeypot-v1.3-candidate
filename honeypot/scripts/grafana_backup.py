@@ -92,6 +92,18 @@ def verify(archive, expected=None):
     return receipt
 
 
+def verify_snapshot(archive):
+    """Verify the separate checksum receipt and archive before a restore drill."""
+    archive = Path(archive)
+    checksum = archive.with_name(archive.name + '.sha256')
+    require(checksum.is_file() and not checksum.is_symlink(), 'Grafana checksum receipt unavailable')
+    fields = checksum.read_text().split()
+    require(len(fields) == 2 and re.fullmatch(r'[0-9a-f]{64}', fields[0]) is not None
+            and fields[1] == archive.name, 'Invalid Grafana checksum receipt')
+    require(sha256(archive)[0] == fields[0], 'Grafana archive checksum differs')
+    return verify(archive)
+
+
 def create_backup(root, inspection):
     root = Path(root)
     identity = stopped_identity(root, inspection)

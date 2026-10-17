@@ -1,7 +1,9 @@
 import copy
 import hashlib
 import json
+import os
 from pathlib import Path
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -12,6 +14,26 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import grafana_backup as backup
 import ops
+
+
+def restore_fixture(archive, destination):
+    """Test-only extraction into a new private directory; never a runtime path."""
+    receipt = backup.verify_snapshot(archive)
+    destination = Path(destination)
+    destination.mkdir(mode=0o700)
+    with backup.tarfile.open(archive, 'r:gz') as contents:
+        for member in contents.getmembers():
+            target = destination / member.name
+            if not target.resolve().is_relative_to(destination.resolve()):
+                raise ValueError('Restore fixture path escapes its new directory')
+            if member.isdir():
+                target.mkdir(mode=0o700, parents=True, exist_ok=True)
+            else:
+                target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with contents.extractfile(member) as source, os.fdopen(fd, 'wb') as output:
+                    shutil.copyfileobj(source, output)
+    return receipt
 
 
 class GrafanaFixture(unittest.TestCase):
@@ -101,6 +123,42 @@ class GrafanaSnapshot(GrafanaFixture):
         with self.assertRaises(backup.tarfile.ReadError):
             backup.verify(archive)
 
+    def test_restore_recovers_prechange_sqlite_rows_and_plugin_bytes(self):
+        archive = backup.create_backup(self.root, self.inspection)
+        expected = (self.state / 'grafana.db').read_bytes()
+        with sqlite3.connect(self.state / 'grafana.db') as connection:
+            connection.execute("INSERT INTO fixture VALUES ('after backup')")
+        (self.state / 'plugins/example.txt').write_text('changed after backup')
+        target = self.root / 'isolated-restore'
+        receipt = restore_fixture(archive, target)
+        restored = target / 'grafana-state'
+        self.assertEqual((restored / 'grafana.db').read_bytes(), expected)
+        with sqlite3.connect((restored / 'grafana.db').resolve().as_uri() + '?mode=ro&immutable=1', uri=True) as connection:
+            self.assertEqual(connection.execute('PRAGMA integrity_check').fetchall(), [('ok',)])
+            self.assertEqual(connection.execute('SELECT value FROM fixture').fetchall(),
+                             [('synthetic rollback fixture',)])
+        self.assertEqual((restored / 'plugins/example.txt').read_text(), 'synthetic plugin fixture')
+        for name, record in receipt['files'].items():
+            self.assertEqual(backup.sha256(restored / name), (record['sha256'], record['bytes']))
+
+    def test_checksum_failure_prevents_restore_creation(self):
+        archive = backup.create_backup(self.root, self.inspection)
+        archive.write_bytes(archive.read_bytes() + b'corruption')
+        target = self.root / 'rejected-restore'
+        with self.assertRaisesRegex(ValueError, 'checksum differs'):
+            restore_fixture(archive, target)
+        self.assertFalse(target.exists())
+
+    def test_restore_cannot_overwrite_an_existing_directory(self):
+        archive = backup.create_backup(self.root, self.inspection)
+        target = self.root / 'existing-restore'
+        target.mkdir()
+        marker = target / 'preserve.txt'
+        marker.write_text('preserve existing fixture')
+        with self.assertRaises(FileExistsError):
+            restore_fixture(archive, target)
+        self.assertEqual(marker.read_text(), 'preserve existing fixture')
+
 
 class UpdateBackupOrdering(GrafanaFixture):
     def exercise(self, failure=None, after_running=False):
@@ -126,6 +184,7 @@ class UpdateBackupOrdering(GrafanaFixture):
             return self.root / 'backups/synthetic-snapshot.tar.gz'
         cfg = {name: 'synthetic-image' for name in ('COWRIE_IMAGE', 'LOKI_IMAGE', 'GRAFANA_IMAGE', 'ALLOY_IMAGE')}
         with patch.object(ops, 'ROOT', self.root), patch.object(ops, 'require_root'), \
+             patch.object(ops, 'require_local_daemon', side_effect=lambda *a, **kw: events.append('daemon-owned')), \
              patch.object(ops, 'run', side_effect=run), patch.object(ops, 'compose', side_effect=compose), \
              patch.object(ops, 'stop', side_effect=lambda: events.append('stop')), \
              patch.object(ops, 'start', side_effect=lambda: events.append('start')), \
@@ -141,6 +200,7 @@ class UpdateBackupOrdering(GrafanaFixture):
 
     def test_verified_snapshot_precedes_pull_build_and_start(self):
         events = self.exercise()
+        self.assertLess(events.index('daemon-owned'), events.index('ps'))
         self.assertLess(events.index('stop'), events.index('snapshot-verified'))
         for command in ('pull', 'build', 'start'):
             self.assertLess(events.index('snapshot-verified'), events.index(command))
@@ -168,6 +228,7 @@ class UpdateBackupOrdering(GrafanaFixture):
     def test_another_checkout_cannot_stop_the_running_project(self):
         self.inspection['Config']['Labels']['com.docker.compose.project.working_dir'] = '/another-checkout'
         with patch.object(ops, 'ROOT', self.root), patch.object(ops, 'require_root'), \
+             patch.object(ops, 'require_local_daemon'), \
              patch.object(sys, 'argv', ['ops.py', 'update', '--apply']), \
              patch.object(ops, 'compose', return_value=subprocess.CompletedProcess([], 0, 'a' * 64, '')), \
              patch.object(ops, 'run', return_value=subprocess.CompletedProcess([], 0, json.dumps([self.inspection]), '')) as run, \
@@ -176,3 +237,14 @@ class UpdateBackupOrdering(GrafanaFixture):
                 ops.update()
             stop.assert_not_called()
             self.assertEqual(run.call_count, 1)
+
+    def test_daemon_ownership_failure_prevents_update_commands(self):
+        with patch.object(ops, 'require_root'), patch.object(sys, 'argv', ['ops.py', 'update', '--apply']), \
+             patch.object(ops, 'require_local_daemon', side_effect=SystemExit('daemon ownership unconfirmed')), \
+             patch.object(ops, 'compose') as compose, patch.object(ops, 'run') as run, \
+             patch.object(ops, 'stop') as stop:
+            with self.assertRaisesRegex(SystemExit, 'ownership unconfirmed'):
+                ops.update()
+            compose.assert_not_called()
+            run.assert_not_called()
+            stop.assert_not_called()

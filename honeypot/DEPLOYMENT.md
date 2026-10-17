@@ -22,10 +22,10 @@ on the Windows build machine. Commands below act on the Ubuntu target only.
    time synchronization, virtualization and memory. Quietly missing preflight
    dependencies are NOT TESTED and must be resolved, not treated as a clean host.
 3. `cp -n .env.example .env`. Edit plain unquoted values, set the actual protected
-   LAN and trusted management subnet, retain both bindings as 127.0.0.1. PCAP uses
-   br-hp-cowrie initially; use the discovered physical NIC to cover both services
-   on real ingress after review, or change the capture design to separate bounded
-   rings. The default capture only covers Cowrie's bridge.
+   LAN and trusted management subnet, retain both bindings as 127.0.0.1. The
+   current template sets PCAP_INTERFACES=br-hp-cowrie,br-hp-canary and captures both
+   decoy bridges in one finite ring. A physical ingress interface requires separate
+   review; do not infer external visibility from the bridge-only capture.
 4. Review and explicitly approve target package installation:
    `sudo bash scripts/install-dependencies.sh --install`. This uses Ubuntu's package
    repositories, installs Docker/Compose/nftables/dumpcap and validation tools, and

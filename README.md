@@ -1,11 +1,21 @@
-# honeypot-v1.3-candidate
+# HoneyTrace source candidate
 
-Private transfer of the honeypot production candidate. Not for public exposure.
-Do not extract this over a live staging tree. Do not change DECOY_BIND from this repo.
+The latest reviewed application source is in [honeypot/](honeypot/README.md).
+This snapshot includes the October 16 local beta candidate and its uncommitted
+qualification integration. See [source provenance](docs/SOURCE_SYNC.md) and
+[beta acceptance](honeypot/docs/BETA_ACCEPTANCE.md).
 
-Current archive:
+**UNVERIFIED SOURCE CANDIDATE. Beta release remains BLOCKED.**
+Independent Stage 7 closeout is PENDING; daemon-reload remains HOLD. Publishing
+source does not qualify the live deployment, retained evidence, packet flow,
+continuity, fresh installation or release acceptance. WAN remains unauthorized.
 
-- `honeypot-v1.3-production-candidate-2026-09-30-polish2.zip`
-- SHA-256: `918badc9d84c81cbef12ac5262e812c86f0816db1384e676031569044ffa45e6`
+Do not deploy over a live staging tree or start Compose from another checkout
+on the staging daemon. Runtime changes require their own reviewed scope.
 
-The earlier `honeypot-v1.3-production-candidate-2026-09-30.zip` (`30bfa139…`) is the pre-polish2 candidate. Do not use it as current.
+The September 30 ZIPs and import receipts are preserved historical artifacts;
+they are not the current application source. Source validation verifies their
+immutability separately from the current source manifest. No live logs, captures,
+incidents, credentials, private review packages or deployment secrets are included.
+
+See the [integration review](docs/INTEGRATION_REVIEW.md) for the combined source, dependency safeguards and restoration-test limits.

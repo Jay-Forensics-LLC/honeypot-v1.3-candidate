@@ -64,20 +64,21 @@ Dockerfile `ARG` image defaults, Compose build arguments, environment overrides,
 APT packages and documentation metadata still need coordinated maintenance.
 Dependabot is a proposal generator, not a runtime acceptance test.
 
-## Proposed repository settings — NOT APPLIED
+## Repository CI requirement
 
-The inspected `HoneyWatch` ruleset contained an empty `required_status_checks`
-array. Require the `offline-validation` GitHub Actions check and keep branches up
-to date before merging. Review bypass permissions so routine merges cannot ignore
-failed checks. These settings need separate approval and have not been changed by
-this PR. Do not remove existing signature, linear-history, CodeQL or conversation
-rules to make a PR mergeable.
+On October 17, the repository rule was separately configured to require
+`offline-validation` from GitHub Actions and keep branches up to date. Other
+protections and the empty bypass list were preserved. The source PR does not
+make further settings changes. Passing CI remains distinct from target runtime
+acceptance; do not remove signature, linear-history, CodeQL or conversation rules
+just to make a PR mergeable.
 
 Resolve an AI review thread after fixing and verifying its issue, recording why it
 does not apply, or linking a consciously deferred issue. Resolving threads does not
 fix code or replace a required check. Re-review the new diff after each merge.
 
-The outstanding source-sync PR #12 changes overlapping operator and validation
-files. Reconcile it with this fix before merging either PR; retain these safeguards
-when resolving conflicts and rerun CI against the combined source. No acceptance
-or private evidence should be published to make the source check pass.
+PR #14 now integrates source-sync PR #12; see the [integration review](INTEGRATION_REVIEW.md).
+The original review findings remain tracked on PR #12 and are not automatically
+resolved. The restoration tests exercise archive recovery and a real SQLite
+fixture in a new private directory; they do not establish supported-target
+Grafana restoration, ownership or migration acceptance.

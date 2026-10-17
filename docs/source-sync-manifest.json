@@ -1,0 +1,1339 @@
+{
+  "baseline_differences": [
+    {
+      "baseline_sha256": "8d8d769c09bc7149b38106c07665fc8960ecdaf342c993047b3e6fd00483ccc7",
+      "disposition": "Current local beta source candidate",
+      "path": "honeypot/.gitignore",
+      "snapshot_sha256": "8afe23852c25f083e6084754b50bcfb83455f3eb8dee4b0f3a1132505160698d"
+    },
+    {
+      "baseline_sha256": "8b53ef63428a65b88b88979e25eea6e1b3330553adcc4315727794dfd574ec10",
+      "disposition": "Current local beta source candidate",
+      "path": "honeypot/CHANGELOG.md",
+      "snapshot_sha256": "1b780d20932470d3b049a460653bd10ced2abc81cdff5f24117c6bc7cc850195"
+    },
+    {
+      "baseline_sha256": "57eee27d19fe30a04479b0043430d4dc8dd0e086b807cba0a2b436fd13a6e48b",
+      "disposition": "Current local beta source candidate",
+      "path": "honeypot/DEPLOYMENT.md",
+      "snapshot_sha256": "3b2e86840394c6ad57f80ad4766a9bf9e3e3b6b6ee4e85282fd70c667033d724"
+    },
+    {
+      "baseline_sha256": "9240c4e9e865a323d581c98d875842e4a4005f296ef7a7b380407e7720022c48",
+      "disposition": "Current local beta source candidate",
+      "path": "honeypot/Makefile",
+      "snapshot_sha256": "6c4d7d33fdc9eca417bebc696baf03a9d5e08d3fc2c14cf4e91a97474a0a119f"
+    },
+    {
+      "baseline_sha256": "2ab3922f7ac86d765b4af37a0b10215d98b8b83f15f660af763e37480f4113a0",
+      "disposition": "Current local beta source candidate",
+      "path": "honeypot/README.md",
+      "snapshot_sha256": "198b5d010e7ca87573fb086e8d390606b12e3bcf4ff7b08b6f3845f3b42f065e"
+    },
+    {
+      "baseline_sha256": "225933f1a011cc30e48158801a0403ffbb60d6ada8c5933fb5a91c22528dcef7",
+      "disposition": "Current local beta source candidate",
+      "path": "honeypot/dashboards/honeypot-overview.json",
+      "snapshot_sha256": "58f14cb3a886daf5f04117d9bd068bb753b8346e740313df41cb1650016fa335"
+    },
+    {
+      "baseline_sha256": "6c88ce8b6c7bf83d5b1216ee98a0c68e6d8c81522d94e4f6390e21766d2f2982",
+      "disposition": "Excluded historical generated source artifact",
+      "path": "honeypot/docs/validation-results.json",
+      "snapshot_sha256": null
+    },
+    {
+      "baseline_sha256": "861f2c881f7fcd1a1a5d9555503630a5df0764647662426810c888049a1fade3",
+      "disposition": "Current local beta source candidate",
+      "path": "honeypot/scripts/guard_policy.py",
+      "snapshot_sha256": "6ea258874b0548a4d937e138582beec232a9effa348276651771d89878db399d"
+    },
+    {
+      "baseline_sha256": "612c35b94896af2c2194ee90fbb135040c05dd51c6a5a2e8bbdb0d933ab84b5b",
+      "disposition": "Current local beta source candidate",
+      "path": "honeypot/scripts/healthcheck.py",
+      "snapshot_sha256": "1e32d96e0212eac0f6a2a7b78ba4aa7942a07cc248cbe2b50e8b5cc89caa442c"
+    },
+    {
+      "baseline_sha256": "62257048e0096135fa60816bef77759ec289077691e83934a4c9630427076967",
+      "disposition": "Current local beta source candidate",
+      "path": "honeypot/scripts/hp.py",
+      "snapshot_sha256": "4571db9ff8626783d9abb2237c9c6bcdebc84e34133df40067c1cd878f0fad09"
+    },
+    {
+      "baseline_sha256": "18c66e326b1314943b0ccfaff6285b2c2a9e3c5e216d92e94eec0661085284bd",
+      "disposition": "Current local beta source candidate",
+      "path": "honeypot/scripts/incidentd.py",
+      "snapshot_sha256": "856377136c3bb49c82beb4c223363b5baadf7f6b2020b6e8d972bd6c2f9662d7"
+    },
+    {
+      "baseline_sha256": "45764b813b96d8fbe4806fe4e0d53a8e4c9aee3530aebd98d254c9797552c6df",
+      "disposition": "Current local beta source candidate",
+      "path": "honeypot/scripts/ops.py",
+      "snapshot_sha256": "d6fdbbbe35d1863da0e8d1c0cf40e78e1f02cd591fa50a886c36f8ad02b2f65e"
+    },
+    {
+      "baseline_sha256": "d720ea9621f0d8d312a14a02b010ba1ab7c96bcbf215bf159a646186b0f67533",
+      "disposition": "Current local beta source candidate",
+      "path": "honeypot/systemd/honeypot-pcap.service.in",
+      "snapshot_sha256": "76d6e68d4b60682ed096be724cafa41d72b3a2f3ae0b8f5ed78b0fc7d7ee4eea"
+    },
+    {
+      "baseline_sha256": "443a45b544bced0ef2be0683aca5a8f96d6eada7eaa8a2d7181f0a0bd75e7b16",
+      "disposition": "Current local beta source candidate",
+      "path": "honeypot/tests/test_hardening.py",
+      "snapshot_sha256": "171862f209621affa2578831005803c2f4648982ca9c5f017525cad6794d6576"
+    },
+    {
+      "baseline_sha256": "cdfffab63664ef00d0d4dfaab2e6cfc4dc4ad970d15df7b0f449c6fd17a3ac3a",
+      "disposition": "Current local beta source candidate",
+      "path": "honeypot/tests/test_intel_pack.py",
+      "snapshot_sha256": "55e4101a31d75002e0f85bb866cc88320af2b651ac604ae99197ed6bd671d6e3"
+    },
+    {
+      "baseline_sha256": "dc801dcc6c38b433282b479fb5a451a6ff277ce31405c8f4eb54edb0700f4658",
+      "disposition": "Excluded historical generated source artifact",
+      "path": "honeypot/verification/RECOVERY_REVIEW_TEST_RESULTS_2026-09-30.txt",
+      "snapshot_sha256": null
+    },
+    {
+      "baseline_sha256": "9fed427695b43e1c31889835f21ed449a8bbe9abf776a45b32d4055b0250291d",
+      "disposition": "Excluded historical generated source artifact",
+      "path": "honeypot/verification/SOURCE_CHANGES.patch",
+      "snapshot_sha256": null
+    }
+  ],
+  "beta": "BLOCKED",
+  "candidate_file_count": 198,
+  "created_utc": "2026-10-17T01:49:18.994816+00:00",
+  "daemon_reload": "HOLD",
+  "excluded_categories": [
+    ".env",
+    "secrets",
+    "credentials",
+    "logs",
+    "captures",
+    "incidents",
+    "artifacts",
+    "backups",
+    "private runtime reports",
+    "private review packages"
+  ],
+  "excluded_local_files": {
+    "docs/validation-results.json": "Generated historical validation report; preserved in historical archive",
+    "verification/LIVE_EVIDENCE_SUMMARY.md": "Retain the existing public exclusion notice; omit private retained-data narrative",
+    "verification/RECOVERY_REVIEW_TEST_RESULTS_2026-09-30.txt": "Generated historical test transcript; preserved in historical archive",
+    "verification/SOURCE_CHANGES.patch": "Historical source patch; preserved in historical archive"
+  },
+  "exported_candidate_file_count": 194,
+  "files": [
+    {
+      "bytes": 83,
+      "mode": "0o644",
+      "path": "honeypot/.dockerignore",
+      "sha256": "b679c2a4ee62c07388ed91179937348f3aad6ec4d7ecf1481647076582041b91"
+    },
+    {
+      "bytes": 1805,
+      "mode": "0o644",
+      "path": "honeypot/.env.example",
+      "sha256": "b35dd393713e346b9262789121f2c20a15483f29f61e14eed88ce0c9fadf32b3"
+    },
+    {
+      "bytes": 1064,
+      "mode": "0o644",
+      "path": "honeypot/.gitignore",
+      "sha256": "8afe23852c25f083e6084754b50bcfb83455f3eb8dee4b0f3a1132505160698d"
+    },
+    {
+      "bytes": 3942,
+      "mode": "0o644",
+      "path": "honeypot/ARCHITECTURE.md",
+      "sha256": "c8a3d0b098ac082ab9152a373ff2b92a25615b1f75095f90aee67fad45ca1ac0"
+    },
+    {
+      "bytes": 1207,
+      "mode": "0o644",
+      "path": "honeypot/ASSET_INVENTORY.md",
+      "sha256": "6f7900a582381304772544af9b611f0ebc42ec534d71b84224db4e1539816e65"
+    },
+    {
+      "bytes": 7467,
+      "mode": "0o644",
+      "path": "honeypot/CHANGELOG.md",
+      "sha256": "1b780d20932470d3b049a460653bd10ced2abc81cdff5f24117c6bc7cc850195"
+    },
+    {
+      "bytes": 607,
+      "mode": "0o644",
+      "path": "honeypot/CLOSEOUT_README.md",
+      "sha256": "12c40b96c07b5d52ea22b81af55afac1180fcd0465b2f6651d8b31e4d160a5b3"
+    },
+    {
+      "bytes": 31173,
+      "mode": "0o644",
+      "path": "honeypot/DEMO.md",
+      "sha256": "1ba73e464469709a8193d3342940d455d0fbe04638ed95ee481bb5b9edd2179e"
+    },
+    {
+      "bytes": 6879,
+      "mode": "0o644",
+      "path": "honeypot/DEPLOYMENT.md",
+      "sha256": "3b2e86840394c6ad57f80ad4766a9bf9e3e3b6b6ee4e85282fd70c667033d724"
+    },
+    {
+      "bytes": 4273,
+      "mode": "0o644",
+      "path": "honeypot/DETECTION_RULES.md",
+      "sha256": "d5499df274ac9f16c16ee0972bc1bd46cec7a5f42d70a221ccea42381e01d5b3"
+    },
+    {
+      "bytes": 711,
+      "mode": "0o644",
+      "path": "honeypot/GROK_REVIEW_README.md",
+      "sha256": "0ae884fca16fe3051a8eaac7a37deb10da6f1328371636117944233cd885bb08"
+    },
+    {
+      "bytes": 472,
+      "mode": "0o644",
+      "path": "honeypot/INCIDENT_LOG.md",
+      "sha256": "8ffe6a203510ac44b25e603be0d1e0d82346c5241539ce5192f94bd260ca4e17"
+    },
+    {
+      "bytes": 14146,
+      "mode": "0o644",
+      "path": "honeypot/MANIFEST.sha256",
+      "sha256": "4d938c2778f8d8162ab021e60f5dfb945149790474aff62b08647b89b75b3915"
+    },
+    {
+      "bytes": 451,
+      "mode": "0o644",
+      "path": "honeypot/Makefile",
+      "sha256": "6c4d7d33fdc9eca417bebc696baf03a9d5e08d3fc2c14cf4e91a97474a0a119f"
+    },
+    {
+      "bytes": 2742,
+      "mode": "0o644",
+      "path": "honeypot/NETWORK_MAP.md",
+      "sha256": "c2de0f33eba1496e61094ca525bf3c6a90bd87a59952571d3e151a8126a34647"
+    },
+    {
+      "bytes": 56969,
+      "mode": "0o644",
+      "path": "honeypot/PROJECT_STATUS.md",
+      "sha256": "77a11bec8df105c898ce5fd8e8f7411bc60af541da303cc4e942e4255b33aa7d"
+    },
+    {
+      "bytes": 5050,
+      "mode": "0o644",
+      "path": "honeypot/README.md",
+      "sha256": "198b5d010e7ca87573fb086e8d390606b12e3bcf4ff7b08b6f3845f3b42f065e"
+    },
+    {
+      "bytes": 3512,
+      "mode": "0o644",
+      "path": "honeypot/RECOVERY.md",
+      "sha256": "3de47ed6c1da939371bd32b07af0abb37db0eeca1580b3afd50854cd11fae330"
+    },
+    {
+      "bytes": 5608,
+      "mode": "0o644",
+      "path": "honeypot/SECURITY.md",
+      "sha256": "d2ef1f716bef2f49cda4854d9c30b0be9e20faeb786ac5f2bb4f8f1bb1866047"
+    },
+    {
+      "bytes": 3955,
+      "mode": "0o644",
+      "path": "honeypot/STORAGE.md",
+      "sha256": "770f6018d8709c04f386c0be229f29cce0abf138524f0aba909335dc97af34d8"
+    },
+    {
+      "bytes": 2363,
+      "mode": "0o644",
+      "path": "honeypot/TODO.md",
+      "sha256": "53a0297033a9caeda0ce35ce18dfa8a560dcb523ae1ee97780189ce9efacedd4"
+    },
+    {
+      "bytes": 256,
+      "mode": "0o644",
+      "path": "honeypot/configs/alert-bus.yml.example",
+      "sha256": "a217051af8901a882f8e6a6ec682f07fcc6636a7c07ec7e0b11bc5d4083d3769"
+    },
+    {
+      "bytes": 1350,
+      "mode": "0o644",
+      "path": "honeypot/configs/alloy/config.alloy",
+      "sha256": "a03d3e37958603ad052e4bbfc9ed69ecafddfff0f5321faa5a50ed7b36f055f3"
+    },
+    {
+      "bytes": 500,
+      "mode": "0o644",
+      "path": "honeypot/configs/cowrie/cowrie.cfg",
+      "sha256": "dbee4ed439ec244c89b2431a1094ae6e1233f61070a409dc34d5f92a61f6fd3f"
+    },
+    {
+      "bytes": 188,
+      "mode": "0o644",
+      "path": "honeypot/configs/grafana/provisioning/dashboards/honeypot.yml",
+      "sha256": "80bb07ab8ad7335fffb97a2544899810355b832110c957850a4c174293e17982"
+    },
+    {
+      "bytes": 155,
+      "mode": "0o644",
+      "path": "honeypot/configs/grafana/provisioning/datasources/loki.yml",
+      "sha256": "18bcd33d6d44d1bfe3dffdf0d5fd4e826d079d21e8b3bfde9b660c319f612381"
+    },
+    {
+      "bytes": 385,
+      "mode": "0o644",
+      "path": "honeypot/configs/logrotate/cowrie-cold-policy.json",
+      "sha256": "acb62d18aaf1fe9956dafb0e3db43d10e1127f0eec752a0d403ce58495f19045"
+    },
+    {
+      "bytes": 480,
+      "mode": "0o644",
+      "path": "honeypot/configs/logrotate/honeypot.in",
+      "sha256": "c404824dd6b1b31b194adf84bb40eb84df3ed974ef15df1bdd83ab92d33651fb"
+    },
+    {
+      "bytes": 919,
+      "mode": "0o644",
+      "path": "honeypot/configs/loki/config.yml",
+      "sha256": "ad3c872c5f1e7fb1b200ffe846465517089a85aa70c917b051e4a47c342a645b"
+    },
+    {
+      "bytes": 1693,
+      "mode": "0o644",
+      "path": "honeypot/configs/nftables/hp-guard.nft.in",
+      "sha256": "498652f4166f99eff0d4ea721e7b8ae761aa37c581a28d4cf77171d2fe4b09e2"
+    },
+    {
+      "bytes": 752,
+      "mode": "0o644",
+      "path": "honeypot/configs/nftables/management.nft.example",
+      "sha256": "a15aaf4168892737dc1a6b87e41bce611faaa7154dd1f717d4c5f8357574b8e6"
+    },
+    {
+      "bytes": 1174,
+      "mode": "0o644",
+      "path": "honeypot/configs/opencanary/opencanary.conf",
+      "sha256": "bf0b158f50ecac925b479a85288466dc8e443f1cb0497a0d0359fe79033348bd"
+    },
+    {
+      "bytes": 1526,
+      "mode": "0o644",
+      "path": "honeypot/configs/suricata/suricata.yaml",
+      "sha256": "1c8f1ded4407c8de6bde5101ab8165d695181f4d3cc1b56fbc8456c9cba498d4"
+    },
+    {
+      "bytes": 1286,
+      "mode": "0o644",
+      "path": "honeypot/configs/wan/port-matrix.yml",
+      "sha256": "521654e2baa480ac889187ca0f89495f5d9a589387c00a006a32346e2198d5a2"
+    },
+    {
+      "bytes": 310,
+      "mode": "0o644",
+      "path": "honeypot/configs/wan/wan-approval.example.json",
+      "sha256": "b84e7e704c5ff0324ca3fde9484dc4f21f81239fec2dfab4055d0f5f267f4278"
+    },
+    {
+      "bytes": 15271,
+      "mode": "0o644",
+      "path": "honeypot/dashboards/honeypot-overview.json",
+      "sha256": "58f14cb3a886daf5f04117d9bd068bb753b8346e740313df41cb1650016fa335"
+    },
+    {
+      "bytes": 1344,
+      "mode": "0o644",
+      "path": "honeypot/detections/correlation/rules.json",
+      "sha256": "8ec613252f8158fa3ee9956816860b7e338c53950894e8304c8bea5baa544c47"
+    },
+    {
+      "bytes": 342,
+      "mode": "0o644",
+      "path": "honeypot/detections/iocs/README.md",
+      "sha256": "39bb42f4c0581cf88c024db426e342344c302c495d98519e74931788d2188af9"
+    },
+    {
+      "bytes": 66,
+      "mode": "0o644",
+      "path": "honeypot/detections/iocs/sha256.txt",
+      "sha256": "dd15cff999750b9ad4f3b68b9cc50d96bd5f69369d26a17f269dbaea3bb91d97"
+    },
+    {
+      "bytes": 525,
+      "mode": "0o644",
+      "path": "honeypot/detections/sigma/cowrie-persistence.yml",
+      "sha256": "8aef0808b8c2eadf18bac395f6ffffcfafea9f818a2da544a9867b8b462c43c6"
+    },
+    {
+      "bytes": 1816,
+      "mode": "0o644",
+      "path": "honeypot/detections/suricata/local.rules",
+      "sha256": "1c8e50d81bd2f9638327f13449d8a2f0832cc8d2c1cfe2d9d65e8baed3e0c21f"
+    },
+    {
+      "bytes": 645,
+      "mode": "0o644",
+      "path": "honeypot/detections/yara/suspicious-artifacts.yar",
+      "sha256": "5843f32ff9f7158168d5d77033fab8e8505e4b44758b337ffbdf86b59983ebd0"
+    },
+    {
+      "bytes": 280,
+      "mode": "0o644",
+      "path": "honeypot/docker/incidentd.Dockerfile",
+      "sha256": "565d398cc50a8c0c5fbef1c826e271258c5565e02c463c93a6657cec481af975"
+    },
+    {
+      "bytes": 436,
+      "mode": "0o644",
+      "path": "honeypot/docker/opencanary.Dockerfile",
+      "sha256": "198d73c59c9576935a667ad5b962057b5177460be1a792d2705c4b5bd0d4cffa"
+    },
+    {
+      "bytes": 308,
+      "mode": "0o644",
+      "path": "honeypot/docker/suricata.Dockerfile",
+      "sha256": "658140566aa6a0de20fb18855f6d3f7a9d78ca81e707484b43610fbd08c1b2ee"
+    },
+    {
+      "bytes": 7855,
+      "mode": "0o644",
+      "path": "honeypot/docker-compose.yml",
+      "sha256": "5306700ecaf060f1700acbd458db3cb8594ae6636d9065e50e023c8a8327b311"
+    },
+    {
+      "bytes": 52636,
+      "mode": "0o644",
+      "path": "honeypot/docs/BETA_ACCEPTANCE.md",
+      "sha256": "d5d93f809f294a4fabed4d83109c78206eb4a39f7ae6996e9de801bd75d91ea7"
+    },
+    {
+      "bytes": 6201,
+      "mode": "0o644",
+      "path": "honeypot/docs/BETA_QUICKSTART.md",
+      "sha256": "79a24bc96d26a97cbc4ffd84af78b562a807e9f5147d18b0534bc30e38ae8b2b"
+    },
+    {
+      "bytes": 3665,
+      "mode": "0o644",
+      "path": "honeypot/docs/CLOSEOUT_2026-09-28.md",
+      "sha256": "aacd19f6a60678bd591746e1b964e09cb884f836d67d7dbfcab7a5668696fb1f"
+    },
+    {
+      "bytes": 2289,
+      "mode": "0o644",
+      "path": "honeypot/docs/EXTENDING.md",
+      "sha256": "28b92a6fc1ab9ee09e652c882747f25f862753073faa018675e4cf5be06cadc8"
+    },
+    {
+      "bytes": 4510,
+      "mode": "0o644",
+      "path": "honeypot/docs/FILE_TREE.txt",
+      "sha256": "462824f65f0252fe2d996fe6c92003d343eb1a9649f5839f88568a53009fdbd9"
+    },
+    {
+      "bytes": 2096,
+      "mode": "0o644",
+      "path": "honeypot/docs/FIRST_BOOT.md",
+      "sha256": "fa45d66fa88a92f0c0e01f49f2a6e2e743d0957b30a1b497e7f0ec9b8a855765"
+    },
+    {
+      "bytes": 8670,
+      "mode": "0o644",
+      "path": "honeypot/docs/HARDENING_VALIDATION.md",
+      "sha256": "0450681273477c28eb1fab412139d5ec1413e4050b68a6882ad8884b7ba778bc"
+    },
+    {
+      "bytes": 9587,
+      "mode": "0o644",
+      "path": "honeypot/docs/IMAGE_REFERENCES.json",
+      "sha256": "db6e7de0e3e54d5503fe1ced5a935ccc35015fae1e3adb1350a5579e21ff7059"
+    },
+    {
+      "bytes": 1836,
+      "mode": "0o644",
+      "path": "honeypot/docs/LAB_ACCEPTANCE.md",
+      "sha256": "cbdbf324012b9492b9a6bc2f33a826725c0cc8c0ba67a7a72aa82b1759de7329"
+    },
+    {
+      "bytes": 3843,
+      "mode": "0o644",
+      "path": "honeypot/docs/OPERATIONS.md",
+      "sha256": "9232911a6880222a84853b67f2f0a0a27aab044e601c1fa5cbb1345e45e58ee2"
+    },
+    {
+      "bytes": 2162,
+      "mode": "0o644",
+      "path": "honeypot/docs/OPERATOR_MODEL.md",
+      "sha256": "416d2d466033ea50c36ea6ed80b71c4afef6b8437e08d5972adea6f1b7ac054f"
+    },
+    {
+      "bytes": 2825,
+      "mode": "0o644",
+      "path": "honeypot/docs/REQUIREMENTS.md",
+      "sha256": "331a334ad66e2994ae895b71d119131b883596df7ce3f54c5afce99ea1d2b72a"
+    },
+    {
+      "bytes": 1781,
+      "mode": "0o644",
+      "path": "honeypot/docs/SOURCES.md",
+      "sha256": "e89ed47dbc78ae3a4650ebc45fe9d8454b0ea1600c4ff7b34088493cf9393e17"
+    },
+    {
+      "bytes": 5540,
+      "mode": "0o644",
+      "path": "honeypot/docs/STAGE8_HANDOFF.md",
+      "sha256": "944e4cd2399c7b4cc0b14181b2ea8c8d53b14f53824a9e14d8888a1c3b886df1"
+    },
+    {
+      "bytes": 7070,
+      "mode": "0o644",
+      "path": "honeypot/docs/VALIDATION_REPORT.md",
+      "sha256": "c93c1560484c714c1ec3496ea14041b33d2eaddb18446d416b673baf4c2b78d4"
+    },
+    {
+      "bytes": 3938,
+      "mode": "0o644",
+      "path": "honeypot/docs/VERIFICATION_HANDOFF_2026-09-28.md",
+      "sha256": "f8b8c2bd160aad006c61c5e03d17cb2ef90c8ab3ef228a600d8df97d2835f8fb"
+    },
+    {
+      "bytes": 7237,
+      "mode": "0o644",
+      "path": "honeypot/docs/WAN_CRITERIA.md",
+      "sha256": "3889f15e4c5fe359905ec426eacb7f74ecec45956228ea5dde4564af4c557d9e"
+    },
+    {
+      "bytes": 6403,
+      "mode": "0o644",
+      "path": "honeypot/scripts/alert_bus.py",
+      "sha256": "260f2de7a4f4c526e04c484bfd31674bb7c4d755c82a31cbc50949f1c607c590"
+    },
+    {
+      "bytes": 174,
+      "mode": "0o755",
+      "path": "honeypot/scripts/apply-containment.sh",
+      "sha256": "fac574b095552a5e82eacd02d9e9c24c9e6871c8fd6abf868a852df4219a3301"
+    },
+    {
+      "bytes": 4306,
+      "mode": "0o644",
+      "path": "honeypot/scripts/backup.py",
+      "sha256": "d295c133916dbdbef8ca2d97f8a7af6cb6866a386e47d147fb78f12e9e16220b"
+    },
+    {
+      "bytes": 167,
+      "mode": "0o755",
+      "path": "honeypot/scripts/backup.sh",
+      "sha256": "4fb6036a54475bea7a0c122ae9e43eccd9942384d8d0cb0193c89b686d18650b"
+    },
+    {
+      "bytes": 4138,
+      "mode": "0o644",
+      "path": "honeypot/scripts/bait.py",
+      "sha256": "1a64d9f21f406949670f19ccb08e4bbfbfe54f4b28924ee9400c4e2c3adea2c5"
+    },
+    {
+      "bytes": 174,
+      "mode": "0o755",
+      "path": "honeypot/scripts/block-source.sh",
+      "sha256": "f55787de5e26546f80288955447cd8570e06bfc556a9c6aa6344dfd4d2d0fce5"
+    },
+    {
+      "bytes": 173,
+      "mode": "0o755",
+      "path": "honeypot/scripts/bootstrap.sh",
+      "sha256": "4950b846f7c47e197b8f1aa2cf53caff0a071754a3fc04e90615e84f0871b59c"
+    },
+    {
+      "bytes": 3101,
+      "mode": "0o644",
+      "path": "honeypot/scripts/capture_status.py",
+      "sha256": "ba917b2a775e8494da41e521ed10bb9be0838ff0937083b8effc5d256d54b3e0"
+    },
+    {
+      "bytes": 1724,
+      "mode": "0o644",
+      "path": "honeypot/scripts/cold-log-retention.py",
+      "sha256": "b0b48178b8969100018b8d0b47571e2be62631461e58574c2e7352f489c1f802"
+    },
+    {
+      "bytes": 1369,
+      "mode": "0o644",
+      "path": "honeypot/scripts/containment-hook.py",
+      "sha256": "235ff741a349ec122fd88dd9d2f62dacc223460d555b84c2b104195da0d0665a"
+    },
+    {
+      "bytes": 11154,
+      "mode": "0o644",
+      "path": "honeypot/scripts/daemon_check.py",
+      "sha256": "4387e60b7e3e53270bf9220fe24163269e7d64b67277526d09b1987e106aa173"
+    },
+    {
+      "bytes": 20392,
+      "mode": "0o644",
+      "path": "honeypot/scripts/demo.py",
+      "sha256": "6e108c104b0e448394a3b6a9b1bbe8230c8c95f5c352262c82a06a899ff18f5b"
+    },
+    {
+      "bytes": 3284,
+      "mode": "0o644",
+      "path": "honeypot/scripts/demo_capture_diagnosis.py",
+      "sha256": "31038063d5d80fdca0ad5b2e9c03d0e7a2ce7a33e4312f93a617e4c5b631bca0"
+    },
+    {
+      "bytes": 2421,
+      "mode": "0o644",
+      "path": "honeypot/scripts/evidence_store.py",
+      "sha256": "0858cad60fb10aea5a45d5ee8675abce2de99be9aa73d3da29534fa7900d6bed"
+    },
+    {
+      "bytes": 1161,
+      "mode": "0o644",
+      "path": "honeypot/scripts/firewall-log.py",
+      "sha256": "3d71007df584b2b3816bee601b32922cd1095951541fde92abf927d21aeff14e"
+    },
+    {
+      "bytes": 8001,
+      "mode": "0o644",
+      "path": "honeypot/scripts/firewall.py",
+      "sha256": "afe58fbca794a3875a24f1a285a6b117ec91cb32819e03ee7627b4146251e7f1"
+    },
+    {
+      "bytes": 171,
+      "mode": "0o755",
+      "path": "honeypot/scripts/generate-secrets.sh",
+      "sha256": "512bfa09551b4331d10579c70162a20a7e1c5d8fa873ae1b80d21d4aec8143c5"
+    },
+    {
+      "bytes": 7600,
+      "mode": "0o644",
+      "path": "honeypot/scripts/guard_policy.py",
+      "sha256": "6ea258874b0548a4d937e138582beec232a9effa348276651771d89878db399d"
+    },
+    {
+      "bytes": 1433,
+      "mode": "0o644",
+      "path": "honeypot/scripts/guard_watch.py",
+      "sha256": "ea1406cbb7e2f7100f75afe41ed7e0106251d0bff17d2e382c899ba106017250"
+    },
+    {
+      "bytes": 175,
+      "mode": "0o755",
+      "path": "honeypot/scripts/hash-artifact.sh",
+      "sha256": "4574c2bfa95cc4d56cf032c516645cc08667af4a517a849c3fc9979a5d75ab16"
+    },
+    {
+      "bytes": 2700,
+      "mode": "0o644",
+      "path": "honeypot/scripts/hash-artifacts.py",
+      "sha256": "7e8bb51bd3a5bc2af3a558e5582aeac20f2d06df596206280da1aa733de563b5"
+    },
+    {
+      "bytes": 2193,
+      "mode": "0o644",
+      "path": "honeypot/scripts/health_snapshot.py",
+      "sha256": "0ac22d865f549d78e34832b50757091db8780c0cc86adaa9e81e505c350625f4"
+    },
+    {
+      "bytes": 7893,
+      "mode": "0o644",
+      "path": "honeypot/scripts/healthcheck.py",
+      "sha256": "1e32d96e0212eac0f6a2a7b78ba4aa7942a07cc248cbe2b50e8b5cc89caa442c"
+    },
+    {
+      "bytes": 172,
+      "mode": "0o755",
+      "path": "honeypot/scripts/healthcheck.sh",
+      "sha256": "70ca35a411dfe9fd7c64c94feb110d3f15d1e281b4ab19efd8f4052138ee7b98"
+    },
+    {
+      "bytes": 10057,
+      "mode": "0o644",
+      "path": "honeypot/scripts/hp.py",
+      "sha256": "4571db9ff8626783d9abb2237c9c6bcdebc84e34133df40067c1cd878f0fad09"
+    },
+    {
+      "bytes": 118,
+      "mode": "0o755",
+      "path": "honeypot/scripts/hp.sh",
+      "sha256": "7f77a6fe43a910a26715d75e5140a642a1efe9b104dc6ab9eae05f48a9f23f13"
+    },
+    {
+      "bytes": 6080,
+      "mode": "0o644",
+      "path": "honeypot/scripts/hp_common.py",
+      "sha256": "6507cdad78f87c84ed32c47468830d7ba80bb8cc9fbbdd8333ffc2cdc104c355"
+    },
+    {
+      "bytes": 24311,
+      "mode": "0o644",
+      "path": "honeypot/scripts/incidentd.py",
+      "sha256": "856377136c3bb49c82beb4c223363b5baadf7f6b2020b6e8d972bd6c2f9662d7"
+    },
+    {
+      "bytes": 171,
+      "mode": "0o755",
+      "path": "honeypot/scripts/install-dependencies.sh",
+      "sha256": "5ed9775126474f90d064dd3b7d327943ea78ac6df04538a986d59114982a415d"
+    },
+    {
+      "bytes": 3382,
+      "mode": "0o644",
+      "path": "honeypot/scripts/install-systemd.py",
+      "sha256": "728cb756cd65130e3fbeec233f92ced8e68db43dd81915d23b37da6ec4c26d86"
+    },
+    {
+      "bytes": 10742,
+      "mode": "0o644",
+      "path": "honeypot/scripts/intel_pack.py",
+      "sha256": "f7876e0584d9ab1db5e225916a5860a09b506740da9f99907f5fd6691529de6a"
+    },
+    {
+      "bytes": 7993,
+      "mode": "0o644",
+      "path": "honeypot/scripts/live_capture.py",
+      "sha256": "0544c393430589713fdfac658e43977c38b5706533956129f05c4b142e88f88b"
+    },
+    {
+      "bytes": 2543,
+      "mode": "0o644",
+      "path": "honeypot/scripts/live_demo_preflight.py",
+      "sha256": "dd5d4a832806f6489d9ccfb201ab55ab29589f09d922a65e65e58320458c5586"
+    },
+    {
+      "bytes": 1645,
+      "mode": "0o644",
+      "path": "honeypot/scripts/log_tail.py",
+      "sha256": "f4339b818f0db16dee80584cf67c39d83357d260895c24cffbcb56d47b2f9281"
+    },
+    {
+      "bytes": 16467,
+      "mode": "0o644",
+      "path": "honeypot/scripts/ops.py",
+      "sha256": "d6fdbbbe35d1863da0e8d1c0cf40e78e1f02cd591fa50a886c36f8ad02b2f65e"
+    },
+    {
+      "bytes": 1594,
+      "mode": "0o644",
+      "path": "honeypot/scripts/pcap.py",
+      "sha256": "88503e20a2bc3f28b94916d38ef97568d8ee11232a043fc74a618b0619d9cfa3"
+    },
+    {
+      "bytes": 12688,
+      "mode": "0o644",
+      "path": "honeypot/scripts/pcap_demo_recovery.py",
+      "sha256": "d25adce06925f1ee5daa73d8593e7c9bb51f2e06b887161da555e0dbcd64cf6a"
+    },
+    {
+      "bytes": 1478,
+      "mode": "0o644",
+      "path": "honeypot/scripts/pipeline_health.py",
+      "sha256": "1bccef1b71c9ca96ad366211d334363a0d30c9477ea46442b72096a36fe7080e"
+    },
+    {
+      "bytes": 173,
+      "mode": "0o755",
+      "path": "honeypot/scripts/preflight.sh",
+      "sha256": "04ce23f569b540e1338547592d25dcdd38987e94c5f695e816ba1445197af28c"
+    },
+    {
+      "bytes": 1315,
+      "mode": "0o644",
+      "path": "honeypot/scripts/preserve-evidence.py",
+      "sha256": "64e8258a7b36e4aa969e7fabfc81ad835200fd16b4b33ee77b9b2ec100b2fb52"
+    },
+    {
+      "bytes": 178,
+      "mode": "0o755",
+      "path": "honeypot/scripts/preserve-evidence.sh",
+      "sha256": "fc1c1fcc1f614ffa4c864533821cf615336c21667f38b400482a4a612b5d1fed"
+    },
+    {
+      "bytes": 5577,
+      "mode": "0o644",
+      "path": "honeypot/scripts/qualified_normalized_source.py",
+      "sha256": "c4daf57dbb575f1a0b6bd16e3c3c227961be70f3a3dc172b133ff538301a687f"
+    },
+    {
+      "bytes": 171,
+      "mode": "0o755",
+      "path": "honeypot/scripts/quarantine-container.sh",
+      "sha256": "6737355564f3214095348612fa50ad2df3dde18d29f14db67c4c3a0a762af206"
+    },
+    {
+      "bytes": 1860,
+      "mode": "0o644",
+      "path": "honeypot/scripts/quarantine.py",
+      "sha256": "492c448b87c0bc50859711ef94366539d2d2bb67c1c32cc817a25328e6e2ab39"
+    },
+    {
+      "bytes": 170,
+      "mode": "0o755",
+      "path": "honeypot/scripts/readiness-check.sh",
+      "sha256": "884d0482cf65cd813ea17d488bde09c5601222904f1dc8ae164a1ea0901b58fa"
+    },
+    {
+      "bytes": 3745,
+      "mode": "0o644",
+      "path": "honeypot/scripts/readiness.py",
+      "sha256": "985c90d8521da19555018b0d4ad4f1561ad620ca61deae4e9031f3ed0f83a0f7"
+    },
+    {
+      "bytes": 175,
+      "mode": "0o755",
+      "path": "honeypot/scripts/remove-containment.sh",
+      "sha256": "def3038c0d1f46b0382f4c72d7e0a751dda804e9d52b58417488aeabf10defae"
+    },
+    {
+      "bytes": 253,
+      "mode": "0o755",
+      "path": "honeypot/scripts/restore-check.sh",
+      "sha256": "811c34675a68a403b8a045cd41da5e24854e61ffbbc1053df1323aeb32cd8faa"
+    },
+    {
+      "bytes": 16965,
+      "mode": "0o644",
+      "path": "honeypot/scripts/runtime_inventory.py",
+      "sha256": "f2c72da2c63df7149d2122ca86d676745f785ae5877632311335b4472b781940"
+    },
+    {
+      "bytes": 173,
+      "mode": "0o755",
+      "path": "honeypot/scripts/show-containment.sh",
+      "sha256": "d39fd91b9985429fc230e7d5484b05b998aa5df8a6609e062d2c0ca962cc8394"
+    },
+    {
+      "bytes": 11436,
+      "mode": "0o644",
+      "path": "honeypot/scripts/stage7_preservation.py",
+      "sha256": "70affc39802b0d1eaf02d54f208898e128ecaec8f2e604b870aeeed71ed759d0"
+    },
+    {
+      "bytes": 58500,
+      "mode": "0o644",
+      "path": "honeypot/scripts/stage7_qualification.py",
+      "sha256": "9cc3326929eb29ee5280438a594a41db08fc859f388cb2db241d751619683c5f"
+    },
+    {
+      "bytes": 18505,
+      "mode": "0o644",
+      "path": "honeypot/scripts/stage7_recovery_check.py",
+      "sha256": "d48ade6fc5803f107e35691df5dc5836b03a78b9e20f4b9fa928e745fcbab251"
+    },
+    {
+      "bytes": 1963,
+      "mode": "0o644",
+      "path": "honeypot/scripts/stage7_tests.py",
+      "sha256": "2e120859e83b725d862721131c198ec7a0a5e6c7af91a767834cfd3e63864dc3"
+    },
+    {
+      "bytes": 165,
+      "mode": "0o755",
+      "path": "honeypot/scripts/start-pcap.sh",
+      "sha256": "8afeedfc9ef42ac5eab5f445c9c7988909a8f5ae2cb324d2dc47abce312dd177"
+    },
+    {
+      "bytes": 169,
+      "mode": "0o755",
+      "path": "honeypot/scripts/start.sh",
+      "sha256": "7d1e7d26ab150bb492cc30acd9a3d2542aea314da3a57d7a0aa4dae9726fcb6b"
+    },
+    {
+      "bytes": 170,
+      "mode": "0o755",
+      "path": "honeypot/scripts/status.sh",
+      "sha256": "fb529cdad64ddea8133f6699206cf92fbe625274de15cc5a048780c038a3b45c"
+    },
+    {
+      "bytes": 168,
+      "mode": "0o755",
+      "path": "honeypot/scripts/stop.sh",
+      "sha256": "a2e28aac75815200e93d8c7d645e43155ef431c6067a262938af62e9e0baee2c"
+    },
+    {
+      "bytes": 4950,
+      "mode": "0o644",
+      "path": "honeypot/scripts/target-validate.py",
+      "sha256": "d1145860f79241c98f9d53cdf2d0d4c212df489efc5f854c193c2edfa85a8542"
+    },
+    {
+      "bytes": 175,
+      "mode": "0o755",
+      "path": "honeypot/scripts/target-validate.sh",
+      "sha256": "073ffc12f77e00e34e4fd48b30d74f08a2fde27b4c20051cbf2c07ac0e005605"
+    },
+    {
+      "bytes": 173,
+      "mode": "0o755",
+      "path": "honeypot/scripts/test-firewall-config.sh",
+      "sha256": "4cbbec29bbe504baf3af80a1a91741c4481f3ac1b3c206f9b8d6790d6396dfc0"
+    },
+    {
+      "bytes": 176,
+      "mode": "0o755",
+      "path": "honeypot/scripts/unblock-source.sh",
+      "sha256": "fa37bb73caf220281829e3c73d0622eb78aee9d32183f01ffebcef37ef828220"
+    },
+    {
+      "bytes": 166,
+      "mode": "0o755",
+      "path": "honeypot/scripts/unquarantine-container.sh",
+      "sha256": "9c40a2a296fd508c93a6fce058e384f096b0b6efa1a42894f6bf8f46b99968fd"
+    },
+    {
+      "bytes": 170,
+      "mode": "0o755",
+      "path": "honeypot/scripts/update.sh",
+      "sha256": "3b7a3e05005bad2700216f79336ac419bbc72c4ba5f3b476d1801cd498b70635"
+    },
+    {
+      "bytes": 11357,
+      "mode": "0o644",
+      "path": "honeypot/scripts/validate.py",
+      "sha256": "bbe682d95708f463e00d6c826c027f27c51e4ba3dbc0d8b5f164452c0769fc18"
+    },
+    {
+      "bytes": 169,
+      "mode": "0o755",
+      "path": "honeypot/scripts/validate.sh",
+      "sha256": "47207f3f59ad1ac91ca78b3df07f1e207397766e2731efbe287497c176df11aa"
+    },
+    {
+      "bytes": 15055,
+      "mode": "0o644",
+      "path": "honeypot/scripts/wan_criteria.py",
+      "sha256": "1e0dc94a6594900011e5b2d7442caf23f685925504574df0a1c10fc8f44fa770"
+    },
+    {
+      "bytes": 310,
+      "mode": "0o644",
+      "path": "honeypot/state/wan-approval.example.json",
+      "sha256": "b84e7e704c5ff0324ca3fde9484dc4f21f81239fec2dfab4055d0f5f267f4278"
+    },
+    {
+      "bytes": 1939,
+      "mode": "0o644",
+      "path": "honeypot/systemd/README.md",
+      "sha256": "08d85eb93bd7b1c7b2eba56290e1a8efd0afbbeb8af9d37ddcaf3892d67e1a3c"
+    },
+    {
+      "bytes": 212,
+      "mode": "0o644",
+      "path": "honeypot/systemd/honeypot-backup.service.in",
+      "sha256": "863c5cc011c544273ff22f5a52644894cecdc009eeac4f86dd8e018ea0df815a"
+    },
+    {
+      "bytes": 136,
+      "mode": "0o644",
+      "path": "honeypot/systemd/honeypot-backup.timer",
+      "sha256": "9b5dfac1023dea748fdadabd594af47204365e0a1246d68af34bfb938c1bdc63"
+    },
+    {
+      "bytes": 239,
+      "mode": "0o644",
+      "path": "honeypot/systemd/honeypot-containment.service.in",
+      "sha256": "6f5466beeefa6e4dd8cbf3dc429cfb47e051622b437b1bd5a0f24866165947d1"
+    },
+    {
+      "bytes": 142,
+      "mode": "0o644",
+      "path": "honeypot/systemd/honeypot-containment.timer",
+      "sha256": "c70aa6a7247d65a543d40baadd9fc30104adcea7b587ff86d3b909047f573a8d"
+    },
+    {
+      "bytes": 238,
+      "mode": "0o644",
+      "path": "honeypot/systemd/honeypot-firewall-log.service.in",
+      "sha256": "b0888b26abbb263debbdf2f506dfa1113722ad4117f409887456bedc49f84fe0"
+    },
+    {
+      "bytes": 143,
+      "mode": "0o644",
+      "path": "honeypot/systemd/honeypot-firewall-log.timer",
+      "sha256": "0f8e58c8db81e41a4e8c8aa5d4ff0261c2dceb043c0f9a91aed2f314eb553075"
+    },
+    {
+      "bytes": 228,
+      "mode": "0o644",
+      "path": "honeypot/systemd/honeypot-health.service.in",
+      "sha256": "1ff29fc4d1a42175b25dca69c9d01c8d6a22a8212f8659e5f26efe9a88ed002b"
+    },
+    {
+      "bytes": 137,
+      "mode": "0o644",
+      "path": "honeypot/systemd/honeypot-health.timer",
+      "sha256": "86978f81d599faed84a7c05e9c0d0d6a29d52bf988e95d6dda955809d38c81f1"
+    },
+    {
+      "bytes": 320,
+      "mode": "0o644",
+      "path": "honeypot/systemd/honeypot-logrotate.service.in",
+      "sha256": "f09d917ce2b0f7349cd072eb425adc9376140bc885b1e2c1f2c7841ad94e6b1d"
+    },
+    {
+      "bytes": 141,
+      "mode": "0o644",
+      "path": "honeypot/systemd/honeypot-logrotate.timer",
+      "sha256": "1ddbef1231552f8663bd900d1918114fb9991a2ad21d9c4cad665eff95499be6"
+    },
+    {
+      "bytes": 499,
+      "mode": "0o644",
+      "path": "honeypot/systemd/honeypot-pcap.service.in",
+      "sha256": "76d6e68d4b60682ed096be724cafa41d72b3a2f3ae0b8f5ed78b0fc7d7ee4eea"
+    },
+    {
+      "bytes": 257,
+      "mode": "0o644",
+      "path": "honeypot/systemd/preview/honeypot-guard-watch.service.in",
+      "sha256": "68586e453d7eec00db3c6ebaf31f33bebafac3989cefbb5d969c81e1f6273004"
+    },
+    {
+      "bytes": 260,
+      "mode": "0o644",
+      "path": "honeypot/systemd/preview/honeypot-guard-watch.timer.in",
+      "sha256": "718b0177489014b2b6f2f11dfd2afa2d030a0e92b4002ccb606e6b9b814dfbb8"
+    },
+    {
+      "bytes": 898,
+      "mode": "0o644",
+      "path": "honeypot/systemd/preview/honeypot-hp-guard.service.in",
+      "sha256": "12f2d595cc3e42ab38292349f351a3da6f9a905faced5014baf17ac1917e6d2d"
+    },
+    {
+      "bytes": 523,
+      "mode": "0o644",
+      "path": "honeypot/systemd/preview/honeypot-stack.service.in",
+      "sha256": "e3f64203b6e0265124f92ca42225af747e935e5517bb67b22b6c733526f00983"
+    },
+    {
+      "bytes": 7871,
+      "mode": "0o644",
+      "path": "honeypot/tests/firewall-netns.py",
+      "sha256": "39ec496618e81bac8216e1f619c8c7cbe84353d45eb0173c2f6dd68cf6f4d2c2"
+    },
+    {
+      "bytes": 5241,
+      "mode": "0o644",
+      "path": "honeypot/tests/local-integration.py",
+      "sha256": "1215a003686481fc96829c83fcc73b9204d69d32c216ddd8a01d50cf835507fc"
+    },
+    {
+      "bytes": 1478,
+      "mode": "0o644",
+      "path": "honeypot/tests/pcap-ring.py",
+      "sha256": "ed0a080468f2a4b7d914b4d54bfa8f0e88a93928c1866909af206300d6265986"
+    },
+    {
+      "bytes": 4474,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_alert_bus.py",
+      "sha256": "4277f30f4bed2fe894ead3e443d2d7cf9132e1b0386faa8daf19b393df43c89c"
+    },
+    {
+      "bytes": 2048,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_bait.py",
+      "sha256": "6d933c5e76b6d00564ec80f2f1b7267bd43b40f03c856a738a19a4abc6174e46"
+    },
+    {
+      "bytes": 4789,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_capture_status.py",
+      "sha256": "b00f0587308fc1e35452ef3509044d3a1dd7c8e3c61d724287fe4b27e7bdbc84"
+    },
+    {
+      "bytes": 10666,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_daemon_check.py",
+      "sha256": "7dbb4b9a51ec528c22840a8672ce05a8243ef944345b3b40ef7b4866a55a1135"
+    },
+    {
+      "bytes": 19824,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_demo.py",
+      "sha256": "e8f36655d633024b5d5c245f0388275fbba4d222120fc7d75c66ce8b0e851109"
+    },
+    {
+      "bytes": 8029,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_engine.py",
+      "sha256": "5d0411e12c390370ac34ee4a0e61937ef5036def1515409f4a214a99f73c8251"
+    },
+    {
+      "bytes": 1226,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_guard_canonical.py",
+      "sha256": "f89e2b9b5d90a83415ea0b4366fd9b07841e8bb8aef71e82fdc4bd0ccb12eb19"
+    },
+    {
+      "bytes": 20520,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_hardening.py",
+      "sha256": "171862f209621affa2578831005803c2f4648982ca9c5f017525cad6794d6576"
+    },
+    {
+      "bytes": 3170,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_health_snapshot.py",
+      "sha256": "ba3d0c0012495ea9aa568cc13356a5a571a6c83322560664056425bb72218ff0"
+    },
+    {
+      "bytes": 2996,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_intel_pack.py",
+      "sha256": "55e4101a31d75002e0f85bb866cc88320af2b651ac604ae99197ed6bd671d6e3"
+    },
+    {
+      "bytes": 12609,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_live_capture.py",
+      "sha256": "b5fb162d6d3687797f60537afa26cf1d4dd6f571f2c06c887670fcada17fca42"
+    },
+    {
+      "bytes": 3548,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_log_tail.py",
+      "sha256": "2a4bfa8f41f10a087f43548c3a82212dd2ff9d4ac20f83f8a8afe4ee923c116b"
+    },
+    {
+      "bytes": 11637,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_pcap_demo_recovery.py",
+      "sha256": "a816c8a09e7f68dbec6c139bfe91d878ec1d1adf952a020aec0ab849f7262c7f"
+    },
+    {
+      "bytes": 10017,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_qualified_normalized_source.py",
+      "sha256": "23f0f4552e5a04e0ecd2d726654baa6df09075be8a84b42a6036ca9e6911d902"
+    },
+    {
+      "bytes": 6688,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_stage7_preservation.py",
+      "sha256": "e99e022c913d21998c6f476a55da9a5162dffdf723ba7a22ac4f9928b6a25198"
+    },
+    {
+      "bytes": 44605,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_stage7_qualification.py",
+      "sha256": "50fd75ef0cb8f2d620a3a5a636e3b587d26bacf742e322649bf5c2b35b747ef4"
+    },
+    {
+      "bytes": 24715,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_stage7_recovery_check.py",
+      "sha256": "6b5fb6f004ab5c88ca502c7a37a07ba9acb93b30799afef7cfd08571d5011bf0"
+    },
+    {
+      "bytes": 5615,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_stage7_tests.py",
+      "sha256": "5c54ca3f582351edf5beb715ffbbc085d239afd85fd4209be773ba8064a83f07"
+    },
+    {
+      "bytes": 7600,
+      "mode": "0o644",
+      "path": "honeypot/tests/test_wan_criteria.py",
+      "sha256": "16883511c5e70a6e70766624ed521951423b09339a4cf2d272f929c453322155"
+    },
+    {
+      "bytes": 1325,
+      "mode": "0o644",
+      "path": "honeypot/verification/CLOSEOUT_VALIDATION.md",
+      "sha256": "1d241f70586c6087edc5554648e451d83f481bfcdb3068cf7e19880790c28d63"
+    },
+    {
+      "bytes": 8409,
+      "mode": "0o644",
+      "path": "honeypot/verification/CODEX_RECOVERY_HANDOFF_2026-09-30.md",
+      "sha256": "5de36e732e741a10da05f9243089f628996b078036c16bc00e597cdc72a0682d"
+    },
+    {
+      "bytes": 3998,
+      "mode": "0o644",
+      "path": "honeypot/verification/GROK_CONTINUATION_PROMPT_2026-09-30.md",
+      "sha256": "59b94d27d5b516b18e0b1cf5a393fcadf152344ce58bda5b225ead2d0e81bf35"
+    },
+    {
+      "bytes": 2417,
+      "mode": "0o644",
+      "path": "honeypot/verification/GROK_REVIEW_PROMPT.txt",
+      "sha256": "0938dd6039aa74f22abc0d00c3f57347483f74d6d1cecabecfaa6fe95bd4de54"
+    },
+    {
+      "bytes": 3988,
+      "mode": "0o644",
+      "path": "honeypot/verification/HARDENING_REVIEW.md",
+      "sha256": "b384aba629629318475cdc9666cdb4c091fa8f67ed8a680443e8b60448bb4681"
+    },
+    {
+      "bytes": 1922,
+      "mode": "0o644",
+      "path": "honeypot/verification/LAB_VALIDATION_2026-09-29.md",
+      "sha256": "e3ede8785987ce067c17d91700fad26b12808f6ca009b754c74edf095362f0a0"
+    },
+    {
+      "bytes": 389,
+      "mode": "0o644",
+      "path": "honeypot/verification/LIVE_EVIDENCE_SUMMARY.md",
+      "sha256": "ffb4d71dd7ccd7da7134d32081c33dc285b25d8b972fe8650a30a01a31090177"
+    },
+    {
+      "bytes": 2618,
+      "mode": "0o644",
+      "path": "honeypot/verification/OPEN_BLOCKERS.md",
+      "sha256": "7322f4c29dada41c9778e778056a32ec587c7b79d2f233069aa53b9a57d3c4ea"
+    },
+    {
+      "bytes": 8086,
+      "mode": "0o644",
+      "path": "honeypot/verification/PRODUCTION_READINESS.md",
+      "sha256": "cb5aed7720b11cd5dd46dea3267d2dfed47873f6c8eb0d3d1147aafbd5974ad9"
+    },
+    {
+      "bytes": 723,
+      "mode": "0o644",
+      "path": "honeypot/verification/RECONSTRUCTION_VALIDATION.md",
+      "sha256": "dac7bdc45a949dfef036d541ff14a65d64fabe49a8c3597df4add9cdbca6e464"
+    },
+    {
+      "bytes": 8560,
+      "mode": "0o644",
+      "path": "honeypot/verification/WAN_CRITERIA_PASS.md",
+      "sha256": "c990084c63b5bb4deb356e5ea4c4922df75118baa393afafa68f30cda3ad57eb"
+    },
+    {
+      "bytes": 4042,
+      "mode": "0o644",
+      "path": "honeypot/verification/WAN_CRITERIA_POLISH.md",
+      "sha256": "8f7e58bb7ec4293534048adb79271847e182e77cc79e4e7847ba463b5e5bc8c4"
+    },
+    {
+      "bytes": 4321,
+      "mode": "0o644",
+      "path": "honeypot/work/live-qualification/qualification-fixtures.py",
+      "sha256": "93ea3b0c5b2d92deb7270c50547c573e6f98ba7522a9aef8575d862bd0fb07b2"
+    },
+    {
+      "bytes": 17166,
+      "mode": "0o644",
+      "path": "honeypot/work/live-qualification/stage7-evidence-integrity-sweep.py",
+      "sha256": "afce2af34b089d553c3176df370c47244a31e624dce6f5b24af0b9357e7f2f06"
+    },
+    {
+      "bytes": 9827,
+      "mode": "0o644",
+      "path": "honeypot/work/live-qualification/stage7-evidence-recovery-remediation.py",
+      "sha256": "4ff5dd1ce1667deb9c1e518e7183cfcc80ebb7282691e0f491d50aba278dca44"
+    },
+    {
+      "bytes": 10853,
+      "mode": "0o644",
+      "path": "honeypot/work/live-qualification/stage7-live-remediation-and-restart.py",
+      "sha256": "688f8d2090a8b855d7d2e80ad5877ef9a36753712f11c10d43a357f1cdc77dda"
+    },
+    {
+      "bytes": 4368,
+      "mode": "0o644",
+      "path": "honeypot/work/live-qualification/stage7-reconciled-evidence.py",
+      "sha256": "a391411cf57852afe5aa869789d4e168b6a5f54737aff23b3e0d29447d527864"
+    },
+    {
+      "bytes": 19482,
+      "mode": "0o644",
+      "path": "honeypot/work/live-qualification/stage7-restart-resilience.py",
+      "sha256": "f80e60c0397a547faad7df5a5baae887c7b24c86520f54bd19d2f36eb85d3c54"
+    },
+    {
+      "bytes": 13799,
+      "mode": "0o644",
+      "path": "honeypot/work/live-qualification/stage7-runtime-drift-diagnosis.py",
+      "sha256": "3ce4eb266b9358c84ff96ab27d8bd951e9c17c934482e4f705379620da76f48c"
+    },
+    {
+      "bytes": 8579,
+      "mode": "0o644",
+      "path": "honeypot/work/live-qualification/test-stage7-evidence-durability.py",
+      "sha256": "4d7bb7db5c7634b05314e61b11d12778a11c193b8590bd3674e85695f85a6fc9"
+    },
+    {
+      "bytes": 2938,
+      "mode": "0o644",
+      "path": "honeypot/work/live-qualification/test-stage7-evidence-integrity-sweep.py",
+      "sha256": "2365acabd5160a919b030c6b29146a49a8fb3751f2c3023fe5dcd7ba3a26f637"
+    },
+    {
+      "bytes": 3011,
+      "mode": "0o644",
+      "path": "honeypot/work/live-qualification/test-stage7-live-remediation.py",
+      "sha256": "3ce8f305f217bd43944864d825c3efad73f72bfc124656afce1458e401f83d36"
+    },
+    {
+      "bytes": 5279,
+      "mode": "0o644",
+      "path": "honeypot/work/live-qualification/test-stage7-network-restart.py",
+      "sha256": "fb33b68a657abdb5eb0adc7f17da1d6ac094f0d9ce77b62cd44ff67b10fc85f8"
+    },
+    {
+      "bytes": 2759,
+      "mode": "0o644",
+      "path": "honeypot/work/live-qualification/test-stage7-recovery-record-verifier.py",
+      "sha256": "bd52b49a7d9a3e6bd4e375bbcaa3927833289b32181cc86e3ab8b365ce4dc216"
+    },
+    {
+      "bytes": 7617,
+      "mode": "0o644",
+      "path": "honeypot/work/live-qualification/test-stage7-restart-resilience.py",
+      "sha256": "def10c4dd554693f43d3a4096f6d7d56cfb249b5a1ad481f62072a73f163b649"
+    },
+    {
+      "bytes": 4615,
+      "mode": "0o644",
+      "path": "honeypot/work/live-qualification/test-stage7-runtime-drift-diagnosis.py",
+      "sha256": "72ce5c46d8e9c25785cd66437a9e643b6969513c686de4857ee68e896f5c4121"
+    },
+    {
+      "bytes": 4615,
+      "mode": "0o644",
+      "path": "tools/tests/test_source_sync.py",
+      "sha256": "8d311e1a8716894b18443ac859a6593f566aba0c9f3f79947156835b2bd75982"
+    },
+    {
+      "bytes": 6591,
+      "mode": "0o644",
+      "path": "tools/validate_baseline.py",
+      "sha256": "f612c02b8e4361fc4b54d1367ef4a600431005767477d8a7b229ac892cc41507"
+    }
+  ],
+  "offline_workflow_sha256": "3b7b80766c437ee0666f9bca3fce003d89f29dc481a1b530a9c441c22b74e4f3",
+  "project_instructions_sha256": "2a1b3b84a351381f21d49e74dd54a8bc6ed08931cd0c742ba0ca3e8ec1df98b1",
+  "publication_base_commit": "82413b923b216ff5624b596621921fec3666facc",
+  "qualification_source_allowlist": [
+    "honeypot/work/live-qualification/qualification-fixtures.py",
+    "honeypot/work/live-qualification/stage7-evidence-integrity-sweep.py",
+    "honeypot/work/live-qualification/stage7-evidence-recovery-remediation.py",
+    "honeypot/work/live-qualification/stage7-live-remediation-and-restart.py",
+    "honeypot/work/live-qualification/stage7-reconciled-evidence.py",
+    "honeypot/work/live-qualification/stage7-restart-resilience.py",
+    "honeypot/work/live-qualification/stage7-runtime-drift-diagnosis.py",
+    "honeypot/work/live-qualification/test-stage7-evidence-durability.py",
+    "honeypot/work/live-qualification/test-stage7-evidence-integrity-sweep.py",
+    "honeypot/work/live-qualification/test-stage7-live-remediation.py",
+    "honeypot/work/live-qualification/test-stage7-network-restart.py",
+    "honeypot/work/live-qualification/test-stage7-recovery-record-verifier.py",
+    "honeypot/work/live-qualification/test-stage7-restart-resilience.py",
+    "honeypot/work/live-qualification/test-stage7-runtime-drift-diagnosis.py"
+  ],
+  "schema": 1,
+  "source_branch": "beta/2026-10-13-local-candidate",
+  "source_clean": false,
+  "source_commit": "ee0b7e3cb11c57c9713681e33e395e4674e3a009",
+  "source_state": "Commit plus preserved uncommitted candidate changes; exported by exact source allowlist",
+  "stage7": "INDEPENDENT_CLOSEOUT_PENDING",
+  "wan_authorized": false
+}
