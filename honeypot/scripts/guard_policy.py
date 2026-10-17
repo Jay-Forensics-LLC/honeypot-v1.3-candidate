@@ -47,7 +47,8 @@ def expected_rules(cfg):
 
 def canonical(value):
     if isinstance(value, dict):
-        if set(value) == {'prefix'} and value['prefix']['len'] in (32, 128):
+        # nft log prefixes are strings; only address-prefix objects have len/addr.
+        if set(value) == {'prefix'} and isinstance(value['prefix'], dict) and value['prefix'].get('len') in (32, 128):
             return value['prefix']['addr']
         if 'match' in value and value['match'].get('left') == {'ct': {'key': 'state'}}:
             item = dict(value['match'])

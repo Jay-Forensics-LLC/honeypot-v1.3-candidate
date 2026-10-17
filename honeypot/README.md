@@ -1,4 +1,24 @@
-# Portable defensive honeypot — v1.3 production candidate
+# HoneyTrace — private v1.3.0-beta.1 source candidate
+
+**UNVERIFIED SOURCE CANDIDATE; beta release blocked.** See the
+[beta quickstart](docs/BETA_QUICKSTART.md) and
+[acceptance checklist](docs/BETA_ACCEPTANCE.md) for scope and remaining gates.
+The frozen polish2 source is preserved separately. No changes are deployed.
+
+**Scope frozen:** the first beta targets operator-supervised, localhost-only use.
+New features are deferred. The single [acceptance checklist](docs/BETA_ACCEPTANCE.md)
+records PASS, FAIL and NOT TESTED gates with evidence and source revisions.
+Docker recovery, fresh live acceptance and clean-install/package validation are
+the priorities. Daemon-reload remains on hold until its specific review gaps are
+resolved and the revised action receives separate approval.
+
+## HoneyTrace prototype demo
+
+Run `python3 -B scripts/hp.py demo` for an unprivileged demonstration using the
+real incident pipeline and an offline browser report. Replay is explicitly
+synthetic; it does not claim live sensors, containment, PCAP, or Loki are healthy.
+See [DEMO.md](DEMO.md) for the guarded local live workflow and
+[PROJECT_STATUS.md](PROJECT_STATUS.md) for current evidence and limitations.
 
 An Ubuntu deployment bundle for a dedicated Lenovo IdeaPad Slim 3 (Ryzen 7,
 16 GB RAM, approximately 500 GB SSD). The build contains configuration, application
@@ -7,7 +27,7 @@ Ubuntu package mirror. Nothing automatically forwards router ports.
 
 See [WAN criteria](docs/WAN_CRITERIA.md) for the technical gates. See
 [production readiness](verification/PRODUCTION_READINESS.md) for what is
-repository-complete versus live-only. Unit tests in this tree: 63.
+repository-complete versus live-only. Run `make test` for the current test count.
 
 **Deployment candidate, not a claim of production certification.** Read
 [validation results](docs/VALIDATION_REPORT.md) and the
@@ -15,7 +35,13 @@ repository-complete versus live-only. Unit tests in this tree: 63.
 `sudo make verify-full` is the documented target check. Native runtime checks
 must pass on the isolated Ubuntu lab before calling the stack functional.
 
-## Quick start on the Ubuntu target
+## Historical polish2 deployment reference
+
+The archive names and deployment commands below describe the preserved polish2
+bundle. For the current unverified beta, follow the
+[beta source quickstart](docs/BETA_QUICKSTART.md) and its acceptance gates.
+These historical commands are not approval to install, activate or overwrite
+the staging runtime, and the archived bundle is not the current beta package.
 
 Read the [one-screen operator model](docs/OPERATOR_MODEL.md) first. Use
 `python3 scripts/hp.py status` (or `bash scripts/hp.sh status`) as the single entrypoint.
@@ -33,8 +59,8 @@ Verify the sibling `.sha256` file. Do not reuse older digests
 (`30bfa139…` was the first v1.3 candidate; `42341a23…` was the pre-v1.3 WAN zip; `d83d14e0…` is stale).
 
 ```bash
-sha256sum -c honeypot-v1.3-production-candidate-2026-09-30.zip.sha256
-unzip honeypot-v1.3-production-candidate-2026-09-30.zip
+sha256sum -c honeypot-v1.3-production-candidate-2026-09-30-polish2.zip.sha256
+unzip honeypot-v1.3-production-candidate-2026-09-30-polish2.zip
 cd honeypot
 sha256sum -c MANIFEST.sha256
 bash scripts/preflight.sh
