@@ -34,11 +34,48 @@ Automated high-severity source blocking is not enabled by this bundle.
 
 Logs can rotate between polls. The correlator checkpoints inode/offset and retries
 incomplete lines; a truncated/rotated file can still leave a gap during outages or
-copytruncate. Stable IDs deduplicate report indexes on normal replay; events.jsonl
-and query logs can contain a replayed record after a crash. Replay IDs are explicit.
-Field lists cap at 100 values; event evidence is segmented at 1000 records. Shared
-signals expire after the configured window and are not persistent identity claims.
+copytruncate. Stable IDs deduplicate retained events.jsonl records across receipt
+windows, UTC days and incident segments. Recovery uses the original normalized
+record for missing incident metadata. Reports, normalized events and incident
+summaries are republished before a replay can complete its source checkpoint.
+Query logs remain at-least-once: consumers must deduplicate event IDs and select
+the latest summary for an incident ID. Field lists cap at 100 values; event
+evidence is segmented at 1000 records or 64 MiB. Shared signals expire after the
+configured window and are not persistent identity claims.
 There is no exactly-once distributed event pipeline or tamper-proof remote archive.
+
+The single incidentd writer reserves each stable ID's incident location in
+state/incidentd/event-locations.sqlite3 before appending evidence. These locations
+do not expire with correlation groups. Preserve the locator with incidentd state
+and evidence during an approved recovery; backup.sh's metadata archive does not
+include incidentd state or the locator. A missing locator requires bounded
+historical backfill before any source checkpoint can advance. Discovery makes one
+streaming name inventory, capped at 100,000 entries including day directories;
+payload inspection is capped at 32 incidents per call and resumes from a durable
+SQLite queue after interruption. These are engine migration limits, not changes
+to the separate Stage 7 qualification budgets. Migration pins file identities and
+hashes, and refuses completion if the inventoried directories or inspected files
+change. state/incidentd/migration-status.json reports progress and up to 32 blocked
+or quarantined entries; the complete inventory remains in SQLite.
+
+Backfill does not rewrite retained evidence. One recognizable historical damage
+pattern is isolated: complete identifiable JSON records followed only by NUL
+padding, with valid bounded metadata identifying every intact record. The original
+and metadata hashes are pinned, the whole incident is blocked for writes, and all
+intact/metadata event IDs are fenced against replay into another incident. Healthy
+unrelated ingestion can continue after inventory completion. No damaged record is
+reconstructed or accepted as original evidence. Any other malformed content,
+missing/inconsistent metadata, or unreadable history keeps migration blocked for
+operator review. Duplicate stable IDs across intact legacy locations quarantine
+both incidents and block ambiguous replay; they do not select an original or erase
+either copy. Their disposition requires separate provenance review.
+
+Inspect logs/system/evidence-integrity.jsonl, including original_sha256 when the
+file can be safely hashed. Invalid locator state emits HOLD_CHECKPOINT in
+logs/system/event-locator-integrity.jsonl and must not become a parser skip.
+Locator corruption and reuse with a different resolved incident root fail closed.
+Do not delete state or automatically rebuild the locator to bypass these gates;
+relocation and recovery require a reviewed plan.
 
 Native Cowrie daily rotations, TTY recordings, samples and incidents require
 capacity review. Standard logrotate handles active raw files; it does not delete

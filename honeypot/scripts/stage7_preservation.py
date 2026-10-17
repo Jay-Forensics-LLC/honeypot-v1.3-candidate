@@ -150,6 +150,7 @@ def snapshot(root, progress=None):
             'event_counts': dict(Counter(ids)), 'events_bytes': len(data),
             'events_prefix_sha256': analysis['sha256'],
             'metadata_sha256_at_acquisition': hashlib.sha256(metadata).hexdigest(),
+            'metadata_at_acquisition': doc,
             'custody': retained, 'historical_original': known,
             'record_scope': 'Derived reconciled IDs; original bytes stay damaged' if known else 'Original clean records',
         }
@@ -197,6 +198,30 @@ def compare(root, old, new):
         after = new['incidents'].get(path)
         if after is None or after['incident_id'] != before['incident_id']:
             raise ValueError('Incident history lost')
+        if before['metadata_event_ids'] == after['metadata_event_ids']:
+            if before['metadata_sha256_at_acquisition'] != after['metadata_sha256_at_acquisition']:
+                raise ValueError('Incident metadata changed without new events')
+        else:
+            old_meta = before.get('metadata_at_acquisition')
+            new_meta = after.get('metadata_at_acquisition')
+            if not isinstance(old_meta,dict) or not isinstance(new_meta,dict):
+                raise ValueError('Metadata growth requires complete acquired metadata')
+            for field in ('incident_id','source_ip','timestamp_start'):
+                if old_meta.get(field) != new_meta.get(field): raise ValueError('Incident metadata identity changed')
+            levels={'LOW':0,'MEDIUM':1,'HIGH':2,'CRITICAL':3}
+            if (levels.get(new_meta.get('severity'),-1)<levels.get(old_meta.get('severity'),-1) or
+                    new_meta.get('timestamp_end','')<old_meta.get('timestamp_end','') or
+                    new_meta.get('auth_attempt_count',0)<old_meta.get('auth_attempt_count',0) or
+                    new_meta.get('confidence',0)<old_meta.get('confidence',0)):
+                raise ValueError('Incident metadata regressed during growth')
+            for field,value in old_meta.items():
+                if isinstance(value,list):
+                    # Existing metadata values and evidence paths must remain in order.
+                    remaining=iter(new_meta.get(field,[]))
+                    if not all(any(candidate==entry for candidate in remaining) for entry in value):
+                        raise ValueError('Incident metadata values lost during growth: '+field)
+                elif field not in ('severity','timestamp_end','auth_attempt_count','confidence'):
+                    if new_meta.get(field)!=value: raise ValueError('Incident metadata field changed: '+field)
         if not set(before['metadata_event_ids']) <= set(after['metadata_event_ids']):
             raise ValueError('Incident metadata IDs lost')
         if prefix(Path(path) / 'events.jsonl', before['events_bytes'])['sha256'] != before['events_prefix_sha256']:
@@ -218,8 +243,13 @@ def compare(root, old, new):
             if after['offset'] < before['offset']:
                 raise ValueError('Ingestion offset regressed')
         else:
-            # Old source inode/prefix was verified above; snapshot() proves
-            # new checkpoint identity/length. Record this lifecycle transition.
+            identity = tuple(int(value) for value in before['inode'].split(':'))
+            old_source = by_identity.get(identity)
+            old_snapshot = next((value for value in new['logs'].values()
+                                 if tuple(value['identity']) == identity), None)
+            if old_source is None or old_snapshot is None or before['offset'] != old_snapshot['bytes']:
+                raise ValueError('Rotation leaves unread old-source bytes; independent drain proof required')
+            # Prefix preservation alone does not establish ingestion of an unread tail.
             rotations.append({'source': source, 'before': before, 'after': after})
     return {'status': 'PASS', 'logs_verified': len(old['logs']),
             'incidents_verified': len(old['incidents']), 'event_counts_deduplicated': True,

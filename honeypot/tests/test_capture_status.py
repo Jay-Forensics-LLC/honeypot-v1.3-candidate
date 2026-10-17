@@ -13,6 +13,8 @@ class CaptureStatus(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.root=Path(self.tmp.name);self.proc=self.root/'proc';(self.proc/'123').mkdir(parents=True)
         (self.root/'.env').write_text('PCAP_INTERFACES=br-hp-cowrie,br-hp-canary\nPCAP_SIZE_MB=100\nPCAP_FILE_COUNT=1000\nPCAP_PATH=captures\n')
+        self.executable = self.root/'dumpcap';self.executable.write_bytes(b'synthetic executable')
+        (self.proc/'123/exe').symlink_to(self.executable)
         self.argv=['dumpcap','-q','-g','-i','br-hp-cowrie','-i','br-hp-canary','-s','0','-b','filesize:100000','-b','files:1000','-b','duration:300','-w',str(self.root/'captures/ring.pcapng')]
         (self.proc/'123/stat').write_text('123 (dumpcap worker) '+' '.join(['S']+['0']*18+['789']))
         self.state='ActiveState=active\nSubState=running\nMainPID=123\nResult=success\n'
@@ -21,7 +23,7 @@ class CaptureStatus(unittest.TestCase):
         def run(argv,**kw):
             self.assertEqual(argv[:3],['systemctl','show','honeypot-pcap.service'])
             return SimpleNamespace(stdout=self.state)
-        return inspect_capture(self.root,runner=run,proc=self.proc)
+        return inspect_capture(self.root,runner=run,proc=self.proc,expected_executable=self.executable)
     def test_actual_identity(self):
         r=self.check();self.assertTrue(r['ok']);self.assertEqual(r['start_ticks'],789);self.assertEqual(r['continuity'],'NOT TESTED')
     def test_active_service_with_wrong_process(self):
