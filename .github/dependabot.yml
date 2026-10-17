@@ -12,6 +12,9 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps-docker)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # Service images referenced by Docker Compose.
   - package-ecosystem: "docker-compose"
@@ -24,6 +27,12 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps-compose)"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "honeypot-opencanary"
+      - dependency-name: "honeypot-suricata"
+      - dependency-name: "honeypot-incidentd"
 
   # Include this entry if .github/workflows contains workflows
   # that reference external GitHub Actions.
@@ -45,3 +54,10 @@ updates:
         update-types:
           - "minor"
           - "patch"
+
+  # Direct Python dependency used inside the OpenCanary image.
+  - package-ecosystem: "pip"
+    directory: "/honeypot/docker/opencanary"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 2

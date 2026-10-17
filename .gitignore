@@ -16,3 +16,23 @@
 *.pcapng
 *.key
 *.pem
+
+# Reviewed qualification source only; private work remains excluded.
+!/honeypot/work/
+/honeypot/work/*
+!/honeypot/work/live-qualification/
+/honeypot/work/live-qualification/*
+!/honeypot/work/live-qualification/qualification-fixtures.py
+!/honeypot/work/live-qualification/stage7-evidence-integrity-sweep.py
+!/honeypot/work/live-qualification/stage7-evidence-recovery-remediation.py
+!/honeypot/work/live-qualification/stage7-live-remediation-and-restart.py
+!/honeypot/work/live-qualification/stage7-reconciled-evidence.py
+!/honeypot/work/live-qualification/stage7-restart-resilience.py
+!/honeypot/work/live-qualification/stage7-runtime-drift-diagnosis.py
+!/honeypot/work/live-qualification/test-stage7-evidence-durability.py
+!/honeypot/work/live-qualification/test-stage7-evidence-integrity-sweep.py
+!/honeypot/work/live-qualification/test-stage7-live-remediation.py
+!/honeypot/work/live-qualification/test-stage7-network-restart.py
+!/honeypot/work/live-qualification/test-stage7-recovery-record-verifier.py
+!/honeypot/work/live-qualification/test-stage7-restart-resilience.py
+!/honeypot/work/live-qualification/test-stage7-runtime-drift-diagnosis.py

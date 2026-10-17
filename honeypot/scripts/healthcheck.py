@@ -9,6 +9,8 @@ import time
 from hp_common import ROOT, config, disk_severity, atomic_json, append_json, runtime_path, run, utc
 from guard_policy import inspect_guard, inspect_dns
 from pipeline_health import snapshot, drop_rate
+from capture_status import inspect_capture
+from health_snapshot import boot_id
 
 def check():
     cfg=config();problems=[];warnings=[];containers={};now=time.time()
@@ -67,8 +69,9 @@ def check():
     if drops is None: problems.append('Suricata packet-drop statistics unavailable')
     rate=drop_rate(previous,drops,now)
     if rate is not None and rate>0: warnings.append('MEDIUM: Suricata kernel drops increased at %.3f packets/second'%rate)
-    pcap,_=cmd(['systemctl','is-active','--quiet','honeypot-pcap.service'])
-    if not pcap: problems.append('PCAP service inactive')
+    capture=inspect_capture(ROOT)
+    pcap=capture['ok']
+    if not pcap: problems.append('PCAP verification failed: '+'; '.join(capture['problems']))
     clock,clocktext=cmd(['timedatectl','show','-p','NTPSynchronized','--value'])
     clock=clock and clocktext=='yes'
     if not clock: problems.append('Clock synchronization not confirmed')
@@ -98,14 +101,18 @@ def check():
     except Exception:
         pass
     if (problems or warnings) and severity=='LOW': severity='MEDIUM'
-    row={'timestamp':utc(),'checked_epoch':now,'severity':severity,'disk_percent':disk,'filesystems':disks,'ram_available_kb':mem.get('MemAvailable'),
+    row={'timestamp':utc(),'boot_id':boot_id(),'checked_epoch':now,'severity':severity,'disk_percent':disk,'filesystems':disks,'ram_available_kb':mem.get('MemAvailable'),
          'warnings':warnings,'pipeline_sources':sources,'parser_errors_last_hour':parser_errors,
          'guard':guard,'guard_counters':guard['counters'],'dns_blackholes':dns,'suricata_kernel_drop_rate':rate,
          'load_average':list(os.getloadavg()) if hasattr(os,'getloadavg') else None,'interfaces':interfaces,'containers':containers,
-         'http':http,'log_age_seconds':activity,'suricata_kernel_drops':drops,'pcap_running':pcap,'clock_synchronized':clock,
+         'http':http,'log_age_seconds':activity,'suricata_kernel_drops':drops,'pcap_running':pcap,'capture':capture,'clock_synchronized':clock,
          'permissions_ok':permissions,'evidence_writable':writable,'log_forwarding':forwarding,'backup_age_hours':backup_age,'problems':problems}
     if disk>=int(cfg['DISK_CRITICAL_PERCENT']) and os.geteuid()==0:
         stopped,_=cmd(['systemctl','stop','honeypot-pcap.service']);row['pcap_stopped_for_disk']=stopped
+        if stopped:
+            row['pcap_running']=False
+            row['capture']['ok']=False
+            row['capture']['problems'].append('Capture stopped at critical disk watermark; manual recovery required')
     atomic_json(ROOT/'state/health.json',row);append_json(ROOT/'logs/system/health.jsonl',row,rotate=True)
     return row
 
