@@ -1,0 +1,110 @@
+{
+  "baseline_commit": "d01e5ec6b17fe01e6188420f043e27e822125e93",
+  "followup_base_commit": "244257bdcdc40857bc7ab363b9b78a5168972d50",
+  "scope": "Source review and synthetic regression debugging; no runtime qualification or deployment",
+  "tracking_issues": [
+    16,
+    17,
+    18
+  ],
+  "findings": [
+    {
+      "discussion": "https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/12#discussion_r4300841655",
+      "path": "honeypot/scripts/incidentd.py",
+      "disposition": "Addressed in follow-up source; regression and live-acceptance limits documented in INTEGRATION_REVIEW.md"
+    },
+    {
+      "discussion": "https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/12#discussion_r4300841662",
+      "path": "honeypot/scripts/incidentd.py",
+      "disposition": "Addressed in follow-up source; regression and live-acceptance limits documented in INTEGRATION_REVIEW.md"
+    },
+    {
+      "discussion": "https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/12#discussion_r4300841667",
+      "path": "honeypot/scripts/runtime_inventory.py",
+      "disposition": "Addressed in follow-up source; regression and live-acceptance limits documented in INTEGRATION_REVIEW.md"
+    },
+    {
+      "discussion": "https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/12#discussion_r4300841671",
+      "path": "honeypot/scripts/incidentd.py",
+      "disposition": "Addressed in follow-up source; regression and live-acceptance limits documented in INTEGRATION_REVIEW.md"
+    },
+    {
+      "discussion": "https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/12#discussion_r4300841677",
+      "path": "honeypot/scripts/runtime_inventory.py",
+      "disposition": "Addressed in follow-up source; regression and live-acceptance limits documented in INTEGRATION_REVIEW.md"
+    },
+    {
+      "discussion": "https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/12#discussion_r4300873395",
+      "path": "honeypot/scripts/incidentd.py",
+      "disposition": "Addressed in follow-up source; regression and live-acceptance limits documented in INTEGRATION_REVIEW.md"
+    },
+    {
+      "discussion": "https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/12#discussion_r4300873400",
+      "path": "honeypot/scripts/stage7_preservation.py",
+      "disposition": "Addressed in follow-up source; regression and live-acceptance limits documented in INTEGRATION_REVIEW.md"
+    },
+    {
+      "discussion": "https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/12#discussion_r4300882701",
+      "path": "honeypot/scripts/evidence_store.py",
+      "disposition": "Addressed in follow-up source; regression and live-acceptance limits documented in INTEGRATION_REVIEW.md"
+    },
+    {
+      "discussion": "https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/12#discussion_r4301328131",
+      "path": "honeypot/scripts/incidentd.py",
+      "disposition": "Addressed in follow-up source; regression and live-acceptance limits documented in INTEGRATION_REVIEW.md"
+    },
+    {
+      "discussion": "https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/12#discussion_r4301328134",
+      "path": "honeypot/scripts/incidentd.py",
+      "disposition": "Addressed in follow-up source; regression and live-acceptance limits documented in INTEGRATION_REVIEW.md"
+    },
+    {
+      "discussion": "https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/12#discussion_r4301340679",
+      "path": "honeypot/scripts/incidentd.py",
+      "disposition": "Addressed in follow-up source; regression and live-acceptance limits documented in INTEGRATION_REVIEW.md"
+    },
+    {
+      "discussion": "https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/12#discussion_r4301340684",
+      "path": "honeypot/scripts/capture_status.py",
+      "disposition": "Addressed in follow-up source; regression and live-acceptance limits documented in INTEGRATION_REVIEW.md"
+    },
+    {
+      "discussion": "https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/12#discussion_r4301340687",
+      "path": "honeypot/work/live-qualification/stage7-reconciled-evidence.py",
+      "disposition": "Addressed in follow-up source; regression and live-acceptance limits documented in INTEGRATION_REVIEW.md"
+    },
+    {
+      "discussion": "https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/12#discussion_r4301682488",
+      "path": "honeypot/scripts/incidentd.py",
+      "disposition": "Addressed in follow-up source; regression and live-acceptance limits documented in INTEGRATION_REVIEW.md"
+    },
+    {
+      "discussion": "https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/12#discussion_r4301682492",
+      "path": "honeypot/scripts/runtime_inventory.py",
+      "disposition": "Addressed in follow-up source; regression and live-acceptance limits documented in INTEGRATION_REVIEW.md"
+    },
+    {
+      "discussion": "https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/12#discussion_r4301682495",
+      "path": "honeypot/scripts/stage7_preservation.py",
+      "disposition": "Addressed in follow-up source; regression and live-acceptance limits documented in INTEGRATION_REVIEW.md"
+    }
+  ],
+  "additional_finding": {
+    "description": "Checkpoint replay after metadata commit could permanently omit normalized telemetry",
+    "disposition": "Republish retained normalized event with at-least-once searchable telemetry semantics"
+  },
+  "validation": {
+    "application_tests": 365,
+    "retained_stage7_tests": 89,
+    "validator_tests": 21,
+    "static_pass": 17,
+    "static_not_tested": 2,
+    "gitleaks": "No leaks found"
+  },
+  "limitations": [
+    "No assertion of current host image provenance or executable identity",
+    "No power-loss or supported-target installation acceptance",
+    "Historical capture gaps and original evidence disposition are unchanged",
+    "Issues remain open pending review, merge and separately authorized acceptance"
+  ]
+}

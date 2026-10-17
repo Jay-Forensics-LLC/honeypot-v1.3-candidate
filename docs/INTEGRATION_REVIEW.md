@@ -67,3 +67,71 @@ integrated PR in draft until these findings and target qualification are handled
 Packet flow, continuity, retained-evidence and release acceptance remain
 unqualified. No host assessment, container operation, daemon change or deployment
 was performed during this source reconciliation.
+
+## Post-merge debugging of PR 14 — 2026-10-17
+
+Reviewed baseline: `d01e5ec6b17fe01e6188420f043e27e822125e93`. Follow-up
+tracking is in issues #16 (ingestion), #17 (runtime trust), and #18 (custody).
+The original PR 12 discussions remain available; merging did not resolve them.
+
+The follow-up candidate adds regression fixtures and these corrections:
+
+- Inspect incident directories incrementally and validate the active directory
+  before use. Metadata-only corruption is blocked; missing first-event metadata
+  permits exact-ID replay. Damaged or unrelated orphan segments are preserved
+  and new events go into a fresh segment rather than stopping ingestion.
+- Use a bounded, stat-invalidated evidence offset/hash index. Decode at most one
+  requested historical record instead of all previous payloads on each append.
+  Cap aggregate incident bytes and index entries; roll full healthy segments.
+- Republish normalized telemetry during checkpoint replay after metadata commit.
+  Search telemetry remains at-least-once; evidence remains deduplicated.
+- Compare tmpfs options, exact mounted static file sets/hashes, and immutable image
+  IDs with reviewed source/provenance. A missing `state/images.lock.json` blocks
+  runtime qualification. Never manufacture trust by copying unreviewed running
+  image IDs into the lock; establish reviewed build/download provenance first.
+- Check the capture process's executable identity, not only its argv.
+- Reject a rotation without proof the old checkpoint reached the old file's final
+  observed length. Preserved bytes alone do not establish completed ingestion.
+- Require unchanged incident metadata hashes without new events; with new events,
+  preserve identity, prior values, and monotonic severity/time/counters.
+- Replace historical reconciliation assertions with unconditional checks, including
+  optimized Python. `qualification-source-updates.json` pins the reviewed helper
+  amendment against its original export hash; historical receipts remain unchanged.
+
+These are source and synthetic-test results. Incremental startup inspection is
+not an assertion that all retained history has already been inspected. Offline
+fixtures do not certify current host identity, crash/power-loss durability, old
+capture continuity, fresh target installation, or beta acceptance. No service,
+Docker daemon, firewall, live capture, runtime file, or historical evidence was
+changed. Independent Stage 7 remains pending; Phase 8 remains untested.
+
+## PR 19 replay and migration correction — 2026-10-17
+
+This correction follows reviewed head `489269b339d87204396572bac7d7c8c89da66ca8`
+and addresses issue #20 plus the five reproduced PR 19 findings. Stable event
+locations are reserved durably before evidence append and resolved before current
+receipt-window grouping. Orphan metadata uses the retained normalized record;
+metadata-committed replay republishes the incident summary before checkpointing.
+Integrity diagnostics include safely available original hashes, and candidate
+static-mount policy rejects bind/tmpfs masking and unreviewed source redirection.
+
+Initial migration uses a durable, bounded inventory/inspection queue. Recognizable
+complete-prefix/NUL-tail history is preserved and quarantined with original and
+metadata hashes pinned; affected IDs cannot replay into another incident. This
+retains healthy unrelated ingestion without accepting damaged records. Other
+unknown damage blocks migration. Duplicate historical IDs preserve both locations
+and block ambiguous replay. File/directory changes during migration block its
+completion. Invalid locator state holds checkpoints and emits an integrity
+diagnostic. See `honeypot/docs/OPERATIONS.md` for limits and recovery behavior.
+
+The corrected application suite passes 415 tests; the unchanged separate Stage 7
+offline suite passes 89 tests. `make verify` passes with 17 static categories PASS
+and two NOT TESTED. A prior isolated verification reported a unit failure without
+retaining its assertion; a subsequent diagnostic retained full output and passed,
+as did the normal check targets. That earlier failure's cause remains unknown;
+these results do not establish an explanation or power-loss acceptance.
+
+This is a source correction for review. Issue closure, merge, deployment, current
+host identity, actual mount/packet verification, independent Stage 7 closeout and
+Phase 8 acceptance remain separate. No live operation or historical evidence edit
+is performed by this patch. Other-session Stage 8 working-tree changes are excluded.

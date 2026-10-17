@@ -49,6 +49,13 @@ at 95% CRITICAL and root health stops nonessential PCAP. It checks separate moun
 evidence filesystems too. Investigate at 80%, before preservation runs out of space.
 There is no automatic deletion of protected evidence or backups.
 
+The durable event-location index at state/incidentd/event-locations.sqlite3 grows
+with retained event IDs. It uses disk storage rather than an in-memory history,
+and correlation-window pruning does not remove its entries. Include its storage
+in capacity planning and preserve it with incidentd state during recovery. The
+metadata backup archive excludes this state; see docs/OPERATIONS.md for the
+backfill and recovery gates. Index retention is manual, like incident evidence.
+
 For a larger HDD use dedicated mountpoints, copy while services are stopped,
 verify hashes, edit .env, rerun bootstrap and review unit ReadWritePaths. Metadata
 backups can optionally copy HIGH/CRITICAL evidence to SECONDARY_EVIDENCE_PATH via
