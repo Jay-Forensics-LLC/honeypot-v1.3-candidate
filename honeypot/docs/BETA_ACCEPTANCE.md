@@ -4,6 +4,14 @@ Candidate: **v1.3.0-beta.1 — UNVERIFIED SOURCE CANDIDATE**.
 
 Initial-beta release disposition: **BLOCKED — acceptance incomplete**.
 
+**2026-10-17 reconciliation:** [current phase status](../../docs/CURRENT_PHASE_STATUS.md)
+is the latest disposition. It supersedes the October 16 current-state statements
+below while preserving their historical evidence. Current system Docker ownership
+and seven healthy services are observed; a closed capture sample contains 74
+packets. The new boot's clock is unsynchronized, containment/evidence acceptance
+is incomplete, and independent Stage 7 closeout remains PENDING. No beta gate is
+silently advanced by these scoped observations or the new source regressions.
+
 **LATEST OBSERVATION — successful health unit and healthy state reported.**
 [E33][e33] supersedes the earlier health-failure snapshot: the unit completed with
 Result=success and ExecMainStatus=0 at 2026-10-16 20:08:37 UTC. A later health JSON
