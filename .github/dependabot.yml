@@ -1,0 +1,47 @@
+version: 2
+
+updates:
+  # Base images used to build HoneyTrace containers.
+  - package-ecosystem: "docker"
+    directory: "/honeypot/docker"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps-docker)"
+
+  # Service images referenced by Docker Compose.
+  - package-ecosystem: "docker-compose"
+    directory: "/honeypot"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:30"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps-compose)"
+
+  # Include this entry if .github/workflows contains workflows
+  # that reference external GitHub Actions.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "05:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps-actions)"
+    groups:
+      actions-minor-and-patch:
+        applies-to: "version-updates"
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
