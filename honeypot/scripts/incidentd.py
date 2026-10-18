@@ -456,24 +456,62 @@ class Engine:
         incident['evidence_paths'] += ['pcap/','artifacts/']
 
     def copy_evidence(self,p,dest,meta,budget):
+        import stat
+        signature=lambda value:(value.st_dev,value.st_ino,value.st_size,value.st_mtime_ns,value.st_ctime_ns)
+        created=False;target=None;failure=None;digest=None;observed=None
         try:
-            if p.is_symlink() or not p.is_file(): return
-            if sum(x.stat().st_size for x in dest.iterdir())+p.stat().st_size>budget:
+            observed=p.lstat()
+            if not stat.S_ISREG(observed.st_mode):return
+            size=observed.st_size
+            if sum(x.stat().st_size for x in dest.iterdir())+size>budget:
                 meta['limitations'].append('Copy budget exceeded: '+p.name); return
-            digest,size=sha256(p)
-            target=dest/(digest+'.'+('pcapng' if dest.name=='pcap' else 'bin'))
-            if target.exists(): return
-            # Exclusive create and source O_NOFOLLOW through hash verification; race fails verification.
             fd=os.open(p,os.O_RDONLY|getattr(os,'O_NOFOLLOW',0)|getattr(os,'O_NONBLOCK',0))
-            import stat
-            with os.fdopen(fd,'rb') as src, target.open('xb') as out:
-                if not stat.S_ISREG(os.fstat(src.fileno()).st_mode): raise ValueError('Non-regular source')
-                shutil.copyfileobj(src,out,1024*1024)
-            os.chmod(target,0o640)
-            actual,_=sha256(target)
-            meta['copies'].append({'source':str(p),'destination':str(target.name),'sha256':actual,'size':size,'timestamp':utc(),'verified_stable':actual==digest})
-            if actual!=digest: meta['limitations'].append('Copy changed during acquisition: '+p.name)
-        except (OSError,ValueError) as exc: meta['limitations'].append(type(exc).__name__+': '+str(p))
+            with os.fdopen(fd,'rb') as src:
+                if (not stat.S_ISREG(os.fstat(src.fileno()).st_mode) or
+                        signature(os.fstat(src.fileno()))!=signature(observed)):
+                    raise ValueError('Source changed before finite acquisition')
+                # Hash only the inspected finite length on this pinned inode.
+                h=hashlib.sha256();remaining=size
+                while remaining:
+                    chunk=src.read(min(1024*1024,remaining))
+                    if not chunk:raise ValueError('Source truncated before finite acquisition')
+                    h.update(chunk);remaining-=len(chunk)
+                digest=h.hexdigest()
+                if (signature(os.fstat(src.fileno()))!=signature(observed) or
+                        signature(p.lstat())!=signature(observed)):
+                    raise ValueError('Source changed before finite acquisition')
+                target=dest/(digest+'.'+('pcapng' if dest.name=='pcap' else 'bin'))
+                if target.exists():return
+                src.seek(0)
+                with target.open('xb') as out:
+                    created=True;os.fchmod(out.fileno(),0o640)
+                    remaining=size
+                    while remaining:
+                        chunk=src.read(min(1024*1024,remaining))
+                        if not chunk:raise ValueError('Source truncated during finite acquisition')
+                        out.write(chunk);remaining-=len(chunk)
+                if (signature(os.fstat(src.fileno()))!=signature(observed) or
+                        signature(p.lstat())!=signature(observed)):
+                    raise ValueError('Source changed during finite acquisition')
+        except (OSError,ValueError) as exc:
+            failure=type(exc).__name__+': '+str(exc)
+        finally:
+            if created:
+                # Preserve bounded failed acquisitions as evidence, clearly
+                # separate from a stable copy. Never delete either original.
+                try:
+                    actual,acquired=sha256(target)
+                    stable=failure is None and actual==digest and acquired==observed.st_size
+                    meta['copies'].append({'source':str(p),'destination':str(target.name),
+                        'sha256':actual,'size':acquired,'timestamp':utc(),'verified_stable':stable,
+                        'source_size_at_start':observed.st_size,
+                        'source_identity':{'device':observed.st_dev,'inode':observed.st_ino,
+                                           'mtime_ns':observed.st_mtime_ns,'ctime_ns':observed.st_ctime_ns},
+                        'source_sha256_at_start':digest,'acquisition_limit_bytes':observed.st_size})
+                    if not stable:meta['limitations'].append('Copy changed during acquisition: '+p.name)
+                except (OSError,ValueError) as exc:
+                    meta['limitations'].append('Retained copy could not be verified: '+target.name+' ('+type(exc).__name__+')')
+            if failure:meta['limitations'].append(failure+': '+str(p))
 
     def report(self,path,incident):
         if not (path/'metadata.json').exists(): atomic_json(path/'metadata.json',{'created_at':utc(),'copies':[],'limitations':['PCAP preservation begins at HIGH severity.']})
