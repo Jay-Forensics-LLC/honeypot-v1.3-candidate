@@ -8,6 +8,7 @@ import tempfile
 import subprocess
 from hp_common import atomic_json, runtime_path, sha256, utc
 from live_capture import packet_proof, capture_segments
+import qualification_context
 
 SOURCE=Path(__file__).resolve().parents[1]
 
@@ -23,16 +24,21 @@ def finding(proof, candidates):
     return 'NO_MATCH_IN_AVAILABLE_INSPECTED_SEGMENTS'
 
 
-def diagnose(report_path,folder):
+def diagnose(report_path,folder,context=None):
     report_path=Path(report_path)
     if report_path.is_symlink():raise ValueError('Demo report symlink refused')
-    report_path.resolve().relative_to(SOURCE/'work/demo')
+    report_path.resolve().relative_to(SOURCE/'work/demo' if context is None else context.evidence_root)
     if report_path.stat().st_size>2*1024**2:raise ValueError('Demo report read budget exceeded')
-    original=json.loads(report_path.read_text())
+    original=json.loads(qualification_context.stable_bytes(report_path,2*1024**2))
     if original.get('mode')!='live' or original.get('synthetic') is not True:
         raise ValueError('Expected a synthetic live-demo report')
     root=Path(original['runtime']['runtime_root'])
-    if root!=Path('/home/joe/honeypot-staging/honeypot'):raise ValueError('Unexpected runtime root')
+    if context is None:
+        if root!=Path('/home/joe/honeypot-staging/honeypot'):raise ValueError('Unexpected runtime root')
+    else:
+        context.validate_current()
+        context.check_runtime(original['runtime'])
+        if root!=context.runtime:raise ValueError('Unexpected runtime root')
     begin=dt.datetime.fromisoformat(original['timestamp'].replace('Z','+00:00')).timestamp()
     target=original['runtime']['containers']['opencanary']['networks']['honeypot-canary-net']['IPAddress']
     dest=runtime_path('PCAP_PATH','captures',root)
@@ -50,9 +56,14 @@ def diagnose(report_path,folder):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--report',type=Path,required=True)
+    parser.add_argument('--runtime-root',type=Path)
+    parser.add_argument('--context',type=Path)
+    parser.add_argument('--context-sha256')
     args=parser.parse_args();os.umask(0o077)
-    folder=Path(tempfile.mkdtemp(prefix='capture-diagnosis-',dir=SOURCE/'work/live-qualification'))
-    try:row=diagnose(args.report,folder)
+    context=qualification_context.load(args.context,args.context_sha256,SOURCE,args.runtime_root,purpose='prerequisites')
+    folder=Path(tempfile.mkdtemp(prefix='capture-diagnosis-',dir=(
+        SOURCE/'work/live-qualification' if context is None else context.evidence_root)))
+    try:row=diagnose(args.report,folder,context)
     except (OSError,ValueError,KeyError,TypeError,subprocess.SubprocessError) as exc:row={'status':'INSPECTION_FAILED','error':str(exc),'traffic_generated':False}
     path=folder/'report.json';atomic_json(path,row)
     print(json.dumps(row,indent=2));print('REPORT: '+str(path))

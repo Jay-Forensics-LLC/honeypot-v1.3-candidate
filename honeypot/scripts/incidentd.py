@@ -112,14 +112,66 @@ class Engine:
         self.captures=runtime_path('PCAP_PATH','captures',self.root)
         self.fast_poll_until=0
         self.blocked_incidents={}
+        self.startup_started_utc = utc()
+        self.startup_scanned = set()
+        self.startup_scan_reported = False
+        self.startup_inventory_failed = False
         try: self.locations = EventLocations(self.statepath.with_name('event-locations.sqlite3'), self.incidents)
         except EvidenceIntegrityError as exc:
             self.locator_failure(exc)
             raise
         self.locations_ready = self.locations.ready()
         self.location_backfill_failed = False
-        self.evidence_inventory = iter(self.incidents.glob('*/*'))
+        self.evidence_inventory = self.startup_inventory()
         self.inspect_existing_evidence()
+
+    def startup_inventory(self):
+        """Bounded explicit enumeration; unreadable branches must not become idle."""
+        import stat
+        try:
+            info = self.incidents.lstat()
+        except FileNotFoundError:
+            return
+        if not stat.S_ISDIR(info.st_mode) or self.incidents.resolve() != self.incidents.absolute():
+            raise EvidenceIntegrityError('Unsafe startup incident root')
+        count = 0
+        for day in self.incidents.iterdir():
+            count += 1
+            if count > 100000: raise EvidenceIntegrityError('Startup inventory exceeds bound')
+            mode = day.lstat().st_mode
+            if stat.S_ISLNK(mode): raise EvidenceIntegrityError('Symlink startup day')
+            if not stat.S_ISDIR(mode): continue
+            for directory in day.iterdir():
+                count += 1
+                if count > 100000: raise EvidenceIntegrityError('Startup inventory exceeds bound')
+                mode = directory.lstat().st_mode
+                if stat.S_ISLNK(mode): raise EvidenceIntegrityError('Symlink startup incident')
+                if stat.S_ISDIR(mode): yield directory
+
+    def startup_complete(self):
+        """Producer observation only; qualification independently scans the store."""
+        if self.startup_inventory_failed:
+            raise EvidenceIntegrityError('Startup inventory previously failed; no completion claim')
+        if self.startup_scan_reported:
+            return
+        try:
+            boot_id = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+            # comm can contain spaces/parentheses; field 22 follows its final ')'.
+            start_ticks = int(Path('/proc/self/stat').read_text().rsplit(')', 1)[1].split()[19])
+        except (OSError, ValueError, IndexError):
+            boot_id, start_ticks = None, None
+        clean = self.locations_ready and not self.location_backfill_failed and not self.blocked_incidents
+        append_json(self.root/'logs/system/evidence-startup.jsonl', {
+            'action': 'EVIDENCE_STARTUP_SCAN_COMPLETE', 'status': 'CLEAN' if clean else 'BLOCKED',
+            'scan_complete': True, 'locator_ready': self.locations_ready,
+            'migration_failed': self.location_backfill_failed,
+            'scanned_incidents': len(self.startup_scanned),
+            'blocked_incidents': len(self.blocked_incidents),
+            'started_utc': self.startup_started_utc, 'timestamp': utc(),
+            'boot_id': boot_id, 'producer_pid': os.getpid(),
+            'producer_started_ticks': start_ticks,
+            'scope': 'Completed startup enumeration; not a global integrity or durability verdict'}, rotate=True)
+        self.startup_scan_reported = True
 
     def block_incident(self, path, exc):
         self.blocked_incidents[str(path)] = str(exc)
@@ -152,9 +204,12 @@ class Engine:
 
     def inspect_existing_evidence(self, budget=32):
         """Incremental historical inspection; active segments are also checked before use."""
+        if self.startup_inventory_failed:
+            raise EvidenceIntegrityError('Startup inventory previously failed; operator review required')
         if not self.locations_ready:
             self.locations.prepare_backfill()
             for directory in self.locations.pending(budget):
+                self.startup_scanned.add(str(directory))
                 if not self.locations.unchanged_pending(directory):
                     self.block_incident(directory, 'Historical files changed since inventory; operator review required')
                     continue
@@ -188,8 +243,17 @@ class Engine:
             sync_directory(self.statepath.parent)
             return
         for _ in range(budget):
-            directory = next(self.evidence_inventory, None)
-            if directory is None: break
+            try:
+                directory = next(self.evidence_inventory, None)
+            except (OSError, EvidenceIntegrityError):
+                # A generator closes after raising; a later poll must not
+                # reinterpret that closed iterator as successful exhaustion.
+                self.startup_inventory_failed = True
+                raise
+            if directory is None:
+                self.startup_complete()
+                break
+            self.startup_scanned.add(str(directory))
             try:
                 if directory.is_symlink(): raise EvidenceIntegrityError('Symlink incident directory')
                 # Index evidence even if its metadata is blocked. Replay must not

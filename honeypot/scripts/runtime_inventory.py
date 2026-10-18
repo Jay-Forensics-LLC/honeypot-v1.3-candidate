@@ -1,5 +1,6 @@
 """Read-only, fail-closed local demo inventory. Not a Stage 7/8 qualification."""
 import hashlib
+from decimal import Decimal, InvalidOperation
 import ipaddress
 import json
 import re
@@ -11,6 +12,16 @@ from capture_status import inspect_capture
 from daemon_check import inspect as inspect_daemon
 
 SERVICES = {'cowrie', 'opencanary', 'suricata', 'loki', 'alloy', 'grafana', 'incidentd'}
+USERS = {'cowrie': '999:2000', 'opencanary': '10002:2000', 'loki': '10001:2000',
+         'alloy': '10001:2000', 'grafana': '472:2000', 'incidentd': '10001:2000'}
+# Overrides may lower these candidate ceilings, never remove or increase them.
+RESOURCE_CEILINGS = {'cowrie': (768 * 1024**2, 1_000_000_000),
+                     'opencanary': (384 * 1024**2, 500_000_000),
+                     'suricata': (2 * 1024**3, 2_000_000_000),
+                     'loki': (2 * 1024**3, 1_500_000_000),
+                     'alloy': (512 * 1024**2, 500_000_000),
+                     'grafana': (512 * 1024**2, 500_000_000),
+                     'incidentd': (512 * 1024**2, 1_000_000_000)}
 PLACEMENT = {'cowrie': {'honeypot-cowrie-net'}, 'opencanary': {'honeypot-canary-net'},
              'suricata': {'host'}, 'grafana': {'honeypot-observability', 'honeypot-management'},
              **{n: {'honeypot-observability'} for n in ('loki', 'alloy', 'incidentd')}}
@@ -50,6 +61,46 @@ def stopped_decoy_configuration(rendered, containers, networks, root):
                      'capture, storage, quarantine and evidence checks remain separate'}
 
 
+def security_resource_problems(name, spec, container):
+    problems = []
+    host, actual = container['HostConfig'], container['Config']
+    if name in USERS:
+        if spec.get('user') != USERS[name] or actual.get('User') != USERS[name]:
+            problems.append(name + ': reviewed numeric user differs')
+    elif spec.get('user', '') not in ('', '0', '0:0') or actual.get('User', '') not in ('', '0', '0:0'):
+        problems.append(name + ': sensor user differs')
+    if spec.get('group_add') != ['2000'] or host.get('GroupAdd') != ['2000']:
+        problems.append(name + ': evidence supplementary group differs')
+    for key in ('PidMode', 'UTSMode'):
+        if host.get(key, ''):
+            problems.append(name + ': unexpected shared namespace ' + key)
+    if host.get('IpcMode') != 'private' or spec.get('ipc', 'private') != 'private' or spec.get('pid'):
+        problems.append(name + ': unexpected PID/IPC namespace')
+    if any(host.get(key) for key in ('Devices', 'DeviceRequests', 'DeviceCgroupRules')) or any(
+            spec.get(key) for key in ('devices', 'device_cgroup_rules', 'gpus')):
+        problems.append(name + ': unexpected device access')
+    memory, cpus = RESOURCE_CEILINGS[name]
+    try:
+        declared_memory = spec.get('mem_limit')
+        # Native Compose JSON can encode byte limits as canonical decimal strings.
+        # Normalize that wire representation only; Docker inspect must remain int.
+        if type(declared_memory) is str and re.fullmatch(r'[1-9][0-9]*', declared_memory):
+            declared_memory = int(declared_memory)
+        declared_nano = Decimal(str(spec.get('cpus'))) * 1_000_000_000
+        declared_pids = spec.get('pids_limit')
+        if (type(declared_memory) is not int or not 0 < declared_memory <= memory or
+                not declared_nano.is_finite() or declared_nano != declared_nano.to_integral_value() or
+                not 0 < declared_nano <= cpus or type(declared_pids) is not int or not 0 < declared_pids <= 256):
+            raise ValueError('Invalid declared resource bounds')
+        if (type(host.get('Memory')) is not int or host['Memory'] != declared_memory or
+                type(host.get('NanoCpus')) is not int or host['NanoCpus'] != int(declared_nano) or
+                type(host.get('PidsLimit')) is not int or host['PidsLimit'] != declared_pids):
+            problems.append(name + ': runtime resource limits differ')
+    except (ValueError, TypeError, InvalidOperation):
+        problems.append(name + ': finite reviewed resource limits missing or invalid')
+    return problems
+
+
 def _validate_runtime(rendered, containers, networks, root, stopped=frozenset()):
     """Share configuration checks while retaining strict live health gates."""
     problems = []
@@ -59,6 +110,7 @@ def _validate_runtime(rendered, containers, networks, root, stopped=frozenset())
     for name, c in containers.items():
         spec = rendered['services'][name]
         host = c['HostConfig']
+        problems.extend(security_resource_problems(name, spec, c))
         if c['Config'].get('Image') != spec.get('image'):
             problems.append(name + ': image reference differs from rendered configuration')
         state = c['State']

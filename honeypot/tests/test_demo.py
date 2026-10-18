@@ -25,6 +25,12 @@ def fixture():
                           'CapAdd':['NET_RAW','NET_ADMIN','SETUID','SETGID'] if name=='suricata' else [],
                           'Dns':[inventory.DNS[name]] if name in inventory.DNS else [],'PortBindings':copy.deepcopy(mappings)},
             'NetworkSettings':{'Networks':{n:{} for n in inventory.PLACEMENT[name]},'Ports':copy.deepcopy(mappings)},'Mounts':[]}
+        memory, nano = inventory.RESOURCE_CEILINGS[name]
+        services[name].update(user=inventory.USERS.get(name, ''), group_add=['2000'],
+                              mem_limit=memory, cpus=str(nano / 1_000_000_000), pids_limit=256)
+        containers[name]['Config']['User'] = inventory.USERS.get(name, '')
+        containers[name]['HostConfig'].update(GroupAdd=['2000'], IpcMode='private',
+                                              Memory=memory, NanoCpus=nano, PidsLimit=256)
     containers['grafana']['Mounts']=[{'Destination':'/run/secrets/grafana_admin_password','Source':str(root/'secrets/grafana_admin_password'),'RW':False}]
     for name, spec in inventory.static_mount_policy(root)['services'].items():
         services[name]['volumes'] = spec['volumes']

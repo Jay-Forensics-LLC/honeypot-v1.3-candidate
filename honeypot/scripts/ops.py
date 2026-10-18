@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import secrets
 import shutil
 import subprocess
@@ -17,6 +18,66 @@ from guard_policy import DNS, require_guard, inspect_dns
 from daemon_check import require_local_daemon
 
 SERVICES=['cowrie','opencanary','suricata','loki','alloy','grafana','incidentd']
+NETWORK_POLICY = {
+    'cowrie': ('honeypot-cowrie-net', '172.29.40.0/24', 'br-hp-cowrie'),
+    'canary': ('honeypot-canary-net', '172.29.41.0/24', 'br-hp-canary'),
+    'observability': ('honeypot-observability', '172.29.42.0/24', None),
+    'management': ('honeypot-management', '172.29.43.0/24', 'br-hp-mgmt'),
+}
+
+
+def owned_network_routes(networks):
+    """Only exact project-labelled bridge/CIDR identities exempt an owned route."""
+    owned = set()
+    for network in networks:
+        labels = network.get('Labels') or {}
+        key = labels.get('com.docker.compose.network')
+        if labels.get('com.docker.compose.project') != 'honeypot' or key not in NETWORK_POLICY:
+            continue
+        name, subnet, fixed_bridge = NETWORK_POLICY[key]
+        network_id = network.get('Id', '')
+        if not re.fullmatch(r'[0-9a-f]{64}', network_id):
+            continue
+        bridge = fixed_bridge or 'br-' + network_id[:12]
+        actual_bridge = network.get('Options', {}).get('com.docker.network.bridge.name', 'br-' + network_id[:12])
+        if (network.get('Name') == name and network.get('Driver') == 'bridge' and
+                network.get('Internal') is (key == 'observability') and not network.get('EnableIPv6') and
+                [item.get('Subnet') for item in network.get('IPAM', {}).get('Config', [])] == [subnet] and
+                actual_bridge == bridge):
+            owned.add((subnet, bridge))
+    return owned
+
+
+def route_conflicts(routes, networks=()):
+    owned = owned_network_routes(networks)
+    problems = []
+    for route in routes:
+        destination = route.get('dst', 'default')
+        if destination == 'default':
+            continue
+        net = ipaddress.ip_network(destination, strict=False)
+        for _, reserved, _ in NETWORK_POLICY.values():
+            if net.overlaps(ipaddress.ip_network(reserved)) and (str(net), route.get('dev')) not in owned:
+                problems.append('Review subnet overlap: ' + destination + ' vs ' + reserved)
+    return problems
+
+
+def refuse_docker_provider_conflict():
+    """Read package metadata before APT can replace an approved Docker provider."""
+    names = ['docker-ce', 'docker-ce-cli', 'containerd.io', 'docker-buildx-plugin', 'docker-compose-plugin']
+    result = run(['dpkg-query', '-W', '-f=${binary:Package}\t${db:Status-Abbrev}\n'], check=False)
+    if result.returncode != 0 or not result.stdout.strip():
+        raise SystemExit('Docker package provenance unavailable; no APT operation authorized')
+    installed = []
+    for line in result.stdout.splitlines():
+        name, separator, status = line.partition('\t')
+        if not separator or not status.strip():
+            raise SystemExit('Docker package provenance malformed; no APT operation authorized')
+        if name.split(':', 1)[0] in names and status.strip() != 'un':
+            installed.append(name)
+    if installed:
+        raise SystemExit('Official Docker packages already present or pending; refusing distro docker.io installation before APT. '
+                         'Preserve the approved provider and review dependencies separately.')
 
 def compose(*args,check=True):
     result=run(['docker','compose',*args],timeout=1200,check=check)
@@ -71,18 +132,21 @@ def preflight():
     cfg=config()
     if Path('/etc/os-release').exists() and 'ID=ubuntu' not in Path('/etc/os-release').read_text(): report['conflicts'].append('Target OS is not Ubuntu')
     listen=report['checks'].get('listeners',{}).get('output','')
-    import re
     for key in ('COWRIE_SSH_PORT','COWRIE_TELNET_PORT','CANARY_HTTP_PORT','CANARY_FTP_PORT','CANARY_REDIS_PORT','GRAFANA_PORT'):
         if re.search(r':'+re.escape(cfg[key])+r'\s',listen):report['conflicts'].append(key+' already listening')
     routes=run(['ip','-j','route'],check=False) if shutil.which('ip') else None
     if routes and routes.returncode==0:
-        for row in json.loads(routes.stdout):
-            dst=row.get('dst','default')
-            if dst=='default':continue
-            net=ipaddress.ip_network(dst,strict=False)
-            for reserved in ('172.29.40.0/24','172.29.41.0/24','172.29.42.0/24'):
-                if net.overlaps(ipaddress.ip_network(reserved)) and row.get('dev') not in ('br-hp-cowrie','br-hp-canary'):
-                    report['conflicts'].append('Review subnet overlap: '+dst+' vs '+reserved)
+        networks = []
+        try:
+            require_local_daemon(ROOT)
+            result = run(['docker', 'network', 'inspect', *[entry[0] for entry in NETWORK_POLICY.values()]], check=False)
+            # Docker can return the existing subset plus an error for absent networks.
+            if result.returncode in (0, 1):
+                value = json.loads(result.stdout)
+                if isinstance(value, list): networks = value
+        except (OSError, ValueError, SystemExit, subprocess.SubprocessError):
+            pass  # Unverified routes never receive an ownership exemption.
+        report['conflicts'].extend(route_conflicts(json.loads(routes.stdout), networks))
     print(json.dumps(report,indent=2));(ROOT/'work').mkdir(exist_ok=True);atomic_json(ROOT/'work/preflight.json',report)
     return 1 if report['conflicts'] else 0
 
@@ -90,6 +154,7 @@ def install():
     require_root()
     if '--install' not in sys.argv: raise SystemExit('Review DEPLOYMENT.md. Re-run with --install to authorize package installation on Ubuntu.')
     if 'ID=ubuntu' not in Path('/etc/os-release').read_text(): raise SystemExit('Ubuntu only')
+    refuse_docker_provider_conflict()
     for argv in [['apt-get','update'],['apt-get','install','-y','docker.io','docker-compose-v2','nftables','tshark','logrotate','python3','python3-yaml','yara','openssh-client','unzip','ca-certificates']]:
         r=subprocess.run(argv,env={**os.environ,'DEBIAN_FRONTEND':'noninteractive'},check=True)
     print('Packages installed; Docker package may start its local daemon. No honeypots started. No docker-group membership changed.')

@@ -5,7 +5,9 @@ from contextlib import contextmanager
 import copy
 import datetime as dt
 import hashlib
+import ipaddress
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -17,16 +19,19 @@ import time
 
 import demo
 from evidence_store import records
-from hp_common import sha256, utc
+from hp_common import sha256, utc, runtime_path
 from incidentd import normalize
 import live_capture
 from pcap_demo_recovery import compare_runtime, storage_gate
 import stage7_preservation as preservation
 import stage7_recovery_check as review
 from runtime_inventory import collect
+import qualification_context
+from packet_snapshot import verify_acquisition
 
 SOURCE = Path(__file__).resolve().parents[1]
 RUNTIME = review.RUNTIME
+CONTEXT = None
 ORDER = ('opencanary', 'cowrie', 'suricata', 'alloy', 'loki', 'grafana', 'incidentd')
 REQUIRED = ('identity', 'runtime', 'execution_configuration', 'capture', 'pipeline',
             'heartbeat', 'suricata_logging', 'routes', 'preservation', 'existing_loki', 'postflight')
@@ -50,8 +55,9 @@ def deadline(seconds):
         signal.signal(signal.SIGALRM, previous)
 
 
-def command(argv, root=RUNTIME, timeout=20):
-    result = subprocess.run(argv, cwd=root, text=True, capture_output=True, timeout=timeout)
+def command(argv, root=None, timeout=20):
+    result = subprocess.run(argv, cwd=RUNTIME if root is None else root,
+                            text=True, capture_output=True, timeout=timeout)
     if result.returncode:
         raise RuntimeError(f'Command exit {result.returncode}: {argv[:3]}: {result.stderr[:2000]}')
     return result.stdout
@@ -151,6 +157,9 @@ def source_revision():
 
 
 def prerequisite_passed(row):
+    if CONTEXT is not None:
+        CONTEXT.validate_current()
+        CONTEXT.check_identity(row, max_age=120)
     evidence = row.get('evidence_integrity', {})
     planned = evidence.get('planned_total_bytes')
     acquired = evidence.get('bytes_read')
@@ -187,7 +196,7 @@ def prerequisite_passed(row):
         accounting_ok = accounting_ok and acquired == planned
     if (row.get('STATUS') != 'ACTIVE_PREREQUISITES_PASSED' or row.get('error') or
             row.get('runtime_comparison', {}).get('ok') is not True or
-            evidence.get('status') != 'VERIFIED_KNOWN_DEFECT_ONLY' or
+            evidence.get('status') != ('VERIFIED_KNOWN_DEFECT_ONLY' if CONTEXT is None else 'VERIFIED_CLEAN') or
             not evidence.get('files_in_inventory') or
             evidence.get('files_scanned') != evidence.get('files_in_inventory') or
             evidence.get('files_in_inventory', 0) > review.EVIDENCE_COUNT_LIMIT or
@@ -197,6 +206,9 @@ def prerequisite_passed(row):
                 'status', 'files_in_inventory', 'files_scanned', 'planned_total_bytes', 'bytes_read')}))
     review.active_gate(row['runtime'])
     review.active_gate(row['runtime_after'])
+    if CONTEXT is not None:
+        CONTEXT.check_runtime(row['runtime'])
+        CONTEXT.check_runtime(row['runtime_after'])
 
 
 def strict_compare(before, after, target=None, dynamic_mac=False):
@@ -288,8 +300,10 @@ def routes_and_tty(runtime):
 
 def evidence_permissions():
     result = {}
+    capture_directory = (Path('/var/lib/honeypot/captures') if CONTEXT is None else
+                         runtime_path('PCAP_PATH', 'captures', RUNTIME))
     for path in (RUNTIME / 'secrets', RUNTIME / 'incidents', RUNTIME / 'artifacts',
-                 RUNTIME / 'state/trusted', Path('/var/lib/honeypot/captures')):
+                 RUNTIME / 'state/trusted', capture_directory):
         info = path.lstat()
         if path.resolve() != path.absolute() or not path.is_dir() or info.st_mode & 0o007:
             raise ValueError('Evidence/security directory permissions differ: ' + str(path))
@@ -341,6 +355,9 @@ def observe():
     runtime = collect(RUNTIME, SOURCE)
     resources = live_capture.readiness(RUNTIME)
     try:
+        if CONTEXT is not None:
+            CONTEXT.validate_current()
+            CONTEXT.check_runtime(runtime)
         review.active_gate(runtime)
         if runtime.get('http_readiness') != {'loki': True, 'alloy': True, 'grafana': True}:
             raise ValueError('Internal service HTTP readiness unverified')
@@ -357,6 +374,43 @@ def observe():
 
 
 def integrity_startup(since=None):
+    if CONTEXT is not None:
+        CONTEXT.validate_current()
+        path = RUNTIME / 'logs/system/evidence-startup.jsonl'
+        rows = [json.loads(line) for line in preservation.stable_bytes(path, 16 * 1024**2).splitlines()]
+        if not rows:
+            raise ValueError('Positive evidence startup audit absent')
+        latest = rows[-1]
+        if (latest.get('action') != 'EVIDENCE_STARTUP_SCAN_COMPLETE' or
+                latest.get('status') != 'CLEAN' or latest.get('scan_complete') is not True or
+                latest.get('locator_ready') is not True or latest.get('migration_failed') is not False or
+                type(latest.get('scanned_incidents')) is not int or latest['scanned_incidents'] < 0 or
+                type(latest.get('blocked_incidents')) is not int or latest['blocked_incidents'] != 0 or
+                type(latest.get('producer_pid')) is not int or latest['producer_pid'] <= 0 or
+                type(latest.get('producer_started_ticks')) is not int or latest['producer_started_ticks'] <= 0 or
+                latest.get('boot_id') != CONTEXT.value['boot_id']):
+            raise ValueError('Complete clean current-boot startup scan required')
+        qualification_context.fresh(latest['timestamp'])
+        qualification_context.fresh(latest['started_utc'])
+        if latest['started_utc'] > latest['timestamp']:
+            raise ValueError('Startup scan timing is inconsistent')
+        if since and dt.datetime.fromisoformat(latest['started_utc'].replace('Z', '+00:00')) < dt.datetime.fromisoformat(since.replace('Z', '+00:00')):
+            raise ValueError('New incidentd startup audit absent after restart')
+        cid = command(['docker', 'compose', 'ps', '-q', 'incidentd']).strip()
+        if not re.fullmatch('[0-9a-f]{64}', cid):
+            raise ValueError('Current incidentd container identity unavailable')
+        code = ('import json; from pathlib import Path; '
+                's=Path("/proc/1/stat").read_text().rsplit(")",1)[1].split(); '
+                'print(json.dumps(dict(pid=1,started_ticks=int(s[19]),'
+                'boot_id=Path("/proc/sys/kernel/random/boot_id").read_text().strip())))')
+        producer = json.loads(command(['docker', 'exec', cid, 'python', '-B', '-c', code]))
+        if (latest.get('producer_pid') != producer.get('pid') or
+                latest.get('producer_started_ticks') != producer.get('started_ticks') or
+                latest.get('boot_id') != producer.get('boot_id')):
+            raise ValueError('Startup audit belongs to another producer/container start')
+        return {'status': 'PASS', 'audit': latest, 'container_id': cid,
+                'qualification_identity': CONTEXT.identity(), 'historical_closeout': 'UNKNOWN',
+                'scope': 'Positive current-producer complete clean startup; full independent store sweep remains required'}
     historical = review.retained_module('stage7-reconciled-evidence')
     rows = demo.rows(RUNTIME / 'logs/system/evidence-integrity.jsonl')
     if not rows:
@@ -374,7 +428,14 @@ def integrity_startup(since=None):
 
 
 def baseline(folder, supplied, supplied_hash, validation, validation_hash):
-    historic = load_verified(supplied, supplied_hash)
+    if CONTEXT is not None:
+        CONTEXT.validate_current()
+        entry = CONTEXT.value['receipts']['prerequisites']
+        if str(supplied) != entry['path'] or supplied_hash != entry['sha256']:
+            raise ValueError('Supplied prerequisite receipt differs from context')
+        historic = CONTEXT.receipt('prerequisites')
+    else:
+        historic = load_verified(supplied, supplied_hash)
     prerequisite_passed(historic)
     checked = load_verified(validation, validation_hash)
     if checked.get('status') != 'PASS' or checked.get('implementation') != implementation():
@@ -383,6 +444,8 @@ def baseline(folder, supplied, supplied_hash, validation, validation_hash):
     if not expected_commands <= {r['command'] for r in checked.get('commands', []) if r.get('exit_code') == 0}:
         raise ValueError('Required regression commands have not all passed')
     revision = source_revision()
+    if CONTEXT is not None and revision != CONTEXT.value['source_commit']:
+        raise ValueError('Clean source commit differs from context')
     # Refresh the full reviewed prerequisite scan within its unchanged deadline.
     fresh = review.inspect(RUNTIME, active=True)
     fresh_link = save(folder / 'fresh-prerequisites.json', fresh)
@@ -396,10 +459,14 @@ def baseline(folder, supplied, supplied_hash, validation, validation_hash):
     quarantine = quarantine_state()
     retained = acquire_preservation(folder, 'baseline-preservation')
     startup = integrity_startup()
-    demo_report = load_verified(DEMO_REPORT, DEMO_HASH)
-    load_verified(CONFIRMATION, CONFIRMATION_HASH)
-    if demo_report.get('status') != 'PASS_LIVE' or sha256(DEMO_REPORT.parent / 'capture-match.pcapng')[0] != DEMO_CAPTURE_HASH:
-        raise ValueError('Established guarded demonstration/capture differs')
+    if CONTEXT is None:
+        demo_report = load_verified(DEMO_REPORT, DEMO_HASH)
+        load_verified(CONFIRMATION, CONFIRMATION_HASH)
+        if demo_report.get('status') != 'PASS_LIVE' or sha256(DEMO_REPORT.parent / 'capture-match.pcapng')[0] != DEMO_CAPTURE_HASH:
+            raise ValueError('Established guarded demonstration/capture differs')
+        established = {'path': str(DEMO_REPORT), 'sha256': DEMO_HASH, 'capture_sha256': DEMO_CAPTURE_HASH}
+    else:
+        demo_report, established = cleanroom_demo(before)
     demo_event = records(Path(demo_report['result']['evidence_path']))[demo_report['result']['event_id']]['normalized']
     central = loki_event(before, demo_event)
     after, after_resources = observe()
@@ -408,6 +475,8 @@ def baseline(folder, supplied, supplied_hash, validation, validation_hash):
             evidence_permissions() != permissions or quarantine_state() != quarantine):
         raise ValueError('Execution configuration/routes changed during baseline')
     return {'status': 'BASELINE_PASS', 'created_utc': utc(), 'boot_id': before['boot_id'],
+            'qualification_identity': None if CONTEXT is None else CONTEXT.identity(),
+            'historical_closeout': 'LEGACY_VERIFICATION_REQUIRED' if CONTEXT is None else 'UNKNOWN',
             'source_commit': revision, 'implementation': implementation(),
             'validation': {'path': str(validation), 'sha256': validation_hash},
             'supplied_prerequisites': {'path': str(supplied), 'sha256': supplied_hash},
@@ -416,12 +485,90 @@ def baseline(folder, supplied, supplied_hash, validation, validation_hash):
             'evidence_permissions': permissions,
             'quarantine': quarantine,
             'startup_protection': startup, 'stable_second_observation': stability,
-            'established_demo': {'path': str(DEMO_REPORT), 'sha256': DEMO_HASH, 'capture_sha256': DEMO_CAPTURE_HASH},
+            'established_demo': established,
             'existing_event': demo_event, 'existing_loki': central,
             'historical_obligations': ['Original corruption cause UNKNOWN; derivative recovery is not original evidence',
                                        'Historical reboot capture gap UNKNOWN; Stage 8 NOT TESTED'],
             'durability_disposition': 'Stage 7 process-restart durability must pass preservation/dedup/startup checks; '
                                       'unresolved power-loss/root-cause investigation is not represented as passed'}
+
+
+def cleanroom_demo(current):
+    """Require fresh real guarded-demo receipts; never bootstrap a synthetic PASS."""
+    CONTEXT.validate_current()
+    report = CONTEXT.receipt('demo')
+    confirmation = CONTEXT.receipt('confirmation')
+    CONTEXT.check_identity(confirmation)
+    qualification_context.fresh(report['timestamp'])
+    if (report.get('status') != 'PASS_LIVE' or report.get('mode') != 'live' or
+            report.get('synthetic') is not True or report.get('postflight', {}).get('status') != 'PASS' or
+            report['postflight'].get('read_only') is not True or report['postflight'].get('problems') != [] or
+            any(not isinstance(report.get('steps', {}).get(step), str) or
+                not report['steps'][step].startswith('PASS:') for step in demo.STEPS)):
+        raise ValueError('Fresh complete guarded live demo required')
+    CONTEXT.check_runtime(report['runtime'])
+    CONTEXT.check_runtime(current)
+    review.active_gate(report['runtime'])
+    runtime_comparison = strict_compare(report['runtime'], current)
+    if report.get('implementation') != demo.implementation():
+        raise ValueError('Guarded demo implementation differs from current source')
+    marker = report.get('demo_run_id')
+    interaction = report.get('interaction')
+    if (not isinstance(interaction, dict) or set(interaction) != {
+            'started_epoch', 'target_ip', 'target_port', 'host_port', 'protocol'} or
+            interaction.get('protocol') != 'ftp' or type(interaction.get('target_port')) is not int or
+            interaction['target_port'] != 2121 or type(interaction.get('host_port')) is not int or
+            not 1 <= interaction['host_port'] <= 65535 or
+            type(interaction.get('started_epoch')) not in (int, float) or
+            not math.isfinite(interaction['started_epoch']) or
+            not isinstance(marker, str) or not re.fullmatch(r'honeytrace-demo-[A-Za-z0-9_-]{1,96}', marker)):
+        raise ValueError('Guarded demo interaction is incomplete or malformed')
+    started = interaction['started_epoch']
+    qualification_context.fresh(dt.datetime.fromtimestamp(started, dt.timezone.utc).isoformat())
+    qualification_context.fresh(report['postflight']['completed_utc'])
+    began = dt.datetime.fromisoformat(report['timestamp'].replace('Z', '+00:00')).timestamp()
+    completed = dt.datetime.fromisoformat(report['postflight']['completed_utc'].replace('Z', '+00:00')).timestamp()
+    if not began <= started <= completed:
+        raise ValueError('Guarded demo interaction time lies outside its execution')
+    canary = current['containers']['opencanary']
+    expected_target = canary['networks']['honeypot-canary-net']['IPAddress']
+    if (interaction['target_ip'] != expected_target or
+            ipaddress.ip_address(expected_target) not in ipaddress.ip_network('172.29.41.0/24') or
+            canary['ports'].get('2121/tcp') != [{'HostIp': '127.0.0.1', 'HostPort': str(interaction['host_port'])}]):
+        raise ValueError('Guarded demo interaction differs from inspected loopback target')
+    incident_path = qualification_context.canonical(report['result']['evidence_path'])
+    incident_path.relative_to(RUNTIME / 'incidents')
+    if incident_path.name != 'events.jsonl' or not re.fullmatch('[0-9a-f]{64}', report['result']['event_id']):
+        raise ValueError('Guarded demo incident locator differs')
+    if preservation.regular(incident_path).st_size > review.EVIDENCE_FILE_LIMIT:
+        raise ValueError('Guarded demo incident exceeds unchanged evidence bound')
+    record = records(incident_path)[report['result']['event_id']]
+    normalized, raw = record['normalized'], record['raw']
+    serialized = json.dumps(record, sort_keys=True, separators=(',', ':')).encode()
+    if (normalized.get('event_id') != report['result']['event_id'] or
+            normalized.get('source') != 'opencanary' or normalized.get('service') != 'ftp' or
+            normalized.get('username') != marker or raw.get('logdata', {}).get('USERNAME') != marker or
+            hashlib.sha256(serialized).hexdigest() != report['result'].get('record_sha256')):
+        raise ValueError('Guarded demo marker/retained incident record linkage differs')
+    entries = CONTEXT.value['receipts']
+    packet = report.get('capture_evidence', {})
+    if (confirmation.get('status') != 'PASS' or
+            confirmation.get('demo_sha256') != entries['demo']['sha256'] or
+            confirmation.get('capture_sha256') != entries['capture']['sha256'] or
+            packet.get('ok') is not True or packet.get('sha256') != entries['capture']['sha256'] or
+            packet.get('snapshot') != entries['capture']['path']):
+        raise ValueError('Demo/capture/confirmation linkage differs')
+    data = CONTEXT.receipt('capture', parse=False)
+    if len(data) != packet.get('bytes'):
+        raise ValueError('Demo retained packet byte count differs')
+    acquisition = verify_acquisition(packet)
+    packet_match = verify_packet_marker(packet, marker, expected_target, 2121, started, 'ftp')
+    return report, {'path': entries['demo']['path'], 'sha256': entries['demo']['sha256'],
+                    'capture_sha256': entries['capture']['sha256'],
+                    'confirmation': entries['confirmation'],
+                    'packet_acquisition': acquisition,
+                    'packet_match': packet_match, 'runtime_comparison': runtime_comparison,
+                    'qualification_identity': CONTEXT.identity(), 'historical_closeout': 'UNKNOWN'}
 
 
 def ssh_banner(port, marker):
@@ -774,6 +921,39 @@ def complete_rows(rows):
             raise ValueError('Incidentd protected startup check absent')
 
 
+def verify_packet_marker(packet, marker, target_ip, target_port, started_epoch, protocol):
+    """Strict offline reparse of an identical private copy; never reads live rings."""
+    if (not isinstance(marker, str) or not re.fullmatch('[A-Za-z0-9_-]{1,128}', marker) or
+            protocol not in ('ftp', 'ssh_banner') or type(target_port) is not int or
+            not 1 <= target_port <= 65535 or type(started_epoch) not in (int, float) or
+            not math.isfinite(started_epoch) or started_epoch <= 0):
+        raise ValueError('Malformed independent packet matching input')
+    address = ipaddress.ip_address(target_ip)
+    if address.version != 4 or str(address) != target_ip:
+        raise ValueError('Packet target must be a canonical IPv4 address')
+    data = preservation.stable_bytes(Path(packet['snapshot']), 64 * 1024**2)
+    if len(data) != packet['bytes'] or hashlib.sha256(data).hexdigest() != packet['sha256']:
+        raise ValueError('Offline packet input hash or size differs')
+    with tempfile.TemporaryDirectory(prefix='stage7-packet-verify-', dir='/tmp') as tmp:
+        path = Path(tmp) / 'capture.pcapng'
+        with path.open('xb') as out:
+            out.write(data)
+        path.chmod(0o600)
+        prefix = 'USER ' if protocol == 'ftp' else 'SSH-2.0-'
+        query = (f'ip.dst == {target_ip} && tcp.dstport == {target_port} && '
+                 f'frame.time_epoch >= {started_epoch:.6f} && tcp contains {(prefix + marker).encode().hex(":")}')
+        result = command(['tshark', '-n', '-r', str(path), '-Y', query, '-T', 'fields',
+                          '-e', 'frame.time_epoch', '-e', 'ip.dst', '-e', 'tcp.dstport'],
+                         root=SOURCE, timeout=15)
+        matched = any(len(value := line.split('\t')) == 3 and float(value[0]) >= started_epoch and
+                      value[1] == target_ip and value[2] == str(target_port) for line in result.splitlines())
+        if not matched:
+            raise ValueError('Independent retained packet marker recheck failed')
+    return {'status': 'PASS', 'marker': marker, 'target_ip': target_ip,
+            'target_port': target_port, 'started_epoch': started_epoch, 'protocol': protocol,
+            'scope': 'Offline retained-packet reparse; no live collection or deployment claim'}
+
+
 def verify_packets(rows, rules_hash):
     seen = set()
     evidence = []
@@ -784,6 +964,9 @@ def verify_packets(rows, rules_hash):
                 raise ValueError('Duplicate/incomplete synthetic probe')
             seen.add(marker)
             packet = probe_row['packet']
+            acquisition = None
+            if CONTEXT is not None or 'acquisition' in packet:
+                acquisition = verify_acquisition(packet)
             info = preservation.regular(Path(packet['snapshot']))
             if info.st_size > 64 * 1024**2 or info.st_size != packet['bytes']:
                 raise ValueError('Retained packet size differs/exceeds finite limit')
@@ -801,25 +984,11 @@ def verify_packets(rows, rules_hash):
                 raise ValueError('Probe classification rules differ from baseline')
             if probe_classification(artifacts['raw_artifact'], probe_row['event'], context, probe_row['protocol']) != probe_row['classification']:
                 raise ValueError('Independent probe classification differs')
-            # Parse an identical private /tmp copy again. No live traffic or ring reads.
-            with tempfile.TemporaryDirectory(prefix='stage7-packet-verify-') as tmp:
-                path = Path(tmp) / 'capture.pcapng'
-                with path.open('xb') as out, Path(packet['snapshot']).open('rb') as original:
-                    while block := original.read(1024**2):
-                        out.write(block)
-                path.chmod(0o600)
-                if sha256(path)[0] != packet['sha256']:
-                    raise ValueError('Offline parser copy hash differs')
-                prefix = 'USER ' if probe_row['protocol'] == 'ftp' else 'SSH-2.0-'
-                query = (f'ip.dst == {probe_row["target_ip"]} && tcp.dstport == {probe_row["target_port"]} && '
-                         f'frame.time_epoch >= {probe_row["started_epoch"]:.6f} && tcp contains {(prefix + marker).encode().hex(":")}')
-                result = command(['tshark', '-n', '-r', str(path), '-Y', query, '-T', 'fields',
-                                  '-e', 'frame.time_epoch', '-e', 'ip.dst', '-e', 'tcp.dstport'], timeout=15)
-                matched = any(len(v := line.split('\t')) == 3 and float(v[0]) >= probe_row['started_epoch'] and
-                              v[1] == probe_row['target_ip'] and v[2] == str(probe_row['target_port']) for line in result.splitlines())
-                if not matched:
-                    raise ValueError('Independent retained packet marker recheck failed')
-            evidence.append({'marker': marker, 'status': 'PASS', 'sha256': packet['sha256'], 'path': packet['snapshot']})
+            packet_match = verify_packet_marker(packet, marker, probe_row['target_ip'], probe_row['target_port'],
+                                                probe_row['started_epoch'], probe_row['protocol'])
+            evidence.append({'marker': marker, 'status': 'PASS', 'sha256': packet['sha256'],
+                             'path': packet['snapshot'], 'packet_acquisition': acquisition,
+                             'packet_match': packet_match})
     return {'status': 'PASS', 'verified_probe_count': len(evidence), 'artifacts': evidence,
             'scope': 'Stable capture process and exact retained probe packets; zero packet loss or host-reboot continuity NOT claimed'}
 
@@ -828,6 +997,10 @@ def execute_matrix(base, link, folder):
     result = {'STATUS': 'INCOMPLETE', 'STAGE7_GATE': 'BLOCKED', 'STAGE8_GATE': 'BLOCKED',
               'STAGE8_TESTED': False, 'WAN_AUTHORIZED': False, 'ROLLBACK_REQUIRED': 'NOT_ASSESSED',
               'baseline': link, 'boot_id': base['boot_id'], 'rows': [], 'started_utc': utc()}
+    if CONTEXT is not None:
+        result['qualification_identity'] = CONTEXT.identity()
+        result['historical_closeout'] = 'UNKNOWN: original laptop evidence not qualified by this run'
+        result['MATRIX_GATE'] = 'BLOCKED'
     anchor = base['runtime']
     events = [base['existing_event']]
     try:
@@ -888,7 +1061,14 @@ def execute_matrix(base, link, folder):
             end, _ = observe()
             strict_compare(final, end)
             result['stable_final_observation'] = end
-        result.update(STATUS='PASS', STAGE7_GATE='PASS', STAGE8_GATE='READY_FOR_OPERATOR_DIRECTION')
+        if CONTEXT is None:
+            result.update(STATUS='PASS', STAGE7_GATE='PASS', STAGE8_GATE='READY_FOR_OPERATOR_DIRECTION')
+        else:
+            result.update(STATUS='PASS', MATRIX_GATE='PASS', STAGE7_GATE='BLOCKED', STAGE8_GATE='BLOCKED')
+            result['qualification_disposition'] = (
+                'Clean-room restart matrix only. Independent historical closeout and canonical '
+                'release obligations, including B17 supported installation, remain unqualified; '
+                'this result cannot clear Stage 7 or authorize Stage 8.')
     except KeyboardInterrupt:
         result.update(STATUS='ABORTED', interrupted=True, STAGE7_GATE='BLOCKED', STAGE8_GATE='BLOCKED')
         result['error'] = 'KeyboardInterrupt: qualification interrupted; no automatic retry'
@@ -901,6 +1081,8 @@ def execute_matrix(base, link, folder):
             result.update(STATUS='ABORTED', STAGE7_GATE='BLOCKED', STAGE8_GATE='BLOCKED')
         if result['postflight']['status'] != 'PASS':
             result.update(STATUS='ABORTED' if result.get('interrupted') else 'FAILED', STAGE7_GATE='BLOCKED', STAGE8_GATE='BLOCKED')
+        if CONTEXT is not None and result['STATUS'] != 'PASS':
+            result['MATRIX_GATE'] = 'BLOCKED'
         result['ROLLBACK_REQUIRED'] = False if result['postflight']['status'] == 'PASS' else 'UNKNOWN: operator review required; no automatic rollback'
         result['completed_utc'] = utc()
         result['limitations'] = base['historical_obligations'] + [
@@ -910,17 +1092,28 @@ def execute_matrix(base, link, folder):
 
 
 def main():
+    global CONTEXT, RUNTIME
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--runtime-root', type=Path, required=True)
     parser.add_argument('--prerequisites', type=Path, required=True)
     parser.add_argument('--prerequisites-sha256', required=True)
     parser.add_argument('--validation', type=Path, required=True)
     parser.add_argument('--validation-sha256', required=True)
+    parser.add_argument('--context', type=Path)
+    parser.add_argument('--context-sha256')
     parser.add_argument('--execute-restarts', action='store_true', help='Explicit authorized seven-container matrix; no automatic retries')
     args = parser.parse_args()
+    CONTEXT = qualification_context.load(args.context, args.context_sha256, SOURCE, args.runtime_root)
+    review.CONTEXT = CONTEXT
+    if CONTEXT is not None:
+        RUNTIME = review.RUNTIME = CONTEXT.runtime
     os.umask(0o077)
-    folder = Path(tempfile.mkdtemp(prefix='stage7-fresh-', dir=SOURCE / 'work/live-qualification'))
+    folder = Path(tempfile.mkdtemp(prefix='stage7-fresh-', dir=(
+        SOURCE / 'work/live-qualification' if CONTEXT is None else CONTEXT.evidence_root)))
     report = {'STATUS': 'BLOCKED', 'STAGE7_GATE': 'BLOCKED', 'STAGE8_GATE': 'BLOCKED', 'WAN_AUTHORIZED': False}
+    if CONTEXT is not None:
+        report['qualification_identity'] = CONTEXT.identity()
+        report['historical_closeout'] = 'UNKNOWN: independent clean-room execution only'
     try:
         if os.geteuid() != 0:
             raise PermissionError('Narrow operator sudo required; no permission changes')

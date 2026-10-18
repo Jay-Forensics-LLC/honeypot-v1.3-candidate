@@ -92,6 +92,7 @@ def main():
     demo=sub.add_parser('demo',help='Run isolated real-engine replay or a gated local live demonstration')
     demo.add_argument('--mode',choices=['replay','live'],default='replay')
     demo.add_argument('--runtime-root',type=Path)
+    demo.add_argument('--output-root',type=Path,help='Existing private evidence directory outside source')
     demo.add_argument('--timeout',type=int,default=60)
     log=sub.add_parser('logs');log.add_argument('--source',choices=sorted(source_paths()),required=True)
     log.add_argument('--lines','-n',type=int,default=20);log.add_argument('last',nargs='?',choices=['last']);log.add_argument('count',nargs='?',type=int)
@@ -103,7 +104,7 @@ def main():
         return int(not row['ok'])
     if a.command=='demo':
         import demo
-        return demo.main(a.mode,a.runtime_root,a.timeout)
+        return demo.main(a.mode,a.runtime_root,a.timeout,a.output_root)
     if a.command in ('start','boot-start','stop'):
         import ops
         texts={'start':('Explicit first deploy/rebuild after containment and exposure gates','Enable automatic boot or alter firewall'),
