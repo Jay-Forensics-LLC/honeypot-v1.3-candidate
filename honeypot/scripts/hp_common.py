@@ -95,12 +95,14 @@ def _log_regular(parent, name):
 
 def _lock_log_directory(parent):
     """A less-trusted reader can hold flock too; bound operational lock waiting."""
-    deadline = time.monotonic() + _LOG_LOCK_TIMEOUT
+    deadline = None
     while True:
         try:
             fcntl.flock(parent, fcntl.LOCK_EX | fcntl.LOCK_NB)
             return
         except BlockingIOError:
+            if deadline is None:
+                deadline = time.monotonic() + _LOG_LOCK_TIMEOUT
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise TimeoutError('Operational log directory lock deadline exceeded')
