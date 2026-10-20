@@ -4,7 +4,9 @@ import importlib.util
 from pathlib import Path
 import sys
 import tempfile
+import selectors
 import unittest
+from unittest import mock
 
 TOOLS = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('native_target_facts', TOOLS / 'native_target_facts.py')
@@ -53,7 +55,9 @@ class NativeFactsTest(unittest.TestCase):
     def collect(self, **kwargs):
         return facts.collect(VM_UUID, reader=kwargs.get('reader', self.read),
                              runner=kwargs.get('runner', self.query),
-                             updates=kwargs.get('updates', lambda: []), host=kwargs.get('host', HOST))
+                             updates=kwargs.get('updates', lambda: []),
+                             lock_probe=kwargs.get('lock_probe', lambda: [{'path': p, 'locked': False} for p in facts.PACKAGE_LOCKS]),
+                             host=kwargs.get('host', HOST))
 
     def assert_incomplete(self, report, text):
         self.assertEqual(report['collection_status'], 'INCOMPLETE')
@@ -157,8 +161,7 @@ class NativeFactsTest(unittest.TestCase):
         self.assertEqual({tuple(row) for row in self.commands}, {
             ('systemd-detect-virt', '--vm'), ('dpkg', '--print-architecture'),
             tuple(facts.PACKAGE_QUERY), ('dpkg', '--audit'), ('docker', '--version'),
-            ('docker', 'compose', 'version'), ('findmnt', '--json', '--target', '/'),
-            ('timedatectl', 'show', '-p', 'NTPSynchronized', '-p', 'NTP', '-p', 'Timezone')})
+            ('docker', 'compose', 'version'), ('findmnt', '--json', '--target', '/')})
 
     def test_required_query_failure_and_optional_output_limit_block_complete_baseline(self):
         for command, status in ((facts.PACKAGE_QUERY, 'EXIT_NONZERO'),
@@ -190,8 +193,76 @@ class NativeFactsTest(unittest.TestCase):
 
         self.assert_incomplete(self.collect(reader=late_package_change), 'before collection completed')
 
+    def test_active_package_lock_before_or_after_first_query_preserves_partials(self):
+        for active_probe in (1, 2):
+            with self.subTest(active_probe=active_probe):
+                self.package_reads = 0
+                probes = 0
+
+                def locks():
+                    nonlocal probes
+                    probes += 1
+                    return [{'path': p, 'locked': probes == active_probe} for p in facts.PACKAGE_LOCKS]
+
+                report = self.collect(lock_probe=locks)
+                self.assert_incomplete(report, 'package-manager lock')
+                self.assertEqual(self.package_reads, active_probe - 1)
+                self.assertTrue(any(row['locked'] for row in report['package_lock_observations'][-1]))
+
+    def test_unavailable_lock_probe_and_unreaped_query_are_explicitly_incomplete(self):
+        def unavailable():
+            raise PermissionError('Package lock unreadable')
+        self.assert_incomplete(self.collect(lock_probe=unavailable), 'Package lock unreadable')
+
+        def runner(argv, **kwargs):
+            row = self.query(argv, **kwargs)
+            if argv == facts.PACKAGE_QUERY:
+                row['cleanup_status'] = 'WAIT_TIMEOUT'
+                row['process_reaped'] = False
+            return row
+
+        report = self.collect(runner=runner)
+        self.assert_incomplete(report, 'cleanup incomplete')
+        self.assertEqual(facts.output(report['commands'][-1]), PACKAGES)
+
 
 class BoundedQueryTest(unittest.TestCase):
+    def test_cleanup_timeout_retains_command_status_and_partial_bytes(self):
+        real_popen = facts.subprocess.Popen
+        real_wait = facts.subprocess.Popen.wait
+        processes = []
+
+        def factory(*args, **kwargs):
+            process = real_popen(*args, **kwargs)
+            processes.append(process)
+
+            def wait(timeout=None):
+                if timeout == 5:
+                    raise facts.subprocess.TimeoutExpired(process.args, timeout)
+                return real_wait(process, timeout=timeout)
+
+            process.wait = wait
+            return process
+
+        try:
+            with mock.patch.object(facts.subprocess, 'Popen', side_effect=factory):
+                row = facts.run_command([sys.executable, '-c', 'import os,time; os.write(1,b"partial"); time.sleep(30)'], timeout=0.2)
+            self.assertEqual(row['status'], 'TIMEOUT')
+            self.assertEqual(row['cleanup_status'], 'WAIT_TIMEOUT')
+            self.assertFalse(row['process_reaped'])
+            self.assertEqual(facts.output(row), b'partial')
+        finally:
+            for process in processes:
+                real_wait(process, timeout=5)
+                process.stdout.close()
+                process.stderr.close()
+
+    def test_no_clock_service_activation_query_is_issued(self):
+        fixture = NativeFactsTest()
+        fixture.setUp()
+        fixture.collect()
+        self.assertNotIn(['timedatectl', 'show', '-p', 'NTPSynchronized', '-p', 'NTP', '-p', 'Timezone'], fixture.commands)
+
     def test_stdout_and_stderr_are_lossless_with_digest_and_nonzero_status(self):
         row = facts.run_command([sys.executable, '-c',
                                  'import os; os.write(1,b"a\\x00b"); os.write(2,b"diagnostic"); raise SystemExit(3)'])
@@ -230,6 +301,68 @@ class BoundedQueryTest(unittest.TestCase):
             link.symlink_to(path)
             with self.assertRaisesRegex(ValueError, 'Unsafe'):
                 facts.read_file(link, 6)
+
+
+class PackageLockTest(unittest.TestCase):
+    def test_real_frontend_and_database_writer_locks_are_detected_without_changing_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            paths = [str(Path(directory) / name) for name in ('lock-frontend', 'lock')]
+            for path in paths:
+                Path(path).write_bytes(b'unchanged lock-file bytes')
+            for locked_path in paths:
+                with self.subTest(locked_path=locked_path):
+                    child = facts.subprocess.Popen([sys.executable, '-c',
+                        'import fcntl,sys; f=open(sys.argv[1],"r+b"); fcntl.lockf(f,fcntl.LOCK_EX|fcntl.LOCK_NB); print("LOCKED",flush=True); sys.stdin.buffer.read(1)',
+                        locked_path], stdin=facts.subprocess.PIPE, stdout=facts.subprocess.PIPE, stderr=facts.subprocess.PIPE)
+                    try:
+                        with selectors.DefaultSelector() as selector:
+                            selector.register(child.stdout, selectors.EVENT_READ)
+                            self.assertTrue(selector.select(5), 'Synthetic writer did not become ready')
+                        self.assertEqual(child.stdout.readline(), b'LOCKED\n')
+                        real_fcntl = facts.fcntl.fcntl
+                        with mock.patch.object(facts.fcntl, 'fcntl', wraps=real_fcntl) as calls:
+                            rows = facts.probe_package_locks(paths)
+                        self.assertTrue(all(call.args[1] == facts.fcntl.F_GETLK for call in calls.call_args_list))
+                        held, = [row for row in rows if row['locked']]
+                        self.assertEqual(held['path'], locked_path)
+                        self.assertEqual(held['holder_pid'], child.pid)
+                        fixture = NativeFactsTest()
+                        fixture.setUp()
+                        fixture.assert_incomplete(fixture.collect(lock_probe=lambda: facts.probe_package_locks(paths)), 'package-manager lock')
+                        self.assertEqual(fixture.package_reads, 0)
+                    finally:
+                        if child.poll() is None:
+                            child.kill()
+                        child.wait(timeout=5)
+                        child.stdin.close()
+                        child.stdout.close()
+                        child.stderr.close()
+            self.assertFalse(any(row['locked'] for row in facts.probe_package_locks(paths)))
+            for path in paths:
+                self.assertEqual(Path(path).read_bytes(), b'unchanged lock-file bytes')
+
+    def test_missing_and_symlinked_lock_inputs_are_not_created_or_followed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            absent = Path(directory) / 'absent'
+            with self.assertRaises(FileNotFoundError):
+                facts.probe_package_locks([str(absent)])
+            self.assertFalse(absent.exists())
+            target = Path(directory) / 'target'
+            target.write_bytes(b'original')
+            link = Path(directory) / 'link'
+            link.symlink_to(target)
+            with self.assertRaisesRegex(ValueError, 'Unsafe'):
+                facts.probe_package_locks([str(link)])
+            self.assertEqual(target.read_bytes(), b'original')
+
+    def test_required_operator_block_is_saved_labeled_and_syntax_valid_without_execution(self):
+        path = TOOLS / 'PROPOSED-NATIVE-TARGET-FACTS.sh'
+        text = path.read_text()
+        self.assertIn('PROPOSED — NOT APPLIED / NOT EXECUTED', text)
+        self.assertIn('OPERATOR MUST RUN IN TERMINAL', text)
+        self.assertIn('--expected-vm-uuid "$reviewed_vm_uuid"', text)
+        row = facts.subprocess.run(['bash', '-n', str(path)], capture_output=True, text=True, timeout=5)
+        self.assertEqual(row.returncode, 0, row.stderr)
 
 
 if __name__ == '__main__':

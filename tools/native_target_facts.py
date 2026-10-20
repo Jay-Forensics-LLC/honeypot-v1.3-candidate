@@ -3,6 +3,7 @@
 import argparse
 import base64
 import datetime
+import fcntl
 import hashlib
 import json
 import os
@@ -14,6 +15,7 @@ import shlex
 import shutil
 import signal
 import stat
+import struct
 import subprocess
 import time
 import uuid
@@ -24,6 +26,7 @@ PACKAGE_QUERY = ['dpkg-query', '-W', '-f=' + PACKAGE_FORMAT]
 REQUIRED_PACKAGES = ('python3', 'python3.12', 'python3-yaml', 'docker.io', 'docker-ce',
                      'docker-compose-v2', 'docker-compose-plugin', 'chrony', 'nftables',
                      'tcpdump', 'tshark', 'logrotate')
+PACKAGE_LOCKS = ('/var/lib/dpkg/lock-frontend', '/var/lib/dpkg/lock')
 
 
 def sha256(data):
@@ -61,6 +64,7 @@ def run_command(argv, *, timeout=10, stdout_limit=8 * 1024**2, stderr_limit=64 *
     process = subprocess.Popen([executable, *argv[1:]], stdin=subprocess.DEVNULL,
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                env=env, start_new_session=True)
+    result['pid'] = process.pid
     try:
         with selectors.DefaultSelector() as selector:
             selector.register(process.stdout, selectors.EVENT_READ, 'stdout')
@@ -90,15 +94,30 @@ def run_command(argv, *, timeout=10, stdout_limit=8 * 1024**2, stderr_limit=64 *
         if result['status'] != 'OUTPUT_LIMIT':
             raise
     finally:
+        result['cleanup_status'] = 'COMPLETE'
+        result['process_reaped'] = False
         if result['status'] in ('TIMEOUT', 'OUTPUT_LIMIT') or process.poll() is None:
             # Only this newly launched read-only query group, never a service.
             try:
                 os.killpg(process.pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
-        process.wait(timeout=5)
-        process.stdout.close()
-        process.stderr.close()
+            except OSError as error:
+                result['cleanup_status'] = 'SIGNAL_ERROR'
+                result['cleanup_error'] = str(error)
+        try:
+            process.wait(timeout=5)
+            result['process_reaped'] = True
+        except subprocess.TimeoutExpired:
+            result['cleanup_status'] = 'WAIT_TIMEOUT'
+        finally:
+            # Retain captures even when the bounded reap fails. Never retry a query.
+            for stream in (process.stdout, process.stderr):
+                try:
+                    stream.close()
+                except OSError as error:
+                    result['cleanup_status'] = 'CLOSE_ERROR'
+                    result['cleanup_error'] = str(error)
     for name, value in captured.items():
         raw = bytes(value)
         result[name + '_base64'] = base64.b64encode(raw).decode('ascii')
@@ -152,11 +171,44 @@ def pending_updates():
     return sorted(entries)
 
 
+def probe_package_locks(paths=PACKAGE_LOCKS):
+    """F_GETLK observes conflicting locks without taking one or creating files."""
+    # Linux x86_64 struct flock: two shorts, two 64-bit offsets, pid, tail padding.
+    layout = struct.Struct('@hhqqi4x')
+    if platform.system() != 'Linux' or platform.machine() != 'x86_64' or struct.calcsize('@P') != 8 or layout.size != 32:
+        raise ValueError('Unsupported native lock-query ABI')
+    records = []
+    for name in paths:
+        path = Path(name)
+        before = path.lstat()
+        signature = lambda s: (s.st_dev, s.st_ino, s.st_mode, s.st_size, s.st_mtime_ns, s.st_ctime_ns)
+        if path.resolve() != path.absolute() or not stat.S_ISREG(before.st_mode):
+            raise ValueError('Unsafe package lock input')
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        try:
+            if signature(os.fstat(fd)) != signature(before):
+                raise ValueError('Package lock identity changed before query')
+            query = layout.pack(fcntl.F_WRLCK, os.SEEK_SET, 0, 0, 0)
+            kind, whence, start, length, pid = layout.unpack(fcntl.fcntl(fd, fcntl.F_GETLK, query))
+            if signature(os.fstat(fd)) != signature(before) or signature(path.lstat()) != signature(before):
+                raise ValueError('Package lock identity changed during query')
+        finally:
+            os.close(fd)
+        if kind not in (fcntl.F_UNLCK, fcntl.F_WRLCK, fcntl.F_RDLCK):
+            raise ValueError('Unknown package lock state')
+        records.append({'path': name, 'device': before.st_dev, 'inode': before.st_ino,
+                        'locked': kind != fcntl.F_UNLCK, 'lock_type': kind,
+                        'holder_pid': pid if kind != fcntl.F_UNLCK else None,
+                        'whence': whence, 'start': start, 'length': length})
+    return records
+
+
 def collect(expected_vm_uuid, *, reader=read_file, runner=run_command,
-            updates=pending_updates, host=None):
+            updates=pending_updates, lock_probe=probe_package_locks, host=None):
     report = {'schema': 1, 'scope': 'Private read-only native baseline; no installation or acceptance verdict',
               'utc_reported_not_independently_synchronized': datetime.datetime.now(datetime.timezone.utc).isoformat(),
               'collection_status': 'INCOMPLETE', 'commands': [], 'errors': [],
+              'package_lock_observations': [], 'package_transaction_window_reserved': False,
               'B17_passed': False, 'phase7_gate': 'BLOCKED', 'phase8_gate': 'BLOCKED'}
     deadline = time.monotonic() + 45
 
@@ -166,11 +218,19 @@ def collect(expected_vm_uuid, *, reader=read_file, runner=run_command,
             raise ValueError('Collection command budget exceeded')
         result = runner(argv, timeout=min(10, remaining))
         report['commands'].append(result)
+        if result.get('cleanup_status', 'COMPLETE') != 'COMPLETE' or not result.get('process_reaped', True):
+            raise ValueError('Fact command cleanup incomplete: ' + argv[0])
         if result['status'] in ('TIMEOUT', 'OUTPUT_LIMIT'):
             raise ValueError('Fact command exceeded its time or output bound: ' + argv[0])
         if required and (result['status'] != 'OK' or base64.b64decode(result.get('stderr_base64', ''), validate=True).strip()):
             raise ValueError('Required fact command incomplete: ' + argv[0])
         return result
+
+    def check_locks():
+        rows = lock_probe()
+        report['package_lock_observations'].append(rows)
+        if len(rows) != 2 or any(row['locked'] for row in rows):
+            raise ValueError('Active or unavailable package-manager lock blocks baseline')
 
     try:
         expected = str(uuid.UUID(expected_vm_uuid))
@@ -202,30 +262,34 @@ def collect(expected_vm_uuid, *, reader=read_file, runner=run_command,
             raise ValueError('Native target is not a QEMU/KVM VM')
         if output(command(['dpkg', '--print-architecture'])).strip() != b'amd64':
             raise ValueError('Native package architecture is not amd64')
+        check_locks()
         if updates():
             raise ValueError('Pending dpkg updates block stable baseline acquisition')
         status_before = reader('/var/lib/dpkg/status', 32 * 1024**2)
         first = command(PACKAGE_QUERY)
+        check_locks()
         packages = parse_packages(output(first))
         report['package_count'] = len(packages)
         report['required_package_observations'] = {
             name: packages.get(name, packages.get(name + ':amd64', {'status': 'NOT_PRESENT'}))
             for name in REQUIRED_PACKAGES}
         audit = command(['dpkg', '--audit'])
+        check_locks()
         if output(audit).strip():
             raise ValueError('dpkg audit reports incomplete package state')
         second = command(PACKAGE_QUERY)
+        check_locks()
         status_after = reader('/var/lib/dpkg/status', 32 * 1024**2)
         report['dpkg_status_sha256_before'] = sha256(status_before)
         report['dpkg_status_sha256_after'] = sha256(status_after)
         if status_before != status_after or output(first) != output(second) or updates():
             raise ValueError('Package database changed during baseline collection')
         for argv in (['docker', '--version'], ['docker', 'compose', 'version'],
-                     ['findmnt', '--json', '--target', '/'],
-                     ['timedatectl', 'show', '-p', 'NTPSynchronized', '-p', 'NTP', '-p', 'Timezone']):
+                     ['findmnt', '--json', '--target', '/']):
             command(argv, required=False)
         if reader('/var/lib/dpkg/status', 32 * 1024**2) != status_after or updates():
             raise ValueError('Package database changed before collection completed')
+        check_locks()
         if reader('/proc/sys/kernel/random/boot_id', 128).decode('ascii').strip() != report['boot_id']:
             raise ValueError('Boot identity changed during collection')
         report['collection_status'] = 'COMPLETE_BASELINE_ONLY'
