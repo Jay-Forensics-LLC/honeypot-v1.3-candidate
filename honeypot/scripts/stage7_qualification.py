@@ -161,6 +161,13 @@ def prerequisite_passed(row):
         CONTEXT.validate_current()
         CONTEXT.check_identity(row, max_age=120)
     evidence = row.get('evidence_integrity', {})
+    if CONTEXT is not None:
+        uniqueness = evidence.get('event_id_uniqueness', {})
+        count = uniqueness.get('unique_event_ids')
+        if (uniqueness.get('status') != 'VERIFIED_UNIQUE' or type(count) is not int or
+                not 0 < count <= review.EVIDENCE_EVENT_ID_LIMIT or
+                uniqueness.get('limit') != review.EVIDENCE_EVENT_ID_LIMIT):
+            raise ValueError('Complete global event ID uniqueness review required')
     planned = evidence.get('planned_total_bytes')
     acquired = evidence.get('bytes_read')
     accounting = evidence.get('read_accounting')

@@ -14,6 +14,7 @@ from hp_common import atomic_json, runtime_path, sha256, utc
 from pcap_demo_recovery import command, compare_runtime, storage_gate
 from live_capture import readiness
 from runtime_inventory import collect
+from evidence_store import scan_directory
 import qualification_context
 
 SOURCE = Path(__file__).resolve().parents[1]
@@ -27,6 +28,7 @@ EVIDENCE_READ_BUDGET = 512 * 1024**2
 EVIDENCE_FILE_LIMIT = 16 * 1024**2
 EVIDENCE_METADATA_LIMIT = 1024**2
 EVIDENCE_COUNT_LIMIT = 4000
+EVIDENCE_EVENT_ID_LIMIT = 250000
 STOPPED_PROBLEMS = {
     'cowrie: not running and healthy', 'opencanary: not running and healthy',
     'cowrie: active published ports differ', 'opencanary: active published ports differ',
@@ -122,25 +124,30 @@ def incident_inventory(folder):
         raise ValueError('Incident root must be a canonical directory')
     paths = set()
     entries = 0
-    for day in folder.iterdir():
-        entries += 1
-        if entries > 2 * EVIDENCE_COUNT_LIMIT: raise ValueError('Incident directory inventory exceeds bound')
-        info = day.lstat()
-        if stat.S_ISLNK(info.st_mode): raise ValueError('Incident day symlink requires review')
-        if not stat.S_ISDIR(info.st_mode): continue
-        for incident in day.iterdir():
+    with scan_directory(folder) as days:
+        for day_entry in days:
             entries += 1
             if entries > 2 * EVIDENCE_COUNT_LIMIT: raise ValueError('Incident directory inventory exceeds bound')
-            info = incident.lstat()
-            if stat.S_ISLNK(info.st_mode): raise ValueError('Incident directory symlink requires review')
+            info = day_entry.stat(follow_symlinks=False)
+            if stat.S_ISLNK(info.st_mode): raise ValueError('Incident day symlink requires review')
             if not stat.S_ISDIR(info.st_mode): continue
-            names = set()
-            for candidate in incident.iterdir():
-                names.add(candidate.name)
-                if len(names) > 128: raise ValueError('Individual incident directory inventory exceeds bound')
-            if names & {'events.jsonl', 'incident.json'}:
-                paths.add(incident / 'events.jsonl')
-            if len(paths) > EVIDENCE_COUNT_LIMIT: raise ValueError('Incident inventory exceeds bound')
+            day = folder/day_entry.name
+            with scan_directory(day) as incidents:
+                for incident_entry in incidents:
+                    entries += 1
+                    if entries > 2 * EVIDENCE_COUNT_LIMIT: raise ValueError('Incident directory inventory exceeds bound')
+                    info = incident_entry.stat(follow_symlinks=False)
+                    if stat.S_ISLNK(info.st_mode): raise ValueError('Incident directory symlink requires review')
+                    if not stat.S_ISDIR(info.st_mode): continue
+                    incident = day/incident_entry.name
+                    names = set()
+                    with scan_directory(incident) as candidates:
+                        for candidate in candidates:
+                            names.add(candidate.name)
+                            if len(names) > 128: raise ValueError('Individual incident directory inventory exceeds bound')
+                    if names & {'events.jsonl', 'incident.json'}:
+                        paths.add(incident / 'events.jsonl')
+                    if len(paths) > EVIDENCE_COUNT_LIMIT: raise ValueError('Incident inventory exceeds bound')
     return paths
 
 
@@ -207,6 +214,12 @@ def evidence_integrity(root, progress=None, on_incident=None):
     progress['additional_defects'] = bad
     accounting = []
     progress['read_accounting'] = accounting
+    locations = {}
+    seals = {}
+    signature = lambda s: (s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns, s.st_ctime_ns)
+    uniqueness = {'status': 'INCOMPLETE', 'unique_event_ids': 0, 'limit': EVIDENCE_EVENT_ID_LIMIT}
+    if CONTEXT is not None:
+        progress['event_id_uniqueness'] = uniqueness
     for path in sorted(paths):
         progress['current_path'] = str(path)
         metadata = path.parent / 'incident.json'
@@ -223,6 +236,9 @@ def evidence_integrity(root, progress=None, on_incident=None):
         identity = lambda s: (s.st_ino, s.st_size, s.st_mtime_ns)
         if identity(before) != identity(after) or identity(meta_before) != identity(meta_after):
             raise ValueError('Evidence changed during read; retain observation as incomplete')
+        if CONTEXT is not None:
+            seals[path] = signature(before)
+            seals[metadata] = signature(meta_before)
         ids = json.loads(meta)['related_events']
         if not isinstance(ids, list) or not all(isinstance(value, str) for value in ids):
             raise ValueError('Invalid incident metadata event IDs')
@@ -236,6 +252,17 @@ def evidence_integrity(root, progress=None, on_incident=None):
         if analysis['findings'] != ['CLEAN'] and not known:
             bad.append({'path': str(path), 'sha256': analysis['sha256'], 'findings': analysis['findings']})
             raise ValueError('Additional evidence defects: ' + json.dumps(bad))
+        if CONTEXT is not None:
+            for event_id in analysis['event_ids']:
+                if event_id in locations:
+                    uniqueness.update(status='AMBIGUOUS', event_id=event_id,
+                                      locations=[locations[event_id], str(path)])
+                    raise ValueError('Ambiguous event ID across incidents: ' + event_id)
+                if len(locations) >= EVIDENCE_EVENT_ID_LIMIT:
+                    uniqueness['status'] = 'LIMIT_EXCEEDED'
+                    raise ValueError('Global event ID inventory exceeds bound')
+                locations[event_id] = str(path)
+                uniqueness['unique_event_ids'] = len(locations)
         if on_incident is not None:
             # Qualification can retain preservation inventory from these exact
             # bounded stable reads. Callback failures keep the sweep incomplete.
@@ -243,12 +270,20 @@ def evidence_integrity(root, progress=None, on_incident=None):
     if incident_inventory(folder) != paths: raise ValueError('Incident inventory changed during inspection')
     progress.pop('current_path', None)
     if CONTEXT is not None:
+        if not locations:
+            raise ValueError('Clean-room event inventory absent')
+        for path, expected in seals.items():
+            current = path.lstat()
+            if not stat.S_ISREG(current.st_mode) or signature(current) != expected:
+                raise ValueError('Evidence changed after read; global integrity observation incomplete')
+        uniqueness['status'] = 'VERIFIED_UNIQUE'
         progress['status'] = 'VERIFIED_CLEAN'
         return {'status': 'VERIFIED_CLEAN', 'files_scanned': len(paths),
                 'files_in_inventory': len(paths), 'planned_total_bytes': total,
                 'bytes_read': progress['bytes_read'], 'read_budget_bytes': EVIDENCE_READ_BUDGET,
                 'read_accounting': accounting, 'inventory_size_delta_bytes': progress['bytes_read'] - total,
                 'historical_reconciliation': progress['historical_reconciliation'],
+                'event_id_uniqueness': uniqueness,
                 'qualification_identity': CONTEXT.identity(),
                 'scope': 'Complete clean-room inventory; no historical laptop closeout or power-loss claim'}
     progress['status'] = 'VERIFIED_KNOWN_DEFECT_ONLY'

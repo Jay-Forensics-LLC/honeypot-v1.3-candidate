@@ -211,6 +211,8 @@ class CleanPrerequisiteTests(ContextFixture):
             'qualification_identity': context.identity(), 'timestamp': self.document['issued_utc'],
             'runtime': runtime, 'runtime_after': copy.deepcopy(runtime), 'runtime_comparison': {'ok': True},
             'evidence_integrity': {'status': 'VERIFIED_CLEAN', 'files_in_inventory': 1,
+                'event_id_uniqueness': {'status':'VERIFIED_UNIQUE','unique_event_ids':1,
+                                        'limit':recovery.EVIDENCE_EVENT_ID_LIMIT},
                 'files_scanned': 1, 'planned_total_bytes': 50, 'bytes_read': 50,
                 'inventory_size_delta_bytes': 0, 'read_accounting': [{'path': 'one',
                     'planned_event_bytes': 30, 'planned_metadata_bytes': 20,

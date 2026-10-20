@@ -23,6 +23,14 @@ Inventory rejects a mismatch or mid-observation file change; it forces enumerati
 of untracked source files even if Git's local status configuration hides them.
 These source checks do not change the deployed policies or qualify boot ordering.
 
+The complete clean-room evidence sweep also requires event-ID uniqueness across
+all incident locations, independently of incidentd's earlier startup audit. An
+ambiguous location blocks the sweep without changing either original. The global
+ID map is limited to 250,000 entries; existing 4,000-file, per-file, aggregate-byte
+and time limits remain. Final file signatures must still match the acquired
+records, and an empty event store cannot pass. Current prerequisites require an
+explicit `VERIFIED_UNIQUE` result; a per-incident-only receipt is insufficient.
+
 The explicit `--context PATH --context-sha256 SHA256` pair selects clean-room mode.
 Without it, the historical laptop path and reconciliation requirements remain strict.
 A context is a bounded JSON object with exactly these fields:

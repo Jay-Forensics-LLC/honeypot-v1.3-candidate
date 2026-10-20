@@ -283,11 +283,11 @@ class EvidenceReview(unittest.TestCase):
             root = Path(tmp)
             self.run_review(root, b'{"event_id":"one"}\n', ['one'])
             day = root/'incidents/2026-10-09'
-            real_iterdir = Path.iterdir
+            real_iterdir = review.scan_directory
             def unreadable(path):
                 if path == day: raise PermissionError('unreadable day')
                 return real_iterdir(path)
-            with patch.object(Path, 'iterdir', unreadable):
+            with patch.object(review, 'scan_directory', unreadable):
                 with self.assertRaises(PermissionError): self.inspect_existing(root)
             with patch.object(review.os, 'open', side_effect=PermissionError('unreadable evidence')):
                 with self.assertRaises(PermissionError): self.inspect_existing(root)
@@ -300,9 +300,13 @@ class EvidenceReview(unittest.TestCase):
             with patch.object(review, 'incident_inventory', side_effect=[original, original | {root/'new.jsonl'}]):
                 with self.assertRaisesRegex(ValueError, 'inventory changed'): self.inspect_existing(root)
             path = next(iter(original)); path.unlink(); os.mkfifo(path)
-            with patch.object(review.os, 'open') as opened:
+            real_open = os.open
+            def directories_only(source, flags, *args, **kwargs):
+                self.assertTrue(flags & os.O_DIRECTORY, 'Nonregular evidence must never be opened')
+                return real_open(source, flags, *args, **kwargs)
+            with patch.object(review.os, 'open', side_effect=directories_only) as opened:
                 with self.assertRaisesRegex(ValueError, 'regular and non-symlink'): self.inspect_existing(root)
-            opened.assert_not_called()
+            self.assertNotIn(path, [Path(call.args[0]) for call in opened.call_args_list])
 
     def test_changed_read_and_timeout_never_claim_integrity(self):
         with tempfile.TemporaryDirectory() as tmp:
