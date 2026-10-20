@@ -5,7 +5,7 @@ Phase 8 execution: NOT GREEN-LIT. Phase 10: PLANNED — PENDING — DO NOT IMPLE
 
 The source integration branch is `fix/phase7-source-integration-20261019`.
 Its implementation checkpoint is
-`f402bd8cac2f5e868cc8700d45986af6278495ab`; subsequent changes update
+`9b688b49b46064d8016bb97f975a08f4484c615c`; subsequent changes update
 current-phase documentation. The exact final PR head/tree and command receipts
 are recorded in the private integration handoff. Qualification must pin that
 final clean SHA, independently accepted images, target and boot. No candidate
@@ -35,7 +35,7 @@ See
 [operations](../honeypot/docs/OPERATIONS.md) and
 [clean-room qualification](../honeypot/docs/CLEANROOM_QUALIFICATION.md).
 
-Offline validation: 591 unit tests and 89 retained Stage 7 tests pass with no
+Offline validation: 605 unit tests and 89 retained Stage 7 tests pass with no
 skips; `make verify` passes. The full repository validator passes its 21 tooling
 tests, archive/provenance checks, source checks and required suite invocations.
 An additional local Compose 2.40.3 canonical JSON parser round-trip reproduced
@@ -65,6 +65,23 @@ descriptors; it now spies on real directory opens while still forbidding evidenc
 FIFO opens. The corrected full validator passes 225 source files. Failed logs
 remain preserved. These changes do not alter the historical reconciliation scope
 or prove the current store is clean.
+
+The exact-head review of `00a8edd` returned three further findings: already-active
+containers during create, unreviewed effective Compose inputs, and a capture
+selection/open race. Five methods reproduced ten failed assertions/subtests on
+that unchanged checkpoint. The corrected implementation refuses active owned
+containers before creation (stops only their captured IDs), checks disabled
+policies before create, and validates stopped network/security/resource state
+and actual execution fields against the frozen model and approved image defaults.
+Compose uses one explicit file/project and rejects extra inputs. Packet acquisition
+pins the selected regular inode through O_NOFOLLOW and checks descriptor/path
+signatures after the bounded copy; independent verification requires that source
+identity receipt, distinct from raw/parser artifacts. Growth, replacement or rewrite
+during the copy fails. Fourteen focused methods pass. New positive fixtures include
+source identities; existing unreadable and marker checks remain enforced. A new
+self-reference control caught and corrected a source/parser-alias gap; failed logs
+are retained. Latest full validator: 227 source files PASS. Independent review of
+this newest corrected checkpoint is requested separately; no acceptance is implied.
 
 The user selected the laptop as the intended Phase 8 target; desktop live results
 are separate and remain unacquired/unverified. A fresh non-modifying laptop
@@ -123,5 +140,5 @@ continuity, corruption cause or power-loss durability follows from these checks.
 
 Deployment/rollback, supported-installation and exact-build qualification plans
 are in the private handoff. All host actions remain PROPOSED — NOT APPLIED / NOT
-EXECUTED. No merge, deployment, package install, service action, live probe,
+EXECUTED. No PR/default-branch merge, deployment, package install, service action, live probe,
 restart matrix, boot test, unit enablement, release or WAN change occurred.
