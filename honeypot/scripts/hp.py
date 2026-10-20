@@ -79,10 +79,12 @@ def logs(source, count):
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
     sub=ap.add_subparsers(dest='command',required=True)
-    for name in ('status','health','boot-start','stop','readiness'): sub.add_parser(name)
+    for name in ('status','health','stop','readiness'): sub.add_parser(name)
+    boot=sub.add_parser('boot-start');boot.add_argument('--image-approval-sha256')
     doctor=sub.add_parser('doctor',help='Read local Docker daemon and existing project ownership; no recovery actions')
     doctor.add_argument('--runtime-root',type=Path,required=True)
     start=sub.add_parser('start');start.add_argument('--exposure-approved',action='store_true')
+    start.add_argument('--image-approval-sha256')
     guard=sub.add_parser('guard');guard.add_argument('action',choices=['status','apply']);guard.add_argument('--apply',action='store_true')
     pcap=sub.add_parser('pcap');pcap.add_argument('action',choices=['status'])
     wan=sub.add_parser('wan');wan.add_argument('action',choices=['status','check','matrix'])
@@ -92,6 +94,7 @@ def main():
     demo=sub.add_parser('demo',help='Run isolated real-engine replay or a gated local live demonstration')
     demo.add_argument('--mode',choices=['replay','live'],default='replay')
     demo.add_argument('--runtime-root',type=Path)
+    demo.add_argument('--output-root',type=Path,help='Existing private evidence directory outside source')
     demo.add_argument('--timeout',type=int,default=60)
     log=sub.add_parser('logs');log.add_argument('--source',choices=sorted(source_paths()),required=True)
     log.add_argument('--lines','-n',type=int,default=20);log.add_argument('last',nargs='?',choices=['last']);log.add_argument('count',nargs='?',type=int)
@@ -103,14 +106,15 @@ def main():
         return int(not row['ok'])
     if a.command=='demo':
         import demo
-        return demo.main(a.mode,a.runtime_root,a.timeout)
+        return demo.main(a.mode,a.runtime_root,a.timeout,a.output_root)
     if a.command in ('start','boot-start','stop'):
         import ops
         texts={'start':('Explicit first deploy/rebuild after containment and exposure gates','Enable automatic boot or alter firewall'),
                'boot-start':('Start existing healthy loopback decoys after gates','Build, pull, create, or enable boot'),
                'stop':('Stop the Compose stack','Delete evidence, containers, or firewall rules')}
         describe(*texts[a.command],approval='--exposure-approved plus fresh readiness PASS, approval record, and source-fidelity evidence for non-loopback decoys' if a.command=='start' else 'Explicit command')
-        return getattr(ops,a.command.replace('-','_'))() or 0
+        kwargs={'approval_sha256':a.image_approval_sha256} if a.command in ('start','boot-start') else {}
+        return getattr(ops,a.command.replace('-','_'))(**kwargs) or 0
     if a.command=='wan':
         import wan_criteria
         if a.action=='matrix':

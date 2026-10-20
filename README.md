@@ -6,6 +6,8 @@ qualification integration. See [source provenance](docs/SOURCE_SYNC.md) and
 [beta acceptance](honeypot/docs/BETA_ACCEPTANCE.md).
 
 **UNVERIFIED SOURCE CANDIDATE. Beta release remains BLOCKED.**
+The [current phase status](docs/CURRENT_PHASE_STATUS.md) reconciles the October 17
+source, runtime observations, validation and remaining acceptance work.
 Independent Stage 7 closeout is PENDING; daemon-reload remains HOLD. Publishing
 source does not qualify the live deployment, retained evidence, packet flow,
 continuity, fresh installation or release acceptance. WAN remains unauthorized.

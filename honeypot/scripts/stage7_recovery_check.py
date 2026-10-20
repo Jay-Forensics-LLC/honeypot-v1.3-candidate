@@ -14,9 +14,12 @@ from hp_common import atomic_json, runtime_path, sha256, utc
 from pcap_demo_recovery import command, compare_runtime, storage_gate
 from live_capture import readiness
 from runtime_inventory import collect
+from evidence_store import scan_directory
+import qualification_context
 
 SOURCE = Path(__file__).resolve().parents[1]
 RUNTIME = Path('/home/joe/honeypot-staging/honeypot')
+CONTEXT = None
 RETAINED = SOURCE / 'work/live-qualification'
 # The observed 1,046-incident collection exceeded the former 256 MiB cap.
 # Keep a finite aggregate allowance, unchanged per-file/count limits and the
@@ -25,6 +28,7 @@ EVIDENCE_READ_BUDGET = 512 * 1024**2
 EVIDENCE_FILE_LIMIT = 16 * 1024**2
 EVIDENCE_METADATA_LIMIT = 1024**2
 EVIDENCE_COUNT_LIMIT = 4000
+EVIDENCE_EVENT_ID_LIMIT = 250000
 STOPPED_PROBLEMS = {
     'cowrie: not running and healthy', 'opencanary: not running and healthy',
     'cowrie: active published ports differ', 'opencanary: active published ports differ',
@@ -76,9 +80,15 @@ def capture_setup(root, active=False):
     loaded = service.get('ExecStart', '')
     if loaded.count('argv[]=') != 1 or 'argv[]=/usr/bin/python3 ' + str(root / 'scripts/pcap.py') + ' ;' not in loaded:
         raise ValueError('Loaded capture command differs')
-    expected = (SOURCE / 'systemd/honeypot-pcap.service.in').read_text().replace(
-        '@ROOT@', str(root)).replace('@PCAP@', str(runtime_path('PCAP_PATH', 'captures', root))).replace(
-        '@EVIDENCE_GROUP@', 'honeypot-evidence')
+    template = (SOURCE / 'systemd/honeypot-pcap.service.in').read_text()
+    if CONTEXT is not None:
+        from evidence_group import evidence_group_name, render_unit_template
+        expected = render_unit_template(template, root,
+            runtime_path('PCAP_PATH', 'captures', root), evidence_group=evidence_group_name())
+    else:
+        expected = template.replace('@ROOT@', str(root)).replace(
+            '@PCAP@', str(runtime_path('PCAP_PATH', 'captures', root))).replace(
+            '@EVIDENCE_GROUP@', 'honeypot-evidence')
     actual = command(['systemctl', 'cat', 'honeypot-pcap.service']).stdout
     clean = lambda value: '\n'.join(line.strip() for line in value.splitlines()
                                   if line.strip() and not line.lstrip().startswith('#'))
@@ -114,25 +124,30 @@ def incident_inventory(folder):
         raise ValueError('Incident root must be a canonical directory')
     paths = set()
     entries = 0
-    for day in folder.iterdir():
-        entries += 1
-        if entries > 2 * EVIDENCE_COUNT_LIMIT: raise ValueError('Incident directory inventory exceeds bound')
-        info = day.lstat()
-        if stat.S_ISLNK(info.st_mode): raise ValueError('Incident day symlink requires review')
-        if not stat.S_ISDIR(info.st_mode): continue
-        for incident in day.iterdir():
+    with scan_directory(folder) as days:
+        for day_entry in days:
             entries += 1
             if entries > 2 * EVIDENCE_COUNT_LIMIT: raise ValueError('Incident directory inventory exceeds bound')
-            info = incident.lstat()
-            if stat.S_ISLNK(info.st_mode): raise ValueError('Incident directory symlink requires review')
+            info = day_entry.stat(follow_symlinks=False)
+            if stat.S_ISLNK(info.st_mode): raise ValueError('Incident day symlink requires review')
             if not stat.S_ISDIR(info.st_mode): continue
-            names = set()
-            for candidate in incident.iterdir():
-                names.add(candidate.name)
-                if len(names) > 128: raise ValueError('Individual incident directory inventory exceeds bound')
-            if names & {'events.jsonl', 'incident.json'}:
-                paths.add(incident / 'events.jsonl')
-            if len(paths) > EVIDENCE_COUNT_LIMIT: raise ValueError('Incident inventory exceeds bound')
+            day = folder/day_entry.name
+            with scan_directory(day) as incidents:
+                for incident_entry in incidents:
+                    entries += 1
+                    if entries > 2 * EVIDENCE_COUNT_LIMIT: raise ValueError('Incident directory inventory exceeds bound')
+                    info = incident_entry.stat(follow_symlinks=False)
+                    if stat.S_ISLNK(info.st_mode): raise ValueError('Incident directory symlink requires review')
+                    if not stat.S_ISDIR(info.st_mode): continue
+                    incident = day/incident_entry.name
+                    names = set()
+                    with scan_directory(incident) as candidates:
+                        for candidate in candidates:
+                            names.add(candidate.name)
+                            if len(names) > 128: raise ValueError('Individual incident directory inventory exceeds bound')
+                    if names & {'events.jsonl', 'incident.json'}:
+                        paths.add(incident / 'events.jsonl')
+                    if len(paths) > EVIDENCE_COUNT_LIMIT: raise ValueError('Incident inventory exceeds bound')
     return paths
 
 
@@ -162,11 +177,20 @@ def evidence_integrity(root, progress=None, on_incident=None):
                     per_file_limit_bytes=EVIDENCE_FILE_LIMIT,
                     metadata_limit_bytes=EVIDENCE_METADATA_LIMIT,
                     file_count_limit=EVIDENCE_COUNT_LIMIT)
-    reconciliation = retained_module('stage7-reconciled-evidence')
-    verified = reconciliation.verify()
-    progress['historical_reconciliation'] = {'status': 'VERIFIED',
-        'original_sha256': verified['original_sha256'], 'bundle_hashes': verified['bundle_hashes'],
-        'source_provenance': {'normalized': verified['normalized_source'], 'raw': verified['raw_source']}}
+    reconciliation = None
+    verified = {}
+    if CONTEXT is None:
+        reconciliation = retained_module('stage7-reconciled-evidence')
+        verified = reconciliation.verify()
+        progress['historical_reconciliation'] = {'status': 'VERIFIED',
+            'original_sha256': verified['original_sha256'], 'bundle_hashes': verified['bundle_hashes'],
+            'source_provenance': {'normalized': verified['normalized_source'], 'raw': verified['raw_source']}}
+    else:
+        CONTEXT.validate_current()
+        if root.resolve() != CONTEXT.runtime:
+            raise ValueError('Integrity runtime differs from explicit context')
+        progress['historical_reconciliation'] = {'status': 'UNKNOWN',
+            'scope': 'Independent clean-room store; original laptop evidence not acquired or qualified'}
     sweep = retained_module('stage7-evidence-integrity-sweep')
     folder = root / 'incidents'
     paths = incident_inventory(folder)
@@ -190,6 +214,12 @@ def evidence_integrity(root, progress=None, on_incident=None):
     progress['additional_defects'] = bad
     accounting = []
     progress['read_accounting'] = accounting
+    locations = {}
+    seals = {}
+    signature = lambda s: (s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns, s.st_ctime_ns)
+    uniqueness = {'status': 'INCOMPLETE', 'unique_event_ids': 0, 'limit': EVIDENCE_EVENT_ID_LIMIT}
+    if CONTEXT is not None:
+        progress['event_id_uniqueness'] = uniqueness
     for path in sorted(paths):
         progress['current_path'] = str(path)
         metadata = path.parent / 'incident.json'
@@ -206,11 +236,14 @@ def evidence_integrity(root, progress=None, on_incident=None):
         identity = lambda s: (s.st_ino, s.st_size, s.st_mtime_ns)
         if identity(before) != identity(after) or identity(meta_before) != identity(meta_after):
             raise ValueError('Evidence changed during read; retain observation as incomplete')
+        if CONTEXT is not None:
+            seals[path] = signature(before)
+            seals[metadata] = signature(meta_before)
         ids = json.loads(meta)['related_events']
         if not isinstance(ids, list) or not all(isinstance(value, str) for value in ids):
             raise ValueError('Invalid incident metadata event IDs')
         analysis = sweep.analyze(data, ids)
-        known = path == reconciliation.ORIGINAL and analysis['sha256'] == reconciliation.ORIGINAL_HASH
+        known = reconciliation is not None and path == reconciliation.ORIGINAL and analysis['sha256'] == reconciliation.ORIGINAL_HASH
         progress['files_scanned'] += 1
         progress['bytes_read'] += len(data) + len(meta)
         accounting.append({'path': str(path), 'planned_event_bytes': planned[path],
@@ -219,12 +252,40 @@ def evidence_integrity(root, progress=None, on_incident=None):
         if analysis['findings'] != ['CLEAN'] and not known:
             bad.append({'path': str(path), 'sha256': analysis['sha256'], 'findings': analysis['findings']})
             raise ValueError('Additional evidence defects: ' + json.dumps(bad))
+        if CONTEXT is not None:
+            for event_id in analysis['event_ids']:
+                if event_id in locations:
+                    uniqueness.update(status='AMBIGUOUS', event_id=event_id,
+                                      locations=[locations[event_id], str(path)])
+                    raise ValueError('Ambiguous event ID across incidents: ' + event_id)
+                if len(locations) >= EVIDENCE_EVENT_ID_LIMIT:
+                    uniqueness['status'] = 'LIMIT_EXCEEDED'
+                    raise ValueError('Global event ID inventory exceeds bound')
+                locations[event_id] = str(path)
+                uniqueness['unique_event_ids'] = len(locations)
         if on_incident is not None:
             # Qualification can retain preservation inventory from these exact
             # bounded stable reads. Callback failures keep the sweep incomplete.
             on_incident(path, data, meta, analysis, known, verified)
     if incident_inventory(folder) != paths: raise ValueError('Incident inventory changed during inspection')
     progress.pop('current_path', None)
+    if CONTEXT is not None:
+        if not locations:
+            raise ValueError('Clean-room event inventory absent')
+        for path, expected in seals.items():
+            current = path.lstat()
+            if not stat.S_ISREG(current.st_mode) or signature(current) != expected:
+                raise ValueError('Evidence changed after read; global integrity observation incomplete')
+        uniqueness['status'] = 'VERIFIED_UNIQUE'
+        progress['status'] = 'VERIFIED_CLEAN'
+        return {'status': 'VERIFIED_CLEAN', 'files_scanned': len(paths),
+                'files_in_inventory': len(paths), 'planned_total_bytes': total,
+                'bytes_read': progress['bytes_read'], 'read_budget_bytes': EVIDENCE_READ_BUDGET,
+                'read_accounting': accounting, 'inventory_size_delta_bytes': progress['bytes_read'] - total,
+                'historical_reconciliation': progress['historical_reconciliation'],
+                'event_id_uniqueness': uniqueness,
+                'qualification_identity': CONTEXT.identity(),
+                'scope': 'Complete clean-room inventory; no historical laptop closeout or power-loss claim'}
     progress['status'] = 'VERIFIED_KNOWN_DEFECT_ONLY'
     return {'status': 'VERIFIED_KNOWN_DEFECT_ONLY', 'files_scanned': len(paths),
             'original_sha256': verified['original_sha256'], 'bundle_hashes': verified['bundle_hashes'],
@@ -244,9 +305,15 @@ def inspect(root, active=False):
            'NEW_STAGE7_BASELINE_READY': False, 'PREVIOUS_STAGE7_DISPOSITION': 'INVALIDATED_BY_HOST_REBOOT',
            'mode': 'active' if active else 'stopped'}
     try:
-        if root.resolve() != RUNTIME: raise ValueError('Unexpected runtime root')
+        expected_root = RUNTIME if CONTEXT is None else CONTEXT.runtime
+        if root.resolve() != expected_root: raise ValueError('Unexpected runtime root')
+        if CONTEXT is not None:
+            CONTEXT.validate_current()
+            row['qualification_identity'] = CONTEXT.identity()
+            row['historical_closeout'] = 'UNKNOWN: original laptop evidence remains independently unqualified'
         if os.geteuid() != 0: raise PermissionError('Operator sudo required for read-only reconciliation')
         runtime = collect(root, SOURCE, probe_readiness=False)
+        if CONTEXT is not None: CONTEXT.check_runtime(runtime)
         row['runtime'] = runtime
         gate = active_gate if active else stopped_gate
         gate(runtime)
@@ -271,6 +338,7 @@ def inspect(root, active=False):
         row['evidence_integrity'].update(evidence_integrity(root, row['evidence_integrity']))
         if active:
             after = collect(root, SOURCE, probe_readiness=False)
+            if CONTEXT is not None: CONTEXT.check_runtime(after)
             row['runtime_after'] = after
             active_gate(after)
             row['runtime_comparison'] = compare_runtime(runtime, after)
@@ -287,18 +355,25 @@ def inspect(root, active=False):
 
 
 def main():
+    global CONTEXT, RUNTIME
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--runtime-root', type=Path, required=True)
     parser.add_argument('--active', action='store_true',
                         help='Inspect an already active stack and evidence; never start or restart anything')
+    parser.add_argument('--context', type=Path)
+    parser.add_argument('--context-sha256')
     args = parser.parse_args()
+    CONTEXT = qualification_context.load(args.context, args.context_sha256, SOURCE, args.runtime_root,
+                                         purpose='prerequisites')
+    if CONTEXT is not None: RUNTIME = CONTEXT.runtime
     os.umask(0o077)
     def expired(signum, frame): raise TimeoutError('Read-only recovery inspection exceeded 120 seconds')
     signal.signal(signal.SIGALRM, expired)
     signal.alarm(120)
     try: row = inspect(args.runtime_root, active=args.active)
     finally: signal.alarm(0)
-    folder = Path(tempfile.mkdtemp(prefix='stage7-recovery-review-', dir=RETAINED))
+    folder = Path(tempfile.mkdtemp(prefix='stage7-recovery-review-', dir=(
+        RETAINED if CONTEXT is None else CONTEXT.evidence_root)))
     path = folder / 'report.json'
     atomic_json(path, row)
     # Restrict the new report to the invoking operator; never change an original artifact's permissions.
