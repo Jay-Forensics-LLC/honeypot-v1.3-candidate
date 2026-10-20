@@ -106,7 +106,7 @@ class OperationalLogSecurity(unittest.TestCase):
         def writer(name):
             try:
                 hp_common.append_json(log, {'writer': name}, rotate=True)
-            except BaseException as error:
+            except Exception as error:
                 errors.append(error)
             finally:
                 if name == 'contending':
