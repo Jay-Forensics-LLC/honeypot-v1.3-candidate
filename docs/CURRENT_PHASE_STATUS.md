@@ -68,11 +68,30 @@ Operator-reported 78/78 linked hashes and 8/8 packet checks are complete and
 independently tuple-matched. All 1,196 historical prefix CONTENT hashes are
 accounted for, including rotated/compressed siblings. Pinned-source receipt replay
 verified classifications, seven stored rows and stored Loki/postflight results.
-These results supersede the old all-eleven-hashes-pending statement. Recovery
-semantics/full custody review still require their separate receipt; protected
-bundle access is not a reason to repeat the historical matrix. No claim of zero
-loss, accurate absolute time, reboot continuity, corruption cause or power-loss
-durability follows from these historical checks.
+These results supersede the old all-eleven-hashes-pending statement.
+
+The October 20 03:39:41Z operator audit reports exit 0 and PASS for the actual
+recovery bundle: five unique ordered records, four original intact ranges,
+separately reconstructed fifth record, original/derivative hashes and manifest/
+metadata/provenance relationships. Its auditor SHA-256 is
+`a48f453375695bfad521d0b4cb9e52f3cdfa173b1cba5650da189ab391e32c0c`.
+The agent independently matched that code hash and returned values. Protected
+bytes remain operator-acquired; no raw terminal-transcript hash is asserted.
+The new audit also verified 734 retained custody copies across 1,183 incidents,
+and six stored offset relationships, within their stated scopes.
+
+**Historical global event-location consistency is AMBIGUOUS.** A separate exact
+stored-report enumeration found 20,569 unique event IDs, with 8,963 IDs in multiple
+incidents (25,751 extra locations, up to five per ID). Five directly re-read sample
+IDs match their original preserved prefix hashes in both locations; the raw
+objects agree while normalized objects differ. Per-incident counts/custody hashes
+do not establish global deduplication. Preserve all copies; do not select an
+unsupported canonical incident. The corrected candidate's ambiguity-fence behavior
+was rehearsed on two actual conflicting specimens without changing those originals.
+Full-state acquisition/reconciliation, migration/publication review and independent
+closeout remain required. No historical restart-matrix rerun is authorized to
+compensate for this finding. No claim of zero loss, accurate absolute time, reboot
+continuity, corruption cause or power-loss durability follows from these checks.
 
 Deployment/rollback, supported-installation and exact-build qualification plans
 are in the private handoff. All host actions remain PROPOSED — NOT APPLIED / NOT
