@@ -183,6 +183,13 @@ class MetadataGrowth(unittest.TestCase):
     def test_actual_growth_control_passes(self):
         self.assertEqual(custody.compare(self.root,self.before,self.after)['status'],'PASS')
 
+    def test_comparison_validates_metadata_even_without_new_ids(self):
+        for value in (None, [], {'confidence': float('nan')}):
+            invalid = copy.deepcopy(self.before)
+            invalid['incidents'][str(self.incident)]['metadata_at_acquisition'] = value
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                custody.compare(self.root, invalid, invalid)
+
     def test_invalid_numbers_types_and_times_cannot_qualify_growth(self):
         mutations = [('confidence',x) for x in (float('nan'),float('inf'),-0.1,1.1,True,None,'0.9')]
         mutations += [('auth_attempt_count',x) for x in (True,-1,2.5,float('nan'),None,'2')]
@@ -276,6 +283,23 @@ class SpecialStaticEntries(unittest.TestCase):
         path=self.fixture.root/'detections/suricata'
         for number in range(501): (path/f'empty-{number}').mkdir()
         with self.assertRaisesRegex(ValueError,'inventory budget'): self.verify()
+
+    def test_entry_bound_is_enforced_while_streaming_directory(self):
+        from contextlib import contextmanager
+        from types import SimpleNamespace
+        yielded = []
+        @contextmanager
+        def children(fd):
+            def stream():
+                for number in range(100000):
+                    yielded.append(number)
+                    if len(yielded) > 501:
+                        self.fail('Unbounded directory materialized before budget enforcement')
+                    yield SimpleNamespace(name='unread-'+str(number))
+            yield stream()
+        with patch.object(inventory.os, 'scandir', side_effect=children):
+            with self.assertRaisesRegex(ValueError, 'inventory budget'): self.verify()
+        self.assertLessEqual(len(yielded), 501)
 
 
 if __name__ == '__main__': unittest.main()

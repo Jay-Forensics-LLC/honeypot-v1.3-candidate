@@ -91,6 +91,10 @@ class StartupFixture(unittest.TestCase):
 
 
 class ImageStartup(StartupFixture):
+    def test_build_flag_is_rejected_even_with_valid_approval(self):
+        with self.assertRaisesRegex(ValueError, 'cannot build'): self.exercise(build=True)
+        self.assertEqual(self.events, [])
+
     def test_direct_start_and_build_cannot_bypass_external_pin(self):
         for build in (False, True):
             with self.subTest(build=build), self.assertRaises(ValueError):

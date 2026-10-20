@@ -49,6 +49,16 @@ class ContextFixture(unittest.TestCase):
 
 
 class ContextIdentityTests(ContextFixture):
+    def test_context_requires_image_approval_pin_and_rejects_runtime_substitution(self):
+        for mutation in ({'image_approval_sha256': ''}, {'schema_version': 1}):
+            value = copy.deepcopy(self.document); value.update(mutation)
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError): self.load(value)
+        context = self.load()
+        runtime = {'boot_id':self.boot, 'runtime_root':str(self.runtime),
+                   'candidate_source_commit':'a'*40, 'candidate_source_dirty':False,
+                   'image_approval_sha256':'c'*64}
+        with self.assertRaises(ValueError): context.check_runtime(runtime)
+
     def test_runtime_commands_use_current_context_root_not_definition_time_path(self):
         from types import SimpleNamespace
         with patch.object(qualification, 'RUNTIME', self.runtime), patch.object(
