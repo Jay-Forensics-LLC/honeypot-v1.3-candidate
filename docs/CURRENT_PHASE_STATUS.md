@@ -5,7 +5,7 @@ Phase 8 execution: NOT GREEN-LIT. Phase 10: PLANNED — PENDING — DO NOT IMPLE
 
 The source integration branch is `fix/phase7-source-integration-20261019`.
 Its implementation checkpoint is
-`5c876712c44ac804c85969174b06bc5d58f7f349`; subsequent changes add regressions and
+`8070509d1ef9ee83a9c6f8c67f71fd05260d827b`; subsequent changes update
 current-phase documentation. The exact final PR head/tree and command receipts
 are recorded in the private integration handoff. Qualification must pin that
 final clean SHA, independently accepted images, target and boot. No candidate
@@ -25,11 +25,17 @@ require a separately pinned image approval. Startup freezes configuration with
 immutable image IDs, creates without starting, verifies exact owned container IDs,
 then starts those IDs. Qualification rejects dirty source and requires the same
 approval digest, also bound into the schema-2 clean-room context. Runtime locks
-and observed IDs cannot authorize themselves. See
+and observed IDs cannot authorize themselves. All seven Compose restart policies
+are disabled; startup and qualification reject automatic daemon restart policies.
+Quarantine/unquarantine reject unexpected mounts. Qualification binds exact runtime
+Compose bytes to the reviewed source, detects file drift, and forces untracked-file
+enumeration despite local Git status settings. Startup and locator name discovery
+stream directory entries and stop at their entry bound. No deployed policy changes.
+See
 [operations](../honeypot/docs/OPERATIONS.md) and
 [clean-room qualification](../honeypot/docs/CLEANROOM_QUALIFICATION.md).
 
-Offline validation: 571 unit tests and 89 retained Stage 7 tests pass with no
+Offline validation: 584 unit tests and 89 retained Stage 7 tests pass with no
 skips; `make verify` passes. The full repository validator passes its 21 tooling
 tests, archive/provenance checks, source checks and required suite invocations.
 An additional local Compose 2.40.3 canonical JSON parser round-trip reproduced
@@ -41,6 +47,13 @@ desktop 19 failed assertions/subtests and eight errored subtests; laptop control
 zero failures/errors/skips. Mock-only startup reproductions on both old tips
 still demonstrate the prior bypass. Independent review is requested on the
 integration PR; it is not implied by these self-checks or historical reviews.
+Independent review additionally identified five startup/mount/enumeration/source
+binding gaps. Seven initial reproduction methods yielded eight failing assertions
+or subtests against the unchanged candidate; all fixes and thirteen focused
+regression methods are now committed. These are not eight separate test methods.
+Repository validation first rejected the new test file's inherited 664 mode; its
+mode was corrected to 644, and the validator then passed 224 source files. Both
+failed receipts remain retained. Review of this corrected checkpoint is pending.
 
 The user selected the laptop as the intended Phase 8 target; desktop live results
 are separate and remain unacquired/unverified. A fresh non-modifying laptop
@@ -89,7 +102,11 @@ do not establish global deduplication. Preserve all copies; do not select an
 unsupported canonical incident. The corrected candidate's ambiguity-fence behavior
 was rehearsed on two actual conflicting specimens without changing those originals.
 Full-state acquisition/reconciliation, migration/publication review and independent
-closeout remain required. No historical restart-matrix rerun is authorized to
+closeout remain required. A full historical acquisition stopped before migration
+on the first metadata hash drift (five stored IDs versus thirty current IDs, with
+all five retained). Its partial acquisition and failure receipt remain preserved;
+today's changing metadata cannot impersonate the exact historical snapshot.
+No historical restart-matrix rerun is authorized to
 compensate for this finding. No claim of zero loss, accurate absolute time, reboot
 continuity, corruption cause or power-loss durability follows from these checks.
 
