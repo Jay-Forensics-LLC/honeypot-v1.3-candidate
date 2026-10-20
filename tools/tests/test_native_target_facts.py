@@ -11,8 +11,9 @@ SPEC = importlib.util.spec_from_file_location('native_target_facts', TOOLS / 'na
 facts = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(facts)
 
-VM_UUID = 'e5a29fcd-d4fb-417a-a2fe-3e69cc1ef4f5'
-BOOT_ID = '38cd65f9-4ba0-4d37-8998-e1a45877f50b'
+# Deliberately synthetic identities, unrelated to an acquired VM or host boot.
+VM_UUID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
+BOOT_ID = '11111111-2222-4333-8444-555555555555'
 HOST = {'system': 'Linux', 'machine': 'x86_64', 'implementation': 'CPython', 'python': ['3', '12', '3']}
 PACKAGES = b'python3\t3.12.3-0ubuntu2\tamd64\tii \npython3.12\t3.12.3-1ubuntu0.16\tamd64\tii \n'
 
