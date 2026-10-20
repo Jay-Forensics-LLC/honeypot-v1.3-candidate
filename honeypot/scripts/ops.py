@@ -16,7 +16,7 @@ import time
 import tempfile
 import image_approval
 import compose_input
-from hp_common import ROOT, config, runtime_path, run, require_root, atomic_json, utc, audited
+from hp_common import ROOT, config, runtime_path, run, require_root, atomic_json, utc, audited, on_audit_failure
 from guard_policy import DNS, require_guard, inspect_dns
 from daemon_check import require_local_daemon
 
@@ -336,6 +336,8 @@ def start(*, build=False, approval_sha256=None):
         approved_containers(approval,immutable=True,containers=containers)
         stopped_configuration(frozen,containers,images)
         require_guard(cfg)
+        started_ids=tuple(row['Id'] for row in containers.values())
+        on_audit_failure(lambda: run(['docker','stop',*started_ids],check=False))
         run(['docker', 'start', *[containers[name]['Id'] for name in
                                   ('loki','alloy','grafana','incidentd','cowrie','opencanary')]])
         require_guard(cfg)
@@ -348,7 +350,7 @@ def start(*, build=False, approval_sha256=None):
     print('Approved container IDs started. Acquire separately approved readiness/qualification evidence. No router rules were changed.')
 
 @audited('boot-start')
-def boot_start():
+def boot_start(*, approval_sha256=None):
     """Fail-closed boot path for EXISTING loopback-only decoy containers.
 
     This intentionally does not build, pull, create, or recreate containers.
@@ -394,7 +396,7 @@ def boot_start():
 
     rendered = json.loads(compose('config', '--format', 'json').stdout)
     rendered_start_gate(rendered)
-    approval = image_approval.load(ROOT, {name: spec['image'] for name, spec in rendered['services'].items()}, image_pin())
+    approval = image_approval.load(ROOT, {name: spec['image'] for name, spec in rendered['services'].items()}, image_pin(approval_sha256))
     containers=owned_containers()
     refuse_active(containers)
     approved_containers(approval,containers=containers)
@@ -439,6 +441,8 @@ def boot_start():
             )
 
     try:
+        started_ids=tuple(containers[name]['Id'] for name in ('cowrie','opencanary'))
+        on_audit_failure(lambda: run(['docker','stop',*started_ids],check=False))
         _start_existing_decoys(cfg, containers, approval)
     except (Exception, SystemExit):
         run(['docker','stop',containers['cowrie']['Id'],containers['opencanary']['Id']],check=False)

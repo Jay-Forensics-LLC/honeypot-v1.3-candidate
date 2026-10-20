@@ -12,9 +12,12 @@ import tempfile
 import functools
 import sys
 import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 ROOT = Path(os.environ.get('HP_ROOT', Path(__file__).resolve().parents[1])).resolve()
 _LOG_LOCK_TIMEOUT = 1.0
+_AUDIT_OPERATION = ContextVar('audit_operation', default=None)
 
 def utc():
     return dt.datetime.now(dt.timezone.utc).isoformat().replace('+00:00', 'Z')
@@ -109,10 +112,10 @@ def _lock_log_directory(parent):
             time.sleep(min(0.01, remaining))
 
 
-def append_json(path, data, rotate=False):
+@contextmanager
+def _open_log(path, rotate=False):
     # A privileged writer shares some operational directories with incidentd.
     # Never follow their file/ancestor symlinks or write through a hard link.
-    encoded = (json.dumps(data, ensure_ascii=True, separators=(',', ':')) + '\n').encode()
     parent, name = _log_parent(path)
     try:
         # Directory identity survives file rotation. A per-log-file lock would
@@ -138,15 +141,30 @@ def append_json(path, data, rotate=False):
             if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or current is None or
                     (info.st_dev, info.st_ino) != (current.st_dev, current.st_ino)):
                 raise ValueError('Operational log changed during safe open')
-            while encoded:
-                written = os.write(fd, encoded)
-                if written <= 0:
-                    raise OSError('Operational log append made no progress')
-                encoded = encoded[written:]
+            yield fd, parent, name
         finally:
             os.close(fd)
     finally:
         os.close(parent)
+
+
+def _append_log(log, data):
+    fd, parent, name = log
+    info, current = os.fstat(fd), _log_regular(parent, name)
+    if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or current is None or
+            (info.st_dev, info.st_ino) != (current.st_dev, current.st_ino)):
+        raise ValueError('Operational log changed during audited operation')
+    encoded = (json.dumps(data, ensure_ascii=True, separators=(',', ':')) + '\n').encode()
+    while encoded:
+        written = os.write(fd, encoded)
+        if written <= 0:
+            raise OSError('Operational log append made no progress')
+        encoded = encoded[written:]
+
+
+def append_json(path, data, rotate=False):
+    with _open_log(path, rotate) as log:
+        _append_log(log, data)
 
 def sha256(path):
     # Reject symlinks, device nodes, FIFOs and unstable writes. Never execute samples.
@@ -171,7 +189,7 @@ def sha256(path):
 def run(argv, timeout=30, check=True):
     return subprocess.run(argv, cwd=ROOT, text=True, capture_output=True, timeout=timeout, check=check)
 
-def audit(action, **fields):
+def _audit_row(action, **fields):
     # An allowlist prevents newly supplied payload/secret fields reaching telemetry.
     allowed = {'source_ip', 'unit', 'container', 'scope', 'decision', 'observed', 'expected'}
     row = {'timestamp': utc(), 'action': action, 'actor': os.getuid() if hasattr(os, 'getuid') else None,
@@ -179,6 +197,11 @@ def audit(action, **fields):
                               ('--apply', '--approved', '--install', '--install-preview', '--exposure-approved', '--stop-decoys', '--copy-evidence')],
            'success': fields.get('success') is True}
     row.update({k: redact(v) for k, v in fields.items() if k in allowed})
+    return row
+
+
+def audit(action, **fields):
+    row = _audit_row(action, **fields)
     append_json(ROOT/'logs/system/audit.jsonl', row, rotate=True)
     if action.startswith(('firewall.', 'container.', 'guard.')):
         append_json(ROOT/'logs/system/containment.jsonl', row, rotate=True)
@@ -199,17 +222,45 @@ def redact(value):
     if isinstance(value, bytes): return '[withheld bytes]'
     return value
 
+def on_audit_failure(cleanup):
+    """Register exact owned identities to stop if a completed startup cannot log."""
+    if not callable(cleanup):
+        raise ValueError('Audit failure cleanup must be callable')
+    operation = _AUDIT_OPERATION.get()
+    if operation is not None:
+        operation['cleanup'] = cleanup
+
+
 def audited(action):
     def decorate(fn):
         @functools.wraps(fn)
         def wrapped(*args, **kwargs):
-            success = False
-            try:
-                result = fn(*args, **kwargs)
-                success = True
-                return result
-            finally:
-                audit(action, success=success, approval_flags=sys.argv[1:])
+            # Acquire and exercise the pinned audit file BEFORE lifecycle work.
+            # Hold its directory lock through completion, so a later contender
+            # cannot turn successful startup into a post-operation lock timeout.
+            with _open_log(ROOT/'logs/system/audit.jsonl', rotate=True) as log:
+                _append_log(log, _audit_row(action+'.attempt', approval_flags=sys.argv[1:]))
+                os.fsync(log[0]); os.fsync(log[1])
+                operation = {'cleanup': None}
+                token = _AUDIT_OPERATION.set(operation)
+                success = False
+                try:
+                    result = fn(*args, **kwargs)
+                    success = True
+                    return result
+                finally:
+                    try:
+                        _append_log(log, _audit_row(action, success=success, approval_flags=sys.argv[1:]))
+                        os.fsync(log[0])
+                    except BaseException:
+                        # Device failure or external rotation is still possible
+                        # with a held lock. Startup registers captured IDs, never
+                        # a fresh name/project lookup that could stop a stranger.
+                        if success and operation['cleanup'] is not None:
+                            operation['cleanup']()
+                        raise
+                    finally:
+                        _AUDIT_OPERATION.reset(token)
         return wrapped
     return decorate
 

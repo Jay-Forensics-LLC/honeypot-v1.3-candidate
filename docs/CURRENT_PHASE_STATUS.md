@@ -1,5 +1,20 @@
 # HoneyTrace current phase status — 2026-10-20 UTC
 
+October 20 continuation of the sealed `79ea08847f5e` checkpoint: the exact-head
+independent review returned three further findings. The candidate removes the
+preview unit's conflicting Compose environment input, exposes/forwards the
+external image-approval pin through both operator startup subcommands, and
+reserves the audit log before lifecycle mutation with exact-ID startup cleanup on
+completion-write failure. Five initial methods reproduced two failed assertions
+and four errored cases/subtests; six current methods cover the corrections without
+live operations. PR #26 has merged into HoneyWatch; its three coverage/review files
+are deliberately integrated. New commits use the existing GitHub-registered SSH
+signing agent. Earlier unsigned published commits are preserved; the default
+branch's signature/linear-history rules remain in force. Source review and all
+runtime, supported-installation and release gates remain pending. Exact commit,
+tree, package and validation bindings are retained in the continuation receipts.
+
+
 **Supervised loopback beta: BLOCKED. Independent Phase 7 closeout: PENDING.
 Phase 8 execution: NOT GREEN-LIT. Phase 10: PLANNED — PENDING — DO NOT IMPLEMENT.**
 

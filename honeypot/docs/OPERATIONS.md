@@ -151,3 +151,11 @@ incident. To capture later completed segments, briefly stop incidentd, run
 incidentd with `sudo docker compose start incidentd`. Always inspect metadata.json
 for gaps, hashes, timestamps, caps and changed-during-copy flags. Timestamps and
 SHA-256 manifests are custody aids, not legal-grade immutability or trusted signing.
+
+Lifecycle audit writes are checked before mutation. Start, boot-start and stop
+hold the pinned operational-log directory lock until their completion record is
+written. A failed pre-operation audit prevents lifecycle work; a failed completion
+write after startup stops the exact container IDs captured by that transaction.
+The retained attempt record does not claim that startup completed. The preview
+unit inherits no Compose project-name override; the command pins the project.
+This source correction does not install or enable the preview unit.

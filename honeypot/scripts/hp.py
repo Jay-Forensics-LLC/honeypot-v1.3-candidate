@@ -79,10 +79,12 @@ def logs(source, count):
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
     sub=ap.add_subparsers(dest='command',required=True)
-    for name in ('status','health','boot-start','stop','readiness'): sub.add_parser(name)
+    for name in ('status','health','stop','readiness'): sub.add_parser(name)
+    boot=sub.add_parser('boot-start');boot.add_argument('--image-approval-sha256')
     doctor=sub.add_parser('doctor',help='Read local Docker daemon and existing project ownership; no recovery actions')
     doctor.add_argument('--runtime-root',type=Path,required=True)
     start=sub.add_parser('start');start.add_argument('--exposure-approved',action='store_true')
+    start.add_argument('--image-approval-sha256')
     guard=sub.add_parser('guard');guard.add_argument('action',choices=['status','apply']);guard.add_argument('--apply',action='store_true')
     pcap=sub.add_parser('pcap');pcap.add_argument('action',choices=['status'])
     wan=sub.add_parser('wan');wan.add_argument('action',choices=['status','check','matrix'])
@@ -111,7 +113,8 @@ def main():
                'boot-start':('Start existing healthy loopback decoys after gates','Build, pull, create, or enable boot'),
                'stop':('Stop the Compose stack','Delete evidence, containers, or firewall rules')}
         describe(*texts[a.command],approval='--exposure-approved plus fresh readiness PASS, approval record, and source-fidelity evidence for non-loopback decoys' if a.command=='start' else 'Explicit command')
-        return getattr(ops,a.command.replace('-','_'))() or 0
+        kwargs={'approval_sha256':a.image_approval_sha256} if a.command in ('start','boot-start') else {}
+        return getattr(ops,a.command.replace('-','_'))(**kwargs) or 0
     if a.command=='wan':
         import wan_criteria
         if a.action=='matrix':
