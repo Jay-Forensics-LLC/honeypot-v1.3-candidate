@@ -25,7 +25,7 @@ class StartupFixture(unittest.TestCase):
         (self.root/'secrets/grafana_admin_password').write_text('synthetic-only')
         self.rendered = {'name': 'honeypot', 'services': {
             name: {'image': 'local:'+name, 'build': {'context': '/synthetic'},
-                   'environment': {'LITERAL': 'keep-$VALUE'}} for name in sorted(image_approval.SERVICES)}}
+                   'environment': {'LITERAL': 'keep-$$VALUE'}} for name in sorted(image_approval.SERVICES)}}
         self.document = {'version': 1, 'images': {name: {'reference': spec['image'],
             'id': 'sha256:'+f'{index:064x}'} for index, (name, spec) in enumerate(self.rendered['services'].items(), 1)}}
         self.path = self.root/image_approval.APPROVAL_PATH
@@ -125,6 +125,12 @@ class ImageStartup(StartupFixture):
         self.assertEqual(len(self.starts()), 2)
         self.assertEqual(self.snapshots[0]['services']['incidentd']['image'], self.document['images']['incidentd']['id'])
         self.assertEqual(self.snapshots[0]['services']['incidentd']['environment']['LITERAL'], 'keep-$$VALUE')
+
+    def test_canonical_config_escapes_are_retained_without_second_escaping(self):
+        environment={'DOLLAR':'keep-$$VALUE','BRACED':'keep-$${VALUE}','DOUBLE':'literal-$$$$'}
+        for spec in self.rendered['services'].values():spec['environment']=environment.copy()
+        self.exercise()
+        for spec in self.snapshots[0]['services'].values():self.assertEqual(spec['environment'],environment)
 
     def test_unapproved_created_image_never_executes(self):
         with self.assertRaisesRegex(ValueError, 'reviewed approval'): self.exercise(drift='image')

@@ -250,18 +250,6 @@ def approved_containers(approval, *, immutable=False):
     return containers
 
 
-def compose_literal(value):
-    # Rendered values are already expanded. Preserve literal dollars when
-    # Compose reads the private snapshot instead of interpolating them again.
-    if isinstance(value, str):
-        return value.replace('$', '$$')
-    if isinstance(value, dict):
-        return {key: compose_literal(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [compose_literal(item) for item in value]
-    return value
-
-
 @audited('start')
 def start(*, build=False, approval_sha256=None):
     if build:
@@ -291,7 +279,10 @@ def start(*, build=False, approval_sha256=None):
         # and images so later tag/.env/override edits cannot alter this transaction.
         with tempfile.TemporaryDirectory(prefix='.approved-compose-', dir=ROOT/'state') as directory:
             snapshot = Path(directory)/'compose.json'
-            snapshot.write_text(json.dumps(compose_literal(frozen)))
+            # Compose config already emits escaped literal dollars for reuse as
+            # a Compose file. Escaping this canonical wire form again changes
+            # commands/environment. Retain it exactly except approved image IDs.
+            snapshot.write_text(json.dumps(frozen))
             snapshot.chmod(0o600)
             for expected in approval['images'].values():
                 images = json.loads(run(['docker', 'image', 'inspect', expected['id']]).stdout)
@@ -465,7 +456,6 @@ def update():
     if len(current)!=1 or current[0].get('Id')!=ids[0]:
         raise ValueError('Grafana inspection ambiguous; update has not begun')
     identity=grafana_backup.container_identity(ROOT,current[0])
-    import image_approval
     try:
         approval_sha256 = sys.argv[sys.argv.index('--image-approval-sha256')+1]
     except (ValueError, IndexError) as exc:
