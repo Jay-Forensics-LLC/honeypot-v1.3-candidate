@@ -78,12 +78,12 @@ class StartupEvidence(unittest.TestCase):
         engine = incidentd.Engine(self.root)
         folder = self.root/'incidents/day'
         folder.mkdir(parents=True)
-        original = Path.iterdir
+        original = incidentd.scan_directory
         def inspect(path):
             if path == folder:
                 raise PermissionError('synthetic unreadable startup branch')
             return original(path)
-        with patch.object(Path, 'iterdir', inspect):
+        with patch.object(incidentd, 'scan_directory', inspect):
             with self.assertRaises(PermissionError):
                 engine.inspect_existing_evidence()
         self.assertFalse(engine.startup_scan_reported)

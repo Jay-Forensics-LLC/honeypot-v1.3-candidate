@@ -163,7 +163,7 @@ class StartupTests(unittest.TestCase):
             with self.assertRaises(SystemExit): ops.start()
             compose.assert_not_called()
     def rendered(self):
-        return {'services':{name:{'dns':[dns],'ports':[{'host_ip':'127.0.0.1'}],'networks':{network:{}}} for name,dns,network in [('cowrie',policy.DNS['cowrie'],'cowrie'),('opencanary',policy.DNS['opencanary'],'canary')]},
+        return {'services':{name:{'restart':'no','dns':[dns],'ports':[{'host_ip':'127.0.0.1'}],'networks':{network:{}}} for name,dns,network in [('cowrie',policy.DNS['cowrie'],'cowrie'),('opencanary',policy.DNS['opencanary'],'canary')]},
                 'networks':{n:{'driver_opts':{'com.docker.network.bridge.name':b}} for n,b in [('cowrie','br-hp-cowrie'),('canary','br-hp-canary')]}}
     def test_rendered_dns_and_actual_hostip_gates(self):
         good=self.rendered();ops.rendered_start_gate(good)

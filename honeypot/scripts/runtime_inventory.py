@@ -67,6 +67,10 @@ def stopped_decoy_configuration(rendered, containers, networks, root):
 def security_resource_problems(name, spec, container):
     problems = []
     host, actual = container['HostConfig'], container['Config']
+    restart = host.get('RestartPolicy') or {}
+    if (spec.get('restart') != 'no' or restart.get('Name') != 'no' or
+            type(restart.get('MaximumRetryCount')) is not int or restart['MaximumRetryCount'] != 0):
+        problems.append(name + ': automatic restart policy bypasses supervised startup')
     if name in USERS:
         if spec.get('user') != USERS[name] or actual.get('User') != USERS[name]:
             problems.append(name + ': reviewed numeric user differs')
@@ -378,9 +382,12 @@ def collect(root, source_root, probe_readiness=True, *, approval_sha256=None):
         if not row['daemon']['ok']:
             raise ValueError('Docker ownership gate failed: '+'; '.join(row['daemon']['problems']))
         row['candidate_source_commit'] = command(source_root, ['git', 'rev-parse', 'HEAD']).stdout.strip()
-        row['candidate_source_dirty'] = bool(command(source_root, ['git', 'status', '--porcelain']).stdout)
+        row['candidate_source_dirty'] = bool(command(source_root, ['git', 'status', '--porcelain', '--untracked-files=all']).stdout)
         if row['candidate_source_dirty']:
             raise ValueError('Dirty candidate source cannot qualify a deployment')
+        reviewed_compose = image_approval.read_regular(Path(source_root) / 'docker-compose.yml', 1024**2)
+        if image_approval.read_regular(root / 'docker-compose.yml', 1024**2) != reviewed_compose:
+            raise ValueError('Runtime Compose file differs from the reviewed candidate source')
         rendered = json.loads(run(['docker', 'compose', '-f', str(root / 'docker-compose.yml'), 'config', '--format', 'json']).stdout)
         ids = run(['docker', 'ps', '-aq', '--filter', 'label=com.docker.compose.project=honeypot']).stdout.split()
         if len(ids) != 7: raise ValueError('Expected exactly seven project containers')
@@ -437,18 +444,21 @@ print(json.dumps(result))
                                'networks': c['NetworkSettings']['Networks'], 'ports': c['NetworkSettings']['Ports'],
                                'mounts': c['Mounts'], 'tmpfs':c['HostConfig'].get('Tmpfs') or {}, 'environment_hash': fingerprint(c['Config'].get('Env', []))} for n,c in containers.items()}
         row['networks'] = nets
-        row['compose_hash'] = hashlib.sha256((root / 'docker-compose.yml').read_bytes()).hexdigest()
+        row['compose_hash'] = hashlib.sha256(reviewed_compose).hexdigest()
         row['rendered_config_hash'] = fingerprint(rendered)
         row['config_hash'] = fingerprint(cfg)
         row['boot_id'] = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
         if (command(source_root, ['git', 'rev-parse', 'HEAD']).stdout.strip() != row['candidate_source_commit'] or
-                command(source_root, ['git', 'status', '--porcelain']).stdout):
+                command(source_root, ['git', 'status', '--porcelain', '--untracked-files=all']).stdout):
             raise ValueError('Candidate source changed during qualification')
         image_approval.load(source_root, {name: spec['image'] for name, spec in rendered['services'].items()}, approval['sha256'])
         row['deployed_source_commit']='UNKNOWN: selected deployed module hashes verified; image revision label not established'
         row['network_fingerprint']=fingerprint({n['Name']:{'driver':n['Driver'],'internal':n['Internal'],'ipam':n['IPAM'],'options':n.get('Options'),
                  'members':sorted(service for service in containers if n['Name'] in PLACEMENT[service])} for n in nets})
         mounted = verify_static_configuration(rendered, root, Path(source_root))
+        if (image_approval.read_regular(root / 'docker-compose.yml', 1024**2) != reviewed_compose or
+                image_approval.read_regular(Path(source_root) / 'docker-compose.yml', 1024**2) != reviewed_compose):
+            raise ValueError('Reviewed or runtime Compose file changed during qualification')
         row['mounted_config_hashes']=mounted
         row['observation_fingerprint']=fingerprint({k:row[k] for k in ('config_hash','rendered_config_hash','deployed_source_hashes','guard_fingerprint','network_fingerprint','mounted_config_hashes','image_approval_sha256')})
         row['wan_enabled'] = False

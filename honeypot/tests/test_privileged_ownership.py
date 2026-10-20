@@ -22,6 +22,7 @@ class QuarantineOwnership(unittest.TestCase):
         self.cid = 'a' * 64
         self.info = {'Id': self.cid, 'Config': {'Labels': {'com.docker.compose.project': 'honeypot',
             'com.docker.compose.service': 'cowrie', 'com.docker.compose.project.working_dir': str(self.root)}},
+            'HostConfig': {'Tmpfs': {'/tmp': 'rw,nosuid,nodev,noexec,size=128m,mode=1777'}},
             'State': {'Running': True, 'Paused': False}, 'Mounts': [
                 {'Type': 'bind', 'Source': str(self.root/relative), 'Destination': target, 'RW': writable}
                 for target, relative, writable in [

@@ -154,16 +154,20 @@ class EventLocations:
             seals = {'.': directory_signature(self.incidents)}
             count = 0
             if self.incidents.exists():
-                for day in self.incidents.iterdir():
-                    count += 1
-                    if count > MAX_MIGRATION_ENTRIES: raise EvidenceIntegrityError('Migration name inventory exceeds bound')
-                    seals[day.name] = directory_signature(day)
-                    for directory in day.iterdir():
+                with scan_directory(self.incidents) as days:
+                    for day_entry in days:
                         count += 1
                         if count > MAX_MIGRATION_ENTRIES: raise EvidenceIntegrityError('Migration name inventory exceeds bound')
-                        relative = self.relative(directory)
-                        db.execute("INSERT INTO migration(incident,state,signatures) VALUES (?, 'pending', ?)",
-                                   (relative, json.dumps(self.signatures(directory))))
+                        day = self.incidents/day_entry.name
+                        seals[day.name] = directory_signature(day)
+                        with scan_directory(day) as directories:
+                            for entry in directories:
+                                count += 1
+                                if count > MAX_MIGRATION_ENTRIES: raise EvidenceIntegrityError('Migration name inventory exceeds bound')
+                                directory = day/entry.name
+                                relative = self.relative(directory)
+                                db.execute("INSERT INTO migration(incident,state,signatures) VALUES (?, 'pending', ?)",
+                                           (relative, json.dumps(self.signatures(directory))))
             if any(directory_signature(self.incidents/name) != stamp for name, stamp in seals.items()):
                 raise EvidenceIntegrityError('Incident inventory changed during discovery')
             db.execute('INSERT INTO settings VALUES (?, ?)', ('inventory', json.dumps(seals)))
@@ -233,6 +237,20 @@ class EventLocations:
                        db.execute("SELECT incident,state,evidence_sha256,metadata_sha256,reason FROM migration WHERE state IN ('blocked','quarantined') ORDER BY incident LIMIT 32")]
         return {'complete': self.ready(), 'counts': counts, 'inventory_error': error[0] if error else None,
                 'details': details, 'detail_limit': 32}
+
+
+@contextmanager
+def scan_directory(path):
+    """Stream names from an opened directory, never a materialized name list."""
+    path = Path(path)
+    if path.resolve() != path.absolute():
+        raise EvidenceIntegrityError('Symlink incident inventory directory')
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        with os.scandir(fd) as entries:
+            yield entries
+    finally:
+        os.close(fd)
 
 
 def directory_signature(path):

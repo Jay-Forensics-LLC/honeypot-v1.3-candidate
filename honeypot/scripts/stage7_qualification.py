@@ -151,7 +151,7 @@ def implementation():
 
 
 def source_revision():
-    if command(['git', 'status', '--porcelain'], SOURCE).strip():
+    if command(['git', 'status', '--porcelain', '--untracked-files=all'], SOURCE).strip():
         raise ValueError('Source working tree must be checkpointed before qualification')
     return command(['git', 'rev-parse', 'HEAD'], SOURCE).strip()
 

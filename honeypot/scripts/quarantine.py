@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 from hp_common import ROOT, atomic_json, audit, require_root, run, utc, runtime_path
 from daemon_check import require_local_daemon
-from runtime_inventory import STATIC_MOUNTS
+from runtime_inventory import STATIC_MOUNTS, tmpfs_options
 
 
 def owned_decoy_id(info, name):
@@ -35,6 +35,31 @@ def owned_decoy_id(info, name):
         if (source.resolve() != source.absolute() or observed.get('Type') != 'bind' or
                 observed.get('Source') != str(source) or observed.get('RW') is not writable):
             raise ValueError('Decoy runtime bind differs: ' + target)
+    allowed = set(expected)
+    # Account for the entire inventory before pause/log collection or unpause.
+    # Cowrie's reviewed image owns only these two additional local volumes.
+    declared = set(info.get('Config', {}).get('Volumes') or {})
+    known = {'/cowrie/cowrie-git/etc', '/cowrie/cowrie-git/var'} if service == 'cowrie' else set()
+    if declared - known:
+        raise ValueError('Unexpected decoy image-declared volume')
+    for target in declared:
+        mount = actual.get(target, {})
+        volume = mount.get('Name', '')
+        if (type(volume) is not str or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*', volume) or
+                mount.get('Type') != 'volume' or mount.get('Driver') != 'local' or
+                mount.get('Source') != '/var/lib/docker/volumes/'+volume+'/_data' or
+                mount.get('RW') is not True):
+            raise ValueError('Invalid decoy image volume: ' + target)
+        allowed.add(target)
+    tmpfs = info.get('HostConfig', {}).get('Tmpfs') or {}
+    reviewed_tmpfs = {'/tmp': 'rw,nosuid,nodev,noexec,size=128m,mode=1777'}
+    if tmpfs_options(tmpfs) != tmpfs_options(reviewed_tmpfs):
+        raise ValueError('Decoy tmpfs differs from reviewed policy')
+    allowed.update(tmpfs)
+    if ('/tmp' in actual and actual['/tmp'].get('Type') != 'tmpfs'):
+        raise ValueError('Decoy tmpfs replaced by another mount type')
+    if set(actual) - allowed or any('docker.sock' in str(mount) for mount in mounts):
+        raise ValueError('Unexpected decoy mount')
     return cid
 
 def _quarantine(name,undo=False):

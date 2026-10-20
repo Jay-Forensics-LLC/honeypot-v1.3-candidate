@@ -17,7 +17,12 @@ deployment transaction; observations and editable runtime locks cannot bless the
 Startup freezes the full rendered configuration with the approved image IDs,
 removes build directives, creates containers with `--no-build --pull never`, then
 checks seven unique container IDs, image IDs and project/runtime ownership before
-starting those exact IDs. Mutable tags, environment files and Compose overrides
+starting those exact IDs. All seven services require `restart: "no"`; startup
+and qualification also verify the actual daemon restart policies. Docker must not
+execute a service before these gates on daemon startup or after a failure. This
+supervised policy means a failed service stays stopped for operator investigation.
+Existing deployed policies are not changed by a source checkout and require a
+separately approved deployment transaction. Mutable tags, environment files and Compose overrides
 are not resolved again for execution. `start(build=True)` is rejected. A DNS
 postcheck failure stops the verified IDs before Suricata starts.
 
@@ -29,10 +34,19 @@ review manifests and historical locks are never overwritten. Retain previous
 images and evidence for a separately reviewed rollback.
 
 The existing `boot-start` entrypoint now checks the same approval and the seven
-owned image/container identities, then starts only the two captured decoy IDs.
+owned image/container identities and disabled restart policies, then starts only
+the two captured decoy IDs. With automatic restarts disabled, it does not start
+the other five services after a cold boot or provide complete boot ordering.
 Its preview unit has no approval pin and will fail closed until a separately
 reviewed Phase 8 transaction supplies one. This source repair enables no unit and
 qualifies no boot behavior.
+
+Qualification requires byte-identical reviewed-source and runtime Compose files,
+bounded regular-file reads before and after observation, and an explicit Git
+untracked-file check regardless of local status configuration. A clean unrelated
+source checkout cannot qualify an edited runtime Compose file. Quarantine and
+unquarantine validate every mount, including only the known Cowrie image volumes
+and the reviewed `/tmp` tmpfs, before logs, pause or unpause are requested.
 
 
 `sudo journalctl -u honeypot-health.service` shows health failures. Inspect

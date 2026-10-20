@@ -38,6 +38,7 @@ class ImageTrust(unittest.TestCase):
             c.update(Image=self.document['images'][name]['id'], Created='synthetic', RestartCount=0)
             c['State']['StartedAt'] = '2026-10-17T00:00:00Z'
         (self.root/'docker-compose.yml').write_text('synthetic compose')
+        (self.source/'docker-compose.yml').write_text('synthetic compose')
         (self.source/'scripts').mkdir()
         self.module_hashes = {}
         for name in ('incidentd.py','evidence_store.py','hp_common.py','bait.py'):
@@ -61,7 +62,7 @@ class ImageTrust(unittest.TestCase):
             elif argv[0] == 'nft': value = '{}'
             elif argv[:2] == ['docker','exec']: value = json.dumps(self.module_hashes)
             elif argv == ['git','rev-parse','HEAD']: value = 'synthetic-reviewed-commit'
-            elif argv == ['git','status','--porcelain']: value = ' M configs/images.approved.json' if self.source_dirty else ''
+            elif argv == ['git','status','--porcelain','--untracked-files=all']: value = ' M configs/images.approved.json' if self.source_dirty else ''
             else: self.fail('Unexpected command: '+repr(argv))
             return subprocess.CompletedProcess(argv, 0, value, '')
         with patch.dict(os.environ, {image_approval.PIN_ENV: self.approval_pin,

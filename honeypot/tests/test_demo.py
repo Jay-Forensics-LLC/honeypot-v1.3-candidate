@@ -18,7 +18,7 @@ def fixture():
     ports={'cowrie':[(2222,2222),(2223,2223)],'opencanary':[(8080,8080),(2121,2121),(16379,16379)],'grafana':[(3000,3000)]}
     for name in inventory.SERVICES:
         mappings={str(target)+'/tcp':[{'HostIp':'127.0.0.1','HostPort':str(host)}] for target,host in ports.get(name,[])}
-        services[name]={'image':'expected:'+name,'ports':[{'target':t,'published':str(h),'host_ip':'127.0.0.1'} for t,h in ports.get(name,[])]}
+        services[name]={'image':'expected:'+name,'restart':'no','ports':[{'target':t,'published':str(h),'host_ip':'127.0.0.1'} for t,h in ports.get(name,[])]}
         containers[name]={'Id':name+'-id','State':{'Running':True,'Health':{'Status':'healthy'}},
             'Config':{'Image':'expected:'+name,'Labels':{'com.docker.compose.project.working_dir':str(root),'com.docker.compose.project':'honeypot','com.docker.compose.service':name}},
             'HostConfig':{'Privileged':False,'ReadonlyRootfs':True,'CapDrop':['ALL'],'SecurityOpt':['no-new-privileges:true'],
@@ -29,7 +29,7 @@ def fixture():
         services[name].update(user=inventory.USERS.get(name, ''), group_add=['2000'],
                               mem_limit=memory, cpus=str(nano / 1_000_000_000), pids_limit=256)
         containers[name]['Config']['User'] = inventory.USERS.get(name, '')
-        containers[name]['HostConfig'].update(GroupAdd=['2000'], IpcMode='private',
+        containers[name]['HostConfig'].update(GroupAdd=['2000'], IpcMode='private', RestartPolicy={'Name':'no','MaximumRetryCount':0},
                                               Memory=memory, NanoCpus=nano, PidsLimit=256)
     containers['grafana']['Mounts']=[{'Destination':'/run/secrets/grafana_admin_password','Source':str(root/'secrets/grafana_admin_password'),'RW':False}]
     for name, spec in inventory.static_mount_policy(root)['services'].items():

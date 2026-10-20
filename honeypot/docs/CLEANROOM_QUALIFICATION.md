@@ -4,7 +4,8 @@ Status: **BLOCKED until approved live evidence exists**. These tools qualify an
 identified deployment; they do not change any B01–B18 requirement. Ubuntu 24.04,
 Python 3.12 and Compose v2 remain the mandatory supported-installation target.
 Ubuntu 26.04/Python 3.14/Compose 5 desktop diagnostics are a separate result.
-Historical laptop integrity/closeout remains UNKNOWN without its original evidence.
+Historical laptop recovery/custody checks and unresolved global event-location
+ambiguity are recorded in [current status](../../docs/CURRENT_PHASE_STATUS.md).
 No Stage 8 or later-phase execution is authorized by this document.
 
 ## Source and target identity
@@ -15,6 +16,12 @@ commit's unit results may authorize live qualification. Do not push automaticall
 Keep runtime and new private evidence in distinct canonical directories outside the
 source tree. The evidence root must also be outside the runtime. Never create the
 original laptop path to impersonate its deployment.
+
+The runtime Compose file must exactly match the reviewed source file, and all
+seven actual container restart policies must be disabled (`no`, zero retries).
+Inventory rejects a mismatch or mid-observation file change; it forces enumeration
+of untracked source files even if Git's local status configuration hides them.
+These source checks do not change the deployed policies or qualify boot ordering.
 
 The explicit `--context PATH --context-sha256 SHA256` pair selects clean-room mode.
 Without it, the historical laptop path and reconciliation requirements remain strict.

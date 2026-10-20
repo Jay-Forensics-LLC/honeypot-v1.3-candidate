@@ -25,7 +25,7 @@ class StartupFixture(unittest.TestCase):
         (self.root/'secrets/grafana_admin_password').write_text('synthetic-only')
         self.rendered = {'name': 'honeypot', 'services': {
             name: {'image': 'local:'+name, 'build': {'context': '/synthetic'},
-                   'environment': {'LITERAL': 'keep-$$VALUE'}} for name in sorted(image_approval.SERVICES)}}
+                   'environment': {'LITERAL': 'keep-$$VALUE'}, 'restart': 'no'} for name in sorted(image_approval.SERVICES)}}
         self.document = {'version': 1, 'images': {name: {'reference': spec['image'],
             'id': 'sha256:'+f'{index:064x}'} for index, (name, spec) in enumerate(self.rendered['services'].items(), 1)}}
         self.path = self.root/image_approval.APPROVAL_PATH
@@ -34,7 +34,8 @@ class StartupFixture(unittest.TestCase):
         self.containers = {name: {'Id': f'{index+100:064x}', 'Image': expected['id'],
             'Config': {'Image': expected['id'], 'Labels': {'com.docker.compose.project': 'honeypot',
                 'com.docker.compose.service': name, 'com.docker.compose.project.working_dir': str(self.root)}},
-            'HostConfig': {'Dns': [DNS[name]] if name in DNS else [], 'PortBindings': {}},
+            'HostConfig': {'Dns': [DNS[name]] if name in DNS else [], 'PortBindings': {},
+                           'RestartPolicy': {'Name':'no','MaximumRetryCount':0}},
             'State': {'Running': True, 'Health': {'Status': 'healthy'}}}
             for index, (name, expected) in enumerate(self.document['images'].items())}
         self.events = []; self.snapshots = []

@@ -188,6 +188,8 @@ def exposure_gate(host_ip, approved=False):
 def rendered_start_gate(rendered, approved=False):
     services = rendered['services']
     for name, service in services.items():
+        if service.get('restart') != 'no':
+            raise SystemExit(name + ' automatic restart bypasses supervised image approval')
         if name in DNS and service.get('dns') != [DNS[name]]:
             raise SystemExit(name + ' must use only its expected DNS blackhole')
         for port in service.get('ports', []):
@@ -247,6 +249,11 @@ def approved_containers(approval, *, immutable=False):
             raise ValueError('Container ownership differs before startup')
         containers[name] = row
     image_approval.check_containers(approval, containers, immutable=immutable)
+    for name, row in containers.items():
+        policy = row.get('HostConfig', {}).get('RestartPolicy') or {}
+        if (policy.get('Name') != 'no' or type(policy.get('MaximumRetryCount')) is not int or
+                policy['MaximumRetryCount'] != 0):
+            raise ValueError(name + ': automatic restart policy bypasses supervised startup')
     return containers
 
 

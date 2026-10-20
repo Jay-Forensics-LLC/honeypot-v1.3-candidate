@@ -21,7 +21,9 @@ from urllib.parse import urlsplit
 from hp_common import ROOT, atomic_json, append_json, runtime_path, sha256, utc, redact
 
 from evidence_store import records as evidence_records, append as evidence_append, commit as evidence_commit, EvidenceIntegrityError, sync_directory, MAX_INCIDENT_BYTES
-from evidence_store import EventLocations, ReplayIndexPending, zero_tail_ids
+from evidence_store import EventLocations, ReplayIndexPending, zero_tail_ids, scan_directory
+
+STARTUP_INVENTORY_LIMIT = 100000
 
 LEVEL={'LOW':0,'MEDIUM':1,'HIGH':2,'CRITICAL':3}
 FIELDS={'source_ports':'source_port','destination_ports':'destination_port','services':'service','session_ids':'session_id','usernames':'username','password_attempts':'password','commands':'command','urls':'url','domains':'domain','user_agents':'user_agent','hashes':'sha256','suricata_signatures':'signature','fingerprints':'fingerprint'}
@@ -135,18 +137,21 @@ class Engine:
         if not stat.S_ISDIR(info.st_mode) or self.incidents.resolve() != self.incidents.absolute():
             raise EvidenceIntegrityError('Unsafe startup incident root')
         count = 0
-        for day in self.incidents.iterdir():
-            count += 1
-            if count > 100000: raise EvidenceIntegrityError('Startup inventory exceeds bound')
-            mode = day.lstat().st_mode
-            if stat.S_ISLNK(mode): raise EvidenceIntegrityError('Symlink startup day')
-            if not stat.S_ISDIR(mode): continue
-            for directory in day.iterdir():
+        with scan_directory(self.incidents) as days:
+            for day_entry in days:
                 count += 1
-                if count > 100000: raise EvidenceIntegrityError('Startup inventory exceeds bound')
-                mode = directory.lstat().st_mode
-                if stat.S_ISLNK(mode): raise EvidenceIntegrityError('Symlink startup incident')
-                if stat.S_ISDIR(mode): yield directory
+                if count > STARTUP_INVENTORY_LIMIT: raise EvidenceIntegrityError('Startup inventory exceeds bound')
+                mode = day_entry.stat(follow_symlinks=False).st_mode
+                if stat.S_ISLNK(mode): raise EvidenceIntegrityError('Symlink startup day')
+                if not stat.S_ISDIR(mode): continue
+                day = self.incidents/day_entry.name
+                with scan_directory(day) as directories:
+                    for entry in directories:
+                        count += 1
+                        if count > STARTUP_INVENTORY_LIMIT: raise EvidenceIntegrityError('Startup inventory exceeds bound')
+                        mode = entry.stat(follow_symlinks=False).st_mode
+                        if stat.S_ISLNK(mode): raise EvidenceIntegrityError('Symlink startup incident')
+                        if stat.S_ISDIR(mode): yield day/entry.name
 
     def startup_complete(self):
         """Producer observation only; qualification independently scans the store."""
