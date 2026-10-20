@@ -236,11 +236,11 @@ class MetadataAndRotation(preservation_tests.Preservation):
 
     def test_new_events_allow_monotonic_metadata_growth(self):
         metadata=self.incident/'incident.json';doc=json.loads(metadata.read_text())
-        doc.update(severity='LOW',source_ip='192.0.2.1',timestamp_start='a',timestamp_end='a',
+        doc.update(severity='LOW',source_ip='192.0.2.1',timestamp_start='2026-10-10T00:00:00Z',timestamp_end='2026-10-10T00:00:00Z',
                    confidence=0.6,auth_attempt_count=1,evidence_paths=['events.jsonl'])
         metadata.write_text(json.dumps(doc));before=custody.snapshot(self.root)
         with (self.incident/'events.jsonl').open('a') as stream:stream.write('{"event_id":"two"}\n')
-        doc.update(related_events=['one','two'],severity='MEDIUM',timestamp_end='b',auth_attempt_count=2)
+        doc.update(related_events=['one','two'],severity='MEDIUM',timestamp_end='2026-10-10T00:01:00Z',auth_attempt_count=2)
         metadata.write_text(json.dumps(doc));after=custody.snapshot(self.root)
         self.assertEqual(custody.compare(self.root,before,after)['status'],'PASS')
         after['incidents'][str(self.incident)]['metadata_at_acquisition']['source_ip']='changed'

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import re
 from hp_common import ROOT, runtime_path, require_root, run, audit
+from evidence_group import evidence_group_name, render_unit_template
 
 
 def render_units(root=ROOT, pcap=None, evidence_group='honeypot-evidence', preview_units=False):
@@ -14,8 +15,7 @@ def render_units(root=ROOT, pcap=None, evidence_group='honeypot-evidence', previ
     result = {}
     for src in sources:
         if not src.is_file() or not src.name.endswith(('.in', '.timer')): continue
-        text = src.read_text().replace('@ROOT@', str(root)).replace('@PCAP@', str(pcap)).replace('@EVIDENCE_GROUP@', evidence_group)
-        if re.search(r'@[A-Z_]+@', text): raise ValueError('Unresolved unit token')
+        text = render_unit_template(src.read_text(), root, pcap, evidence_group)
         result[src.name.removesuffix('.in')] = text
     return result
 
@@ -27,11 +27,8 @@ def main():
     ap.add_argument('--install-preview', action='store_true')
     ap.add_argument('--approved', action='store_true')
     a = ap.parse_args()
-    group = 'honeypot-evidence'
-    try:
-        import grp
-        group = grp.getgrgid(2000).gr_name
-    except (ImportError, KeyError): pass
+    import grp
+    group = evidence_group_name()
     units = render_units(evidence_group=group, preview_units=a.preview or a.install_preview)
     if a.preview:
         for name, content in units.items(): print('# ' + name + '\n' + content)

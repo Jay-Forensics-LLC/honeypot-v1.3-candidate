@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import sys
 from hp_common import ROOT, config, run, require_root, audit, utc
+from daemon_check import require_local_daemon
 
 def addresses(value, version=4):
     result=[]
@@ -50,6 +51,7 @@ def existing():
     return run(['nft','list','table','inet','hp_guard'],check=False)
 
 def stop_gate():
+    require_local_daemon(ROOT)
     p=run(['docker','ps','--format','{{.Names}}'],check=False)
     if p.returncode: raise SystemExit('Cannot verify decoys stopped; refuse containment removal')
     if any(n in p.stdout.splitlines() for n in ('honeypot-cowrie','honeypot-opencanary')):

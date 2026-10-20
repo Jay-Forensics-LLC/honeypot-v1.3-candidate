@@ -180,11 +180,15 @@ class DockerOwnership(unittest.TestCase):
             self.assertFalse(row['ok'])
 
     def test_start_and_boot_start_fail_before_compose(self):
-        for method in (ops.start, ops.boot_start):
-            with patch.object(ops, 'require_root'), patch.object(ops, 'require_local_daemon', side_effect=SystemExit('unverified ownership')), \
-                 patch.object(ops, 'compose') as compose, patch('hp_common.audit'):
-                with self.assertRaises(SystemExit): method()
-                compose.assert_not_called()
+        with tempfile.TemporaryDirectory() as directory, patch('hp_common.ROOT', Path(directory)):
+            for method in (ops.start, ops.boot_start):
+                with patch.object(ops, 'require_root'), patch.object(ops, 'require_local_daemon', side_effect=SystemExit('unverified ownership')), \
+                     patch.object(ops, 'compose') as compose:
+                    with self.assertRaises(SystemExit): method()
+                    compose.assert_not_called()
+            rows = [json.loads(line) for line in (Path(directory)/'logs/system/audit.jsonl').read_text().splitlines()]
+            self.assertEqual([row['action'] for row in rows], ['start.attempt','start','boot-start.attempt','boot-start'])
+            self.assertFalse(any(row['success'] for row in rows))
 
     def test_runtime_gate_refuses_downstream_operations(self):
         cfg = {'DECOY_BIND':'127.0.0.1', 'MANAGEMENT_BIND':'127.0.0.1'}

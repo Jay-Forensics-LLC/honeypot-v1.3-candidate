@@ -21,7 +21,9 @@ from urllib.parse import urlsplit
 from hp_common import ROOT, atomic_json, append_json, runtime_path, sha256, utc, redact
 
 from evidence_store import records as evidence_records, append as evidence_append, commit as evidence_commit, EvidenceIntegrityError, sync_directory, MAX_INCIDENT_BYTES
-from evidence_store import EventLocations, ReplayIndexPending, zero_tail_ids
+from evidence_store import EventLocations, ReplayIndexPending, zero_tail_ids, scan_directory
+
+STARTUP_INVENTORY_LIMIT = 100000
 
 LEVEL={'LOW':0,'MEDIUM':1,'HIGH':2,'CRITICAL':3}
 FIELDS={'source_ports':'source_port','destination_ports':'destination_port','services':'service','session_ids':'session_id','usernames':'username','password_attempts':'password','commands':'command','urls':'url','domains':'domain','user_agents':'user_agent','hashes':'sha256','suricata_signatures':'signature','fingerprints':'fingerprint'}
@@ -112,14 +114,69 @@ class Engine:
         self.captures=runtime_path('PCAP_PATH','captures',self.root)
         self.fast_poll_until=0
         self.blocked_incidents={}
+        self.startup_started_utc = utc()
+        self.startup_scanned = set()
+        self.startup_scan_reported = False
+        self.startup_inventory_failed = False
         try: self.locations = EventLocations(self.statepath.with_name('event-locations.sqlite3'), self.incidents)
         except EvidenceIntegrityError as exc:
             self.locator_failure(exc)
             raise
         self.locations_ready = self.locations.ready()
         self.location_backfill_failed = False
-        self.evidence_inventory = iter(self.incidents.glob('*/*'))
+        self.evidence_inventory = self.startup_inventory()
         self.inspect_existing_evidence()
+
+    def startup_inventory(self):
+        """Bounded explicit enumeration; unreadable branches must not become idle."""
+        import stat
+        try:
+            info = self.incidents.lstat()
+        except FileNotFoundError:
+            return
+        if not stat.S_ISDIR(info.st_mode) or self.incidents.resolve() != self.incidents.absolute():
+            raise EvidenceIntegrityError('Unsafe startup incident root')
+        count = 0
+        with scan_directory(self.incidents) as days:
+            for day_entry in days:
+                count += 1
+                if count > STARTUP_INVENTORY_LIMIT: raise EvidenceIntegrityError('Startup inventory exceeds bound')
+                mode = day_entry.stat(follow_symlinks=False).st_mode
+                if stat.S_ISLNK(mode): raise EvidenceIntegrityError('Symlink startup day')
+                if not stat.S_ISDIR(mode): continue
+                day = self.incidents/day_entry.name
+                with scan_directory(day) as directories:
+                    for entry in directories:
+                        count += 1
+                        if count > STARTUP_INVENTORY_LIMIT: raise EvidenceIntegrityError('Startup inventory exceeds bound')
+                        mode = entry.stat(follow_symlinks=False).st_mode
+                        if stat.S_ISLNK(mode): raise EvidenceIntegrityError('Symlink startup incident')
+                        if stat.S_ISDIR(mode): yield day/entry.name
+
+    def startup_complete(self):
+        """Producer observation only; qualification independently scans the store."""
+        if self.startup_inventory_failed:
+            raise EvidenceIntegrityError('Startup inventory previously failed; no completion claim')
+        if self.startup_scan_reported:
+            return
+        try:
+            boot_id = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+            # comm can contain spaces/parentheses; field 22 follows its final ')'.
+            start_ticks = int(Path('/proc/self/stat').read_text().rsplit(')', 1)[1].split()[19])
+        except (OSError, ValueError, IndexError):
+            boot_id, start_ticks = None, None
+        clean = self.locations_ready and not self.location_backfill_failed and not self.blocked_incidents
+        append_json(self.root/'logs/system/evidence-startup.jsonl', {
+            'action': 'EVIDENCE_STARTUP_SCAN_COMPLETE', 'status': 'CLEAN' if clean else 'BLOCKED',
+            'scan_complete': True, 'locator_ready': self.locations_ready,
+            'migration_failed': self.location_backfill_failed,
+            'scanned_incidents': len(self.startup_scanned),
+            'blocked_incidents': len(self.blocked_incidents),
+            'started_utc': self.startup_started_utc, 'timestamp': utc(),
+            'boot_id': boot_id, 'producer_pid': os.getpid(),
+            'producer_started_ticks': start_ticks,
+            'scope': 'Completed startup enumeration; not a global integrity or durability verdict'}, rotate=True)
+        self.startup_scan_reported = True
 
     def block_incident(self, path, exc):
         self.blocked_incidents[str(path)] = str(exc)
@@ -152,9 +209,12 @@ class Engine:
 
     def inspect_existing_evidence(self, budget=32):
         """Incremental historical inspection; active segments are also checked before use."""
+        if self.startup_inventory_failed:
+            raise EvidenceIntegrityError('Startup inventory previously failed; operator review required')
         if not self.locations_ready:
             self.locations.prepare_backfill()
             for directory in self.locations.pending(budget):
+                self.startup_scanned.add(str(directory))
                 if not self.locations.unchanged_pending(directory):
                     self.block_incident(directory, 'Historical files changed since inventory; operator review required')
                     continue
@@ -188,8 +248,17 @@ class Engine:
             sync_directory(self.statepath.parent)
             return
         for _ in range(budget):
-            directory = next(self.evidence_inventory, None)
-            if directory is None: break
+            try:
+                directory = next(self.evidence_inventory, None)
+            except (OSError, EvidenceIntegrityError):
+                # A generator closes after raising; a later poll must not
+                # reinterpret that closed iterator as successful exhaustion.
+                self.startup_inventory_failed = True
+                raise
+            if directory is None:
+                self.startup_complete()
+                break
+            self.startup_scanned.add(str(directory))
             try:
                 if directory.is_symlink(): raise EvidenceIntegrityError('Symlink incident directory')
                 # Index evidence even if its metadata is blocked. Replay must not
@@ -392,24 +461,62 @@ class Engine:
         incident['evidence_paths'] += ['pcap/','artifacts/']
 
     def copy_evidence(self,p,dest,meta,budget):
+        import stat
+        signature=lambda value:(value.st_dev,value.st_ino,value.st_size,value.st_mtime_ns,value.st_ctime_ns)
+        created=False;target=None;failure=None;digest=None;observed=None
         try:
-            if p.is_symlink() or not p.is_file(): return
-            if sum(x.stat().st_size for x in dest.iterdir())+p.stat().st_size>budget:
+            observed=p.lstat()
+            if not stat.S_ISREG(observed.st_mode):return
+            size=observed.st_size
+            if sum(x.stat().st_size for x in dest.iterdir())+size>budget:
                 meta['limitations'].append('Copy budget exceeded: '+p.name); return
-            digest,size=sha256(p)
-            target=dest/(digest+'.'+('pcapng' if dest.name=='pcap' else 'bin'))
-            if target.exists(): return
-            # Exclusive create and source O_NOFOLLOW through hash verification; race fails verification.
             fd=os.open(p,os.O_RDONLY|getattr(os,'O_NOFOLLOW',0)|getattr(os,'O_NONBLOCK',0))
-            import stat
-            with os.fdopen(fd,'rb') as src, target.open('xb') as out:
-                if not stat.S_ISREG(os.fstat(src.fileno()).st_mode): raise ValueError('Non-regular source')
-                shutil.copyfileobj(src,out,1024*1024)
-            os.chmod(target,0o640)
-            actual,_=sha256(target)
-            meta['copies'].append({'source':str(p),'destination':str(target.name),'sha256':actual,'size':size,'timestamp':utc(),'verified_stable':actual==digest})
-            if actual!=digest: meta['limitations'].append('Copy changed during acquisition: '+p.name)
-        except (OSError,ValueError) as exc: meta['limitations'].append(type(exc).__name__+': '+str(p))
+            with os.fdopen(fd,'rb') as src:
+                if (not stat.S_ISREG(os.fstat(src.fileno()).st_mode) or
+                        signature(os.fstat(src.fileno()))!=signature(observed)):
+                    raise ValueError('Source changed before finite acquisition')
+                # Hash only the inspected finite length on this pinned inode.
+                h=hashlib.sha256();remaining=size
+                while remaining:
+                    chunk=src.read(min(1024*1024,remaining))
+                    if not chunk:raise ValueError('Source truncated before finite acquisition')
+                    h.update(chunk);remaining-=len(chunk)
+                digest=h.hexdigest()
+                if (signature(os.fstat(src.fileno()))!=signature(observed) or
+                        signature(p.lstat())!=signature(observed)):
+                    raise ValueError('Source changed before finite acquisition')
+                target=dest/(digest+'.'+('pcapng' if dest.name=='pcap' else 'bin'))
+                if target.exists():return
+                src.seek(0)
+                with target.open('xb') as out:
+                    created=True;os.fchmod(out.fileno(),0o640)
+                    remaining=size
+                    while remaining:
+                        chunk=src.read(min(1024*1024,remaining))
+                        if not chunk:raise ValueError('Source truncated during finite acquisition')
+                        out.write(chunk);remaining-=len(chunk)
+                if (signature(os.fstat(src.fileno()))!=signature(observed) or
+                        signature(p.lstat())!=signature(observed)):
+                    raise ValueError('Source changed during finite acquisition')
+        except (OSError,ValueError) as exc:
+            failure=type(exc).__name__+': '+str(exc)
+        finally:
+            if created:
+                # Preserve bounded failed acquisitions as evidence, clearly
+                # separate from a stable copy. Never delete either original.
+                try:
+                    actual,acquired=sha256(target)
+                    stable=failure is None and actual==digest and acquired==observed.st_size
+                    meta['copies'].append({'source':str(p),'destination':str(target.name),
+                        'sha256':actual,'size':acquired,'timestamp':utc(),'verified_stable':stable,
+                        'source_size_at_start':observed.st_size,
+                        'source_identity':{'device':observed.st_dev,'inode':observed.st_ino,
+                                           'mtime_ns':observed.st_mtime_ns,'ctime_ns':observed.st_ctime_ns},
+                        'source_sha256_at_start':digest,'acquisition_limit_bytes':observed.st_size})
+                    if not stable:meta['limitations'].append('Copy changed during acquisition: '+p.name)
+                except (OSError,ValueError) as exc:
+                    meta['limitations'].append('Retained copy could not be verified: '+target.name+' ('+type(exc).__name__+')')
+            if failure:meta['limitations'].append(failure+': '+str(p))
 
     def report(self,path,incident):
         if not (path/'metadata.json').exists(): atomic_json(path/'metadata.json',{'created_at':utc(),'copies':[],'limitations':['PCAP preservation begins at HIGH severity.']})

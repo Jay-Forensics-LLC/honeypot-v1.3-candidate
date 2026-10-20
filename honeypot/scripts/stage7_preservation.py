@@ -1,7 +1,9 @@
 """Bounded read-only restart custody. Historical recovery never replaces original bytes."""
 from collections import Counter
+import datetime as dt
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import stat
@@ -119,6 +121,7 @@ def snapshot(root, progress=None):
         nonlocal custody_remaining
         directory = path.parent
         doc = json.loads(metadata)
+        metadata_values(doc)
         custody_data = stable_bytes(directory / 'metadata.json', review.EVIDENCE_METADATA_LIMIT)
         custody_remaining -= len(custody_data)
         if custody_remaining < 0:
@@ -183,6 +186,35 @@ def snapshot(root, progress=None):
             'bounds': {'logs': LOG_BUDGET, 'custody': CUSTODY_BUDGET, 'state': STATE_LIMIT}}
 
 
+def metadata_values(metadata):
+    """Validate mutable qualification fields before comparing their growth."""
+    if type(metadata) is not dict:
+        raise ValueError('Complete incident metadata object required')
+    levels = {'LOW': 0, 'MEDIUM': 1, 'HIGH': 2, 'CRITICAL': 3}
+    severity = metadata.get('severity')
+    count, confidence = metadata.get('auth_attempt_count'), metadata.get('confidence')
+    if (type(severity) is not str or severity not in levels or
+            type(count) is not int or count < 0 or
+            type(confidence) not in (int, float) or not 0 <= confidence <= 1 or
+            not math.isfinite(confidence)):
+        raise ValueError('Invalid incident metadata types or numeric values')
+    stamps = []
+    for name in ('timestamp_start', 'timestamp_end'):
+        value = metadata.get(name)
+        if type(value) is not str or len(value) > 128:
+            raise ValueError('Invalid incident metadata timestamp')
+        try:
+            stamp = dt.datetime.fromisoformat(value.replace('Z', '+00:00'))
+            if stamp.utcoffset() is None:
+                raise ValueError('Timezone required')
+            stamps.append(stamp.astimezone(dt.timezone.utc))
+        except (ValueError, OverflowError) as exc:
+            raise ValueError('Invalid incident metadata timestamp') from exc
+    if stamps[1] < stamps[0]:
+        raise ValueError('Incident metadata ends before it starts')
+    return levels[severity], stamps[1], count, confidence
+
+
 def compare(root, old, new):
     """Verify every retained prefix and ID; no sampling or historical-original replacement."""
     if old.get('status') != 'PASS' or new.get('status') != 'PASS':
@@ -198,6 +230,8 @@ def compare(root, old, new):
         after = new['incidents'].get(path)
         if after is None or after['incident_id'] != before['incident_id']:
             raise ValueError('Incident history lost')
+        old_values = metadata_values(before.get('metadata_at_acquisition'))
+        new_values = metadata_values(after.get('metadata_at_acquisition'))
         if before['metadata_event_ids'] == after['metadata_event_ids']:
             if before['metadata_sha256_at_acquisition'] != after['metadata_sha256_at_acquisition']:
                 raise ValueError('Incident metadata changed without new events')
@@ -208,14 +242,12 @@ def compare(root, old, new):
                 raise ValueError('Metadata growth requires complete acquired metadata')
             for field in ('incident_id','source_ip','timestamp_start'):
                 if old_meta.get(field) != new_meta.get(field): raise ValueError('Incident metadata identity changed')
-            levels={'LOW':0,'MEDIUM':1,'HIGH':2,'CRITICAL':3}
-            if (levels.get(new_meta.get('severity'),-1)<levels.get(old_meta.get('severity'),-1) or
-                    new_meta.get('timestamp_end','')<old_meta.get('timestamp_end','') or
-                    new_meta.get('auth_attempt_count',0)<old_meta.get('auth_attempt_count',0) or
-                    new_meta.get('confidence',0)<old_meta.get('confidence',0)):
+            if any(after < before for before, after in zip(old_values, new_values)):
                 raise ValueError('Incident metadata regressed during growth')
             for field,value in old_meta.items():
                 if isinstance(value,list):
+                    if not isinstance(new_meta.get(field), list):
+                        raise ValueError('Invalid incident metadata list: '+field)
                     # Existing metadata values and evidence paths must remain in order.
                     remaining=iter(new_meta.get(field,[]))
                     if not all(any(candidate==entry for candidate in remaining) for entry in value):

@@ -48,9 +48,9 @@ def validate(runtime=False):
             for name,s in c['services'].items():
                 if s.get('privileged'):raise ValueError(name+' privileged')
                 if any('docker.sock' in str(v) for v in s.get('volumes',[])):raise ValueError('Docker socket mounted')
+                require(s.get('restart')=='no',name+' requires supervised startup without automatic restart')
             require(not c['services']['loki'].get('ports'),'Loki internal')
             for name in ('cowrie','opencanary'):
-                require(c['services'][name]['restart']=='on-failure:5','Decoys have reboot-safe restart policy')
                 require(all(c['networks'][n]['internal'] is False for n in c['services'][name]['networks']),'Non-internal decoy bridge; hp_guard required')
                 from guard_policy import DNS
                 require(c['services'][name]['dns']==[DNS[name]],'Expected DNS blackhole only')

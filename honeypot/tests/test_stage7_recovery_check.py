@@ -7,7 +7,7 @@ import shutil
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import stage7_recovery_check as review
@@ -93,6 +93,21 @@ class ActiveReview(unittest.TestCase):
         self.assertEqual(row['STAGE7_GATE'], 'BLOCKED'); self.assertEqual(row['STAGE8_GATE'], 'BLOCKED')
         self.assertFalse(row['NEW_STAGE7_BASELINE_READY'])
         self.assertFalse(row['runtime_mutated']); self.assertFalse(row['traffic_generated'])
+
+    def test_explicit_cleanroom_identity_stays_blocked_on_boot_or_source_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            context = Mock(runtime=root)
+            context.check_runtime.side_effect = ValueError('Observed runtime source/boot/root differs from context')
+            with patch.object(review, 'CONTEXT', context), patch.object(review.os, 'geteuid', return_value=0), \
+                 patch.object(review, 'collect', return_value=self.fixture()), \
+                 patch.object(review, 'capture_setup') as capture:
+                row = review.inspect(root, active=True)
+            self.assertEqual(row['STATUS'], 'BLOCKED')
+            self.assertIn('source/boot/root differs', row['error'])
+            self.assertTrue(row['historical_closeout'].startswith('UNKNOWN'))
+            self.assertFalse(row['NEW_STAGE7_BASELINE_READY'])
+            capture.assert_not_called()
 
     def test_readiness_pid_and_evidence_errors_never_pass(self):
         for args in ({'resources': {'ok': False, 'problems': ['stale capture']}},
@@ -268,11 +283,11 @@ class EvidenceReview(unittest.TestCase):
             root = Path(tmp)
             self.run_review(root, b'{"event_id":"one"}\n', ['one'])
             day = root/'incidents/2026-10-09'
-            real_iterdir = Path.iterdir
+            real_iterdir = review.scan_directory
             def unreadable(path):
                 if path == day: raise PermissionError('unreadable day')
                 return real_iterdir(path)
-            with patch.object(Path, 'iterdir', unreadable):
+            with patch.object(review, 'scan_directory', unreadable):
                 with self.assertRaises(PermissionError): self.inspect_existing(root)
             with patch.object(review.os, 'open', side_effect=PermissionError('unreadable evidence')):
                 with self.assertRaises(PermissionError): self.inspect_existing(root)
@@ -285,9 +300,13 @@ class EvidenceReview(unittest.TestCase):
             with patch.object(review, 'incident_inventory', side_effect=[original, original | {root/'new.jsonl'}]):
                 with self.assertRaisesRegex(ValueError, 'inventory changed'): self.inspect_existing(root)
             path = next(iter(original)); path.unlink(); os.mkfifo(path)
-            with patch.object(review.os, 'open') as opened:
+            real_open = os.open
+            def directories_only(source, flags, *args, **kwargs):
+                self.assertTrue(flags & os.O_DIRECTORY, 'Nonregular evidence must never be opened')
+                return real_open(source, flags, *args, **kwargs)
+            with patch.object(review.os, 'open', side_effect=directories_only) as opened:
                 with self.assertRaisesRegex(ValueError, 'regular and non-symlink'): self.inspect_existing(root)
-            opened.assert_not_called()
+            self.assertNotIn(path, [Path(call.args[0]) for call in opened.call_args_list])
 
     def test_changed_read_and_timeout_never_claim_integrity(self):
         with tempfile.TemporaryDirectory() as tmp:
