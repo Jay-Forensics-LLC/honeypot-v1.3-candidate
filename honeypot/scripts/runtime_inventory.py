@@ -4,12 +4,15 @@ from decimal import Decimal, InvalidOperation
 import ipaddress
 import json
 import re
+import os
+import stat
 from pathlib import Path
 import subprocess
 from hp_common import config, utc
 from guard_policy import evaluate, canonical, DNS
 from capture_status import inspect_capture
 from daemon_check import inspect as inspect_daemon
+import image_approval
 
 SERVICES = {'cowrie', 'opencanary', 'suricata', 'loki', 'alloy', 'grafana', 'incidentd'}
 USERS = {'cowrie': '999:2000', 'opencanary': '10002:2000', 'loki': '10001:2000',
@@ -272,20 +275,39 @@ def validate_image_ids(containers, locked):
 
 
 def static_configuration_hashes(rendered, root):
-    from hp_common import sha256
     root = Path(root)
     mounted = {}
+    entries = 0
     for service in rendered['services'].values():
         for volume in service.get('volumes', []):
             path = Path(volume['source'])
             if not any(path.is_relative_to(root/name) for name in ('configs','detections','dashboards')): continue
             if path.resolve() != path.absolute(): raise ValueError('Static config symlink requires review')
             if not path.exists(): raise ValueError('Static configuration missing: ' + str(path))
-            files = sorted(path.rglob('*')) if path.is_dir() else [path]
-            if len(files)>500: raise ValueError('Static config inventory budget exceeded')
-            for file in files:
+            pending = [path]
+            while pending:
+                file = pending.pop()
+                entries += 1
+                if entries > 500: raise ValueError('Static config inventory budget exceeded')
+                mode = file.lstat().st_mode
                 if file.is_symlink(): raise ValueError('Static config symlink requires review')
-                if file.is_file(): mounted[str(file.relative_to(root))] = sha256(file)[0]
+                if stat.S_ISDIR(mode):
+                    # Stream directory entries: Path.iterdir/rglob may materialize
+                    # an entire hostile directory before yielding the first item.
+                    fd = os.open(file, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                    try:
+                        with os.scandir(fd) as children:
+                            for child in children:
+                                if entries + len(pending) >= 500:
+                                    raise ValueError('Static config inventory budget exceeded')
+                                pending.append(file/child.name)
+                    finally:
+                        os.close(fd)
+                elif stat.S_ISREG(mode):
+                    data = image_approval.read_regular(file, 8*1024**2)
+                    mounted[str(file.relative_to(root))] = hashlib.sha256(data).hexdigest()
+                else:
+                    raise ValueError('Special/nonregular static configuration entry: '+str(file))
     return mounted
 
 
@@ -341,7 +363,7 @@ def verify_static_configuration(rendered, root, source_root):
     return deployed
 
 
-def collect(root, source_root, probe_readiness=True):
+def collect(root, source_root, probe_readiness=True, *, approval_sha256=None):
     root = Path(root).resolve()
     run = lambda argv, **kw: command(root, argv, **kw)
     row = {'timestamp': utc(), 'runtime_root': str(root), 'ok': False, 'problems': [],
@@ -355,19 +377,29 @@ def collect(root, source_root, probe_readiness=True):
         row['daemon'] = inspect_daemon(root, require_existing=True)
         if not row['daemon']['ok']:
             raise ValueError('Docker ownership gate failed: '+'; '.join(row['daemon']['problems']))
+        row['candidate_source_commit'] = command(source_root, ['git', 'rev-parse', 'HEAD']).stdout.strip()
+        row['candidate_source_dirty'] = bool(command(source_root, ['git', 'status', '--porcelain']).stdout)
+        if row['candidate_source_dirty']:
+            raise ValueError('Dirty candidate source cannot qualify a deployment')
         rendered = json.loads(run(['docker', 'compose', '-f', str(root / 'docker-compose.yml'), 'config', '--format', 'json']).stdout)
         ids = run(['docker', 'ps', '-aq', '--filter', 'label=com.docker.compose.project=honeypot']).stdout.split()
         if len(ids) != 7: raise ValueError('Expected exactly seven project containers')
         inspected = json.loads(run(['docker', 'inspect', *ids]).stdout)
         containers = {c['Config']['Labels']['com.docker.compose.service']: c for c in inspected}
         nets = json.loads(run(['docker', 'network', 'inspect', 'honeypot-cowrie-net', 'honeypot-canary-net', 'honeypot-observability', 'honeypot-management']).stdout)
-        row['problems'] += validate_runtime(rendered, containers, nets, root)
-        lock = root/'state/images.lock.json'
-        if lock.is_symlink() or lock.stat().st_size > 1024**2:
-            raise ValueError('Reviewed image lock is symlinked or oversized')
-        row['problems'] += validate_image_ids(containers, json.loads(lock.read_text()))
-        row['image_lock_sha256'] = hashlib.sha256(lock.read_bytes()).hexdigest()
-        row['stopped_decoy_configuration'] = stopped_decoy_configuration(rendered, containers, nets, root)
+        # The separately reviewed candidate tree is the trust anchor. Mutable
+        # post-start state/images.lock.json is only a historical observation.
+        approval = image_approval.load(source_root, {name: spec['image'] for name, spec in rendered['services'].items()}, approval_sha256)
+        image_approval.check_containers(approval, containers)
+        row['image_approval_sha256'] = approval['sha256']
+        # Both retained tag-named containers and new ID-named containers must
+        # match the external approval. Normalize only after that exact check.
+        import copy
+        actual_rendered = copy.deepcopy(rendered)
+        for name, container in containers.items():
+            actual_rendered['services'][name]['image'] = container['Config']['Image']
+        row['problems'] += validate_runtime(actual_rendered, containers, nets, root)
+        row['stopped_decoy_configuration'] = stopped_decoy_configuration(actual_rendered, containers, nets, root)
         nft = json.loads(run(['nft', '-j', 'list', 'table', 'inet', 'hp_guard']).stdout)
         row['guard'] = evaluate(nft, cfg)
         if not row['guard']['ok']: row['problems'].append('hp_guard policy failed validation')
@@ -409,14 +441,16 @@ print(json.dumps(result))
         row['rendered_config_hash'] = fingerprint(rendered)
         row['config_hash'] = fingerprint(cfg)
         row['boot_id'] = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
-        row['candidate_source_commit'] = command(source_root, ['git', 'rev-parse', 'HEAD']).stdout.strip()
-        row['candidate_source_dirty'] = bool(command(source_root, ['git', 'status', '--porcelain']).stdout)
+        if (command(source_root, ['git', 'rev-parse', 'HEAD']).stdout.strip() != row['candidate_source_commit'] or
+                command(source_root, ['git', 'status', '--porcelain']).stdout):
+            raise ValueError('Candidate source changed during qualification')
+        image_approval.load(source_root, {name: spec['image'] for name, spec in rendered['services'].items()}, approval['sha256'])
         row['deployed_source_commit']='UNKNOWN: selected deployed module hashes verified; image revision label not established'
         row['network_fingerprint']=fingerprint({n['Name']:{'driver':n['Driver'],'internal':n['Internal'],'ipam':n['IPAM'],'options':n.get('Options'),
                  'members':sorted(service for service in containers if n['Name'] in PLACEMENT[service])} for n in nets})
         mounted = verify_static_configuration(rendered, root, Path(source_root))
         row['mounted_config_hashes']=mounted
-        row['observation_fingerprint']=fingerprint({k:row[k] for k in ('config_hash','rendered_config_hash','deployed_source_hashes','guard_fingerprint','network_fingerprint','mounted_config_hashes')})
+        row['observation_fingerprint']=fingerprint({k:row[k] for k in ('config_hash','rendered_config_hash','deployed_source_hashes','guard_fingerprint','network_fingerprint','mounted_config_hashes','image_approval_sha256')})
         row['wan_enabled'] = False
         row['ok'] = not row['problems']
     except (OSError, ValueError, KeyError, IndexError, TypeError, subprocess.SubprocessError) as exc:

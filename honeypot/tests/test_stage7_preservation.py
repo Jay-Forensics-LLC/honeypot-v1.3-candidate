@@ -21,7 +21,10 @@ class Preservation(unittest.TestCase):
         folder = self.root / 'incidents/2026-10-10/example'; folder.mkdir(parents=True)
         self.incident = folder
         (folder / 'events.jsonl').write_text('{"event_id":"one"}\n')
-        (folder / 'incident.json').write_text(json.dumps({'incident_id': 'example', 'related_events': ['one']}))
+        (folder / 'incident.json').write_text(json.dumps({
+            'incident_id': 'example', 'related_events': ['one'], 'severity': 'LOW',
+            'source_ip': '192.0.2.1', 'timestamp_start': '2026-10-10T00:00:00Z',
+            'timestamp_end': '2026-10-10T00:00:00Z', 'confidence': 0.6, 'auth_attempt_count': 1}))
         (folder / 'metadata.json').write_text('{"copies":[]}')
         source = self.root / 'logs/normalized/events.jsonl'; source.parent.mkdir(parents=True)
         source.write_text('{"event_id":"one"}\n'); self.log = source

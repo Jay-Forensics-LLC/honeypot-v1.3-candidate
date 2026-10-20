@@ -22,7 +22,7 @@ A context is a bounded JSON object with exactly these fields:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "mode": "cleanroom",
   "phase": "acquisition",
   "issued_utc": "<CURRENT_UTC>",
@@ -30,6 +30,7 @@ A context is a bounded JSON object with exactly these fields:
   "runtime_root": "/ABS/WORKSPACE/runtime/honeytrace",
   "evidence_root": "/ABS/WORKSPACE/work/private-qualification-UNIQUE",
   "source_commit": "<REVIEWED_CLEAN_COMMIT>",
+  "image_approval_sha256": "<SEPARATELY_REVIEWED_APPROVAL_SHA256>",
   "boot_id": "<CURRENT_BOOT_ID>",
   "deployment_id": "independent-desktop-01",
   "receipts": {}
@@ -58,7 +59,7 @@ Contexts expire after one hour; prerequisite qualification still has the unchang
    source/deployment/boot relationships. Retain a confirmation with `status: PASS`,
    actual UTC `timestamp`, exact `qualification_identity`, `demo_sha256` and
    `capture_sha256` only after those checks pass. The identity contains mode,
-   source_root, runtime_root, evidence_root, source_commit, boot_id and deployment_id.
+   source_root, runtime_root, evidence_root, source_commit, image_approval_sha256, boot_id and deployment_id.
    A human assertion or a JSON field alone does not establish acceptance; the runner
    rechecks the referenced artifacts. Retain the original confirmation bytes.
 4. Acquire a fresh complete prerequisite report within the existing deadline:
@@ -103,11 +104,18 @@ Unavailable or failed enumeration cannot be relabeled CLEAN on a subsequent poll
 - A rendered Compose configuration is not proof that secrets, mounts, images,
   health, containment or capture are ready. Do not run the legacy distro installer
   over an existing official Docker CE installation.
-- Before runtime qualification, review the seven actual image references/IDs and
-  create an exclusive `state/images.lock.json` with `scripts/image_lock.py` and its
-  SHA-pinned review input. It inspects existing local images; it never acquires them,
-  builds, starts workloads or proves source-to-image attestation. Never use update
-  merely to create this lock. Preserve an existing lock rather than replacing it.
+- Before startup or qualification, independently review the seven image IDs and
+  references in a version-1 `images.approved.json` document (the source template is
+  intentionally empty). Retain that manifest outside the clean source and supply
+  `HONEYTRACE_IMAGE_APPROVAL_FILE=/ABS/PRIVATE/REVIEW/images.approved.json` and
+  `HONEYTRACE_IMAGE_APPROVAL_SHA256=<SEPARATELY_REVIEWED_DIGEST>` to every command.
+  The digest must also match the schema-2 context identity. Do not compute a new
+  trust pin from observed images to obtain readiness. Dirty source is rejected.
+- `scripts/image_lock.py` still acquires an exclusive SHA-bound local image-review
+  receipt. Preserve it. Neither that runtime lock nor post-start observations
+  authorize startup/qualification. Local ID agreement and source-to-image build
+  provenance are distinct obligations; neither substitutes for the other.
+
 
 ## Results and rollback
 

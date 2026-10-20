@@ -13,6 +13,8 @@ import shutil
 import subprocess
 import sys
 import time
+import tempfile
+import image_approval
 from hp_common import ROOT, config, runtime_path, run, require_root, atomic_json, utc, audited
 from guard_policy import DNS, require_guard, inspect_dns
 from daemon_check import require_local_daemon
@@ -212,8 +214,58 @@ def rendered_start_gate(rendered, approved=False):
     if exposed:
         raise SystemExit('WAN port matrix rejected: ' + '; '.join(exposed) + '. No router rules were changed.')
 
+def image_pin(value=None):
+    if value is not None:
+        return value
+    if '--image-approval-sha256' in sys.argv:
+        if sys.argv.count('--image-approval-sha256') != 1:
+            raise ValueError('One separately reviewed image approval pin required')
+        try:
+            return sys.argv[sys.argv.index('--image-approval-sha256')+1]
+        except IndexError as exc:
+            raise ValueError('Missing image approval pin') from exc
+    return os.environ.get(image_approval.PIN_ENV)
+
+
+def approved_containers(approval, *, immutable=False):
+    """Capture exact owned IDs before execution; names are never start targets."""
+    ids = run(['docker', 'ps', '-aq', '--no-trunc', '--filter',
+               'label=com.docker.compose.project=honeypot']).stdout.split()
+    if (len(ids) != 7 or len(set(ids)) != 7 or
+            any(not re.fullmatch('[0-9a-f]{64}', value) for value in ids)):
+        raise ValueError('Expected seven unique owned container identities before startup')
+    rows = json.loads(run(['docker', 'inspect', *ids]).stdout)
+    if len(rows) != 7 or {row.get('Id') for row in rows} != set(ids):
+        raise ValueError('Container identities changed before startup')
+    containers = {}
+    for row in rows:
+        labels = row.get('Config', {}).get('Labels') or {}
+        name = labels.get('com.docker.compose.service')
+        if (labels.get('com.docker.compose.project') != 'honeypot' or
+                labels.get('com.docker.compose.project.working_dir') != str(ROOT) or
+                name in containers):
+            raise ValueError('Container ownership differs before startup')
+        containers[name] = row
+    image_approval.check_containers(approval, containers, immutable=immutable)
+    return containers
+
+
+def compose_literal(value):
+    # Rendered values are already expanded. Preserve literal dollars when
+    # Compose reads the private snapshot instead of interpolating them again.
+    if isinstance(value, str):
+        return value.replace('$', '$$')
+    if isinstance(value, dict):
+        return {key: compose_literal(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [compose_literal(item) for item in value]
+    return value
+
+
 @audited('start')
-def start():
+def start(*, build=False, approval_sha256=None):
+    if build:
+        raise ValueError('Startup cannot build images; review built IDs and supply an independent approval pin first')
     require_root();require_local_daemon(ROOT);cfg=config()
     if not (ROOT/'secrets/grafana_admin_password').exists():raise SystemExit('Run bootstrap first')
     for p in (ROOT/'state/quarantine').glob('*.json'):
@@ -225,18 +277,39 @@ def start():
     exposure_gate(cfg['DECOY_BIND'], approved)
     rendered = json.loads(run(['docker', 'compose', 'config', '--format', 'json']).stdout)
     rendered_start_gate(rendered, approved)
+    approval = image_approval.load(ROOT, {name: spec['image'] for name, spec in rendered['services'].items()},
+                                   image_pin(approval_sha256))
+    frozen = image_approval.pinned_configuration(approval, rendered)
     if not ipaddress.ip_address(cfg['DECOY_BIND']).is_loopback:
         from wan_criteria import source_mode_rejection
         reason = source_mode_rejection(cfg, ROOT)
         if reason:
             raise SystemExit(reason)
+    containers = None
     try:
-        compose('up','-d','--build','loki','alloy','grafana','incidentd','cowrie','opencanary')
+        # No process executes during create. Freeze the complete configuration
+        # and images so later tag/.env/override edits cannot alter this transaction.
+        with tempfile.TemporaryDirectory(prefix='.approved-compose-', dir=ROOT/'state') as directory:
+            snapshot = Path(directory)/'compose.json'
+            snapshot.write_text(json.dumps(compose_literal(frozen)))
+            snapshot.chmod(0o600)
+            for expected in approval['images'].values():
+                images = json.loads(run(['docker', 'image', 'inspect', expected['id']]).stdout)
+                if len(images) != 1 or images[0].get('Id') != expected['id']:
+                    raise ValueError('Approved immutable image unavailable before create')
+            image_approval.load(ROOT, {name: spec['image'] for name, spec in rendered['services'].items()}, approval['sha256'])
+            compose('--project-directory', str(ROOT), '--project-name', 'honeypot', '-f', str(snapshot),
+                    'create', '--no-build', '--pull', 'never', *SERVICES)
+        containers = approved_containers(approval, immutable=True)
+        require_guard(cfg)
+        run(['docker', 'start', *[containers[name]['Id'] for name in
+                                  ('loki','alloy','grafana','incidentd','cowrie','opencanary')]])
         require_guard(cfg)
         if not all(inspect_dns().values()): raise SystemExit('Runtime DNS check failed after creation')
-        compose('up','-d','--build','suricata')
+        run(['docker', 'start', containers['suricata']['Id']])
     except (Exception,SystemExit):
-        compose('stop','cowrie','opencanary',check=False)
+        if containers is not None:
+            run(['docker', 'stop', *[row['Id'] for row in containers.values()]], check=False)
         raise
     print('No router rules were changed. Run local tests, enable target timers and check readiness.')
 
@@ -284,20 +357,17 @@ def boot_start():
                 'refuses non-loopback exposure'
             )
 
-    compose('config','--quiet')
+    rendered = json.loads(compose('config', '--format', 'json').stdout)
+    rendered_start_gate(rendered)
+    approval = image_approval.load(ROOT, {name: spec['image'] for name, spec in rendered['services'].items()}, image_pin())
+    containers = approved_containers(approval)
 
     # Existing containers only. Validate their actual runtime configuration
     # before they are allowed to start.
     expected_dns = {'honeypot-'+name:address for name,address in DNS.items()}
 
     for name, required_dns in expected_dns.items():
-        result=run(['docker','inspect',name],check=False)
-        if result.returncode != 0:
-            raise SystemExit(
-                f'{name} does not exist; refusing automatic creation/rebuild'
-            )
-
-        row=json.loads(result.stdout)[0]
+        row=containers[name.removeprefix('honeypot-')]
         hostcfg=row.get('HostConfig') or {}
 
         # Reject 0.0.0.0, ::, empty HostIp, or any other non-loopback bind.
@@ -327,23 +397,24 @@ def boot_start():
             )
 
     try:
-        _start_existing_decoys(cfg)
+        _start_existing_decoys(cfg, containers, approval)
     except (Exception, SystemExit):
-        compose('stop','cowrie','opencanary',check=False)
+        run(['docker','stop',containers['cowrie']['Id'],containers['opencanary']['Id']],check=False)
         raise
 
-def _start_existing_decoys(cfg):
+def _start_existing_decoys(cfg, containers, approval):
     # Start existing decoys only. No build, pull, create, or recreate.
-    result=compose('start','cowrie','opencanary',check=False)
+    image_approval.check_containers(approval, containers)
+    names=tuple(containers[name]['Id'] for name in ('cowrie','opencanary'))
+    result=run(['docker','start',*names],check=False)
 
     if result.returncode != 0:
-        compose('stop','cowrie','opencanary',check=False)
+        run(['docker','stop',*names],check=False)
         raise SystemExit(
             'Decoy startup failed; both decoys were stopped fail-closed'
         )
 
     # Require both containers to become healthy.
-    names=('honeypot-cowrie','honeypot-opencanary')
     deadline=time.time()+90
 
     while time.time() < deadline:
@@ -372,7 +443,7 @@ def _start_existing_decoys(cfg):
 
         time.sleep(2)
 
-    compose('stop','cowrie','opencanary',check=False)
+    run(['docker','stop',*names],check=False)
     raise SystemExit(
         'Decoys failed health deadline; stopped fail-closed'
     )
@@ -394,6 +465,14 @@ def update():
     if len(current)!=1 or current[0].get('Id')!=ids[0]:
         raise ValueError('Grafana inspection ambiguous; update has not begun')
     identity=grafana_backup.container_identity(ROOT,current[0])
+    import image_approval
+    try:
+        approval_sha256 = sys.argv[sys.argv.index('--image-approval-sha256')+1]
+    except (ValueError, IndexError) as exc:
+        raise ValueError('Update requires --image-approval-sha256 from separate image review') from exc
+    rendered = json.loads(compose('config','--format','json').stdout)
+    references = {name: spec['image'] for name, spec in rendered['services'].items()}
+    approval = image_approval.load(ROOT, references, approval_sha256)
     run(['bash','scripts/backup.sh'],timeout=1200)
     stop()
     before=json.loads(run(['docker','inspect',ids[0]]).stdout)
@@ -405,9 +484,28 @@ def update():
         raise ValueError('Grafana identity/state changed during backup; update remains stopped')
     print('Verified private Grafana state backup: '+str(snapshot)+'; restore acceptance NOT TESTED')
     compose('pull','--ignore-buildable');compose('build','--pull')
-    run(['bash','scripts/validate.sh'],timeout=1200);start()
-    # Docker's content digests form the deployment lock; retain old images for rollback.
-    atomic_json(ROOT/'state/images.lock.json',json.loads(run(['docker','image','inspect',*['honeypot-opencanary:0.9.10-local','honeypot-suricata:ubuntu24.04-local','honeypot-incidentd:v1-local',config()['COWRIE_IMAGE'],config()['LOKI_IMAGE'],config()['GRAFANA_IMAGE'],config()['ALLOY_IMAGE']]]).stdout))
+    run(['bash','scripts/validate.sh'],timeout=1200)
+    try:
+        image_approval.check_available(approval, lambda reference: json.loads(
+            run(['docker','image','inspect',reference]).stdout))
+        image_approval.load(ROOT, references, approval_sha256)
+        # Builds/pulls are complete and checked. Startup must not replace them.
+        start(build=False, approval_sha256=approval_sha256)
+        container_ids = compose('ps','--all','--quiet').stdout.split()
+        if len(container_ids) != 7 or any(not re.fullmatch(r'[0-9a-f]{64}', value) for value in container_ids):
+            raise ValueError('Expected seven exact post-update container identities')
+        rows = json.loads(run(['docker','inspect',*container_ids]).stdout)
+        containers = {row.get('Config',{}).get('Labels',{}).get('com.docker.compose.service'): row for row in rows}
+        if len(rows) != 7: raise ValueError('Ambiguous post-update image observations')
+        image_approval.check_containers(approval, containers)
+        image_approval.load(ROOT, references, approval_sha256)
+        atomic_json(ROOT/'state/images.observed.json', {
+            'observed_utc':utc(), 'approval_sha256':approval['sha256'],
+            'images':{name:row['Image'] for name,row in containers.items()},
+            'scope':'Post-start observations only; not an image approval'})
+    except (Exception, SystemExit):
+        stop()
+        raise
 
 if __name__=='__main__':
     os.umask(0o027)

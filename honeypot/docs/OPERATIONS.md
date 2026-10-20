@@ -5,8 +5,35 @@ Readiness, `wan check`, and lab scripts write `state/` in the directory you run 
 Daily: status, health JSON, failed timers, parser errors, incident queue and storage.
 Weekly: verify a backup checksum/read, review inactive sensors and capture losses,
 review image/security advisories and test a restoration into a new directory.
-No broad automated updates are enabled. update.sh --apply performs metadata backup,
-stops, pulls/builds reviewed versions, validates and restarts. Keep prior image digests.
+No broad automated updates are enabled. All startup paths require the same
+separately reviewed version-1 image manifest: exactly seven service names, each
+with `reference` and immutable `id`. Supply its independent SHA-256 using
+`HONEYTRACE_IMAGE_APPROVAL_SHA256` (or `--image-approval-sha256` for lifecycle
+commands). Use `HONEYTRACE_IMAGE_APPROVAL_FILE` for an absolute canonical manifest
+outside source, keeping the reviewed checkout clean. The empty source template
+intentionally authorizes no images. The manifest and digest belong in the approved
+deployment transaction; observations and editable runtime locks cannot bless them.
+
+Startup freezes the full rendered configuration with the approved image IDs,
+removes build directives, creates containers with `--no-build --pull never`, then
+checks seven unique container IDs, image IDs and project/runtime ownership before
+starting those exact IDs. Mutable tags, environment files and Compose overrides
+are not resolved again for execution. `start(build=True)` is rejected. A DNS
+postcheck failure stops the verified IDs before Suricata starts.
+
+An update still requires `--apply --image-approval-sha256 SHA256`, the verified
+stopped Grafana backup, and separate deployment approval. It checks approval
+before backup/stop, pulls/builds, validates available images, and passes the same
+pin into startup. Only `state/images.observed.json` is written after verification;
+review manifests and historical locks are never overwritten. Retain previous
+images and evidence for a separately reviewed rollback.
+
+The existing `boot-start` entrypoint now checks the same approval and the seven
+owned image/container identities, then starts only the two captured decoy IDs.
+Its preview unit has no approval pin and will fail closed until a separately
+reviewed Phase 8 transaction supplies one. This source repair enables no unit and
+qualifies no boot behavior.
+
 
 `sudo journalctl -u honeypot-health.service` shows health failures. Inspect
 logs/system/health.jsonl and state/health.json. Systemd timers execute as root because
@@ -69,6 +96,10 @@ missing/inconsistent metadata, or unreadable history keeps migration blocked for
 operator review. Duplicate stable IDs across intact legacy locations quarantine
 both incidents and block ambiguous replay; they do not select an original or erase
 either copy. Their disposition requires separate provenance review.
+Conflicts discovered after migration are also committed to SQLite before
+reporting a diagnostic failure. All conflicting incidents remain blocked for
+new appends and ambiguous replay across writer restarts; deleting the locator
+would erase that fence and is not a repair.
 
 Inspect logs/system/evidence-integrity.jsonl, including original_sha256 when the
 file can be safely hashed. Invalid locator state emits HOLD_CHECKPOINT in

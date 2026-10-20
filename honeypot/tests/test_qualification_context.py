@@ -25,11 +25,11 @@ class ContextFixture(unittest.TestCase):
         self.runtime = self.base / 'runtime'; self.runtime.mkdir()
         self.evidence = self.base / 'evidence'; self.evidence.mkdir()
         self.boot = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
-        self.document = {'schema_version': 1, 'mode': 'cleanroom', 'phase': 'acquisition',
+        self.document = {'schema_version': 2, 'mode': 'cleanroom', 'phase': 'acquisition',
             'issued_utc': dt.datetime.now(dt.timezone.utc).isoformat(),
             'source_root': str(self.source), 'runtime_root': str(self.runtime),
             'evidence_root': str(self.evidence), 'source_commit': 'a' * 40,
-            'boot_id': self.boot, 'deployment_id': 'independent-desktop-01', 'receipts': {}}
+            'image_approval_sha256': 'b' * 64, 'boot_id': self.boot, 'deployment_id': 'independent-desktop-01', 'receipts': {}}
 
     def load(self, document=None, purpose='prerequisites'):
         value = self.document if document is None else document
@@ -158,7 +158,7 @@ class ContextIdentityTests(ContextFixture):
             bad = copy.deepcopy(row); bad['qualification_identity'][field] = 'changed'
             with self.subTest(field=field), self.assertRaises(ValueError): context.check_identity(bad)
         runtime = {'boot_id': self.boot, 'runtime_root': str(self.runtime),
-                   'candidate_source_commit': 'a' * 40, 'candidate_source_dirty': False}
+                   'candidate_source_commit': 'a' * 40, 'candidate_source_dirty': False, 'image_approval_sha256': 'b' * 64}
         context.check_runtime(runtime)
         runtime['candidate_source_dirty'] = True
         with self.assertRaises(ValueError): context.check_runtime(runtime)
@@ -196,7 +196,7 @@ class CleanPrerequisiteTests(ContextFixture):
         from test_pcap_demo_recovery import runtime_fixture
         runtime = runtime_fixture(True)
         runtime.update(boot_id=self.boot, runtime_root=str(self.runtime),
-                       candidate_source_commit='a' * 40, candidate_source_dirty=False)
+                       candidate_source_commit='a' * 40, candidate_source_dirty=False, image_approval_sha256='b' * 64)
         return {'STATUS': 'ACTIVE_PREREQUISITES_PASSED',
             'qualification_identity': context.identity(), 'timestamp': self.document['issued_utc'],
             'runtime': runtime, 'runtime_after': copy.deepcopy(runtime), 'runtime_comparison': {'ok': True},
@@ -253,7 +253,7 @@ class CleanDemoTests(ContextFixture):
         value['receipts']['capture']['sha256'] = hashlib.sha256(capture).hexdigest()
         runtime = runtime_fixture(True)
         runtime.update(boot_id=self.boot, runtime_root=str(self.runtime),
-                       candidate_source_commit='a' * 40, candidate_source_dirty=False)
+                       candidate_source_commit='a' * 40, candidate_source_dirty=False, image_approval_sha256='b' * 64)
         runtime['containers']['opencanary']['networks'] = {'honeypot-canary-net': {'IPAddress': '172.29.41.2'}}
         runtime['containers']['opencanary']['ports'] = {'2121/tcp': [{'HostIp': '127.0.0.1', 'HostPort': '2121'}]}
         capture_receipt = {'path': value['receipts']['capture']['path'],

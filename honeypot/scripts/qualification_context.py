@@ -67,15 +67,17 @@ class Context:
             raise ValueError('Context hash differs')
         value = json_document(data)
         required = {'schema_version', 'mode', 'phase', 'issued_utc', 'source_root', 'runtime_root', 'evidence_root',
-                    'source_commit', 'boot_id', 'deployment_id', 'receipts'}
+                    'source_commit', 'boot_id', 'deployment_id', 'receipts', 'image_approval_sha256'}
         if (not isinstance(value, dict) or set(value) != required or
-                type(value['schema_version']) is not int or value['schema_version'] != 1 or value['mode'] != 'cleanroom'):
+                type(value['schema_version']) is not int or value['schema_version'] != 2 or value['mode'] != 'cleanroom'):
             raise ValueError('Unknown or incomplete qualification context schema')
         if value['phase'] not in ('acquisition', 'qualification') or (
                 purpose == 'qualification' and value['phase'] != 'qualification'):
             raise ValueError('Complete qualification context required; acquisition context cannot qualify')
         if not re.fullmatch('[0-9a-f]{40}', value['source_commit'] or ''):
             raise ValueError('Invalid context source commit')
+        if not re.fullmatch('[0-9a-f]{64}', value['image_approval_sha256'] or ''):
+            raise ValueError('Independent reviewed image approval digest required')
         if not re.fullmatch('[A-Za-z0-9_-]{8,128}', value['deployment_id'] or ''):
             raise ValueError('Explicit deployment identity required')
         current_boot = boot_id or Path('/proc/sys/kernel/random/boot_id').read_text().strip()
@@ -117,7 +119,7 @@ class Context:
 
     def identity(self):
         return {key: self.value[key] for key in ('mode', 'source_root', 'runtime_root', 'evidence_root',
-                'source_commit', 'boot_id', 'deployment_id')}
+                'source_commit', 'boot_id', 'deployment_id', 'image_approval_sha256')}
 
     def check_identity(self, row, *, max_age=MAX_AGE_SECONDS):
         if row.get('qualification_identity') != self.identity():
@@ -128,7 +130,8 @@ class Context:
         if (row.get('boot_id') != self.value['boot_id'] or
                 row.get('runtime_root') != str(self.runtime) or
                 row.get('candidate_source_commit') != self.value['source_commit'] or
-                row.get('candidate_source_dirty') is not False):
+                row.get('candidate_source_dirty') is not False or
+                row.get('image_approval_sha256') != self.value['image_approval_sha256']):
             raise ValueError('Observed runtime source/boot/root differs from context')
 
     def validate_current(self):
