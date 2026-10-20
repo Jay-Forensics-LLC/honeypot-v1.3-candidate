@@ -159,7 +159,7 @@ class StartupTests(unittest.TestCase):
         with self.assertRaises(SystemExit): ops.exposure_gate('203.0.113.10',True)
     def test_start_stops_before_compose_when_guard_missing(self):
         (self.root/'secrets').mkdir();(self.root/'secrets/grafana_admin_password').touch()
-        with patch.object(ops,'require_root'),patch.object(ops,'config',return_value={}),patch.object(ops,'require_guard',side_effect=SystemExit('missing')),patch.object(ops,'compose') as compose,patch.object(hp_common,'audit'):
+        with patch.object(ops,'require_root'),patch.object(ops,'config',return_value={}),patch.object(ops,'require_guard',side_effect=SystemExit('missing')),patch.object(ops,'compose') as compose,patch.object(hp_common,'ROOT',self.root):
             with self.assertRaises(SystemExit): ops.start()
             compose.assert_not_called()
     def rendered(self):
