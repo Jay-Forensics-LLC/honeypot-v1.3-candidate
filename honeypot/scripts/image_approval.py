@@ -1,5 +1,6 @@
 """Expected image IDs come from reviewed source, never post-start observations."""
 import hashlib
+import copy
 import json
 import os
 from pathlib import Path
@@ -8,6 +9,8 @@ import stat
 
 SERVICES = frozenset(('cowrie', 'opencanary', 'suricata', 'loki', 'alloy', 'grafana', 'incidentd'))
 APPROVAL_PATH = 'configs/images.approved.json'
+PIN_ENV = 'HONEYTRACE_IMAGE_APPROVAL_SHA256'
+FILE_ENV = 'HONEYTRACE_IMAGE_APPROVAL_FILE'
 
 
 def read_regular(path, limit):
@@ -42,11 +45,14 @@ def unique_object(pairs):
 
 
 def load(root, references, expected_sha256=None):
-    path = Path(root)/APPROVAL_PATH
+    path = Path(os.environ.get(FILE_ENV, str(Path(root)/APPROVAL_PATH)))
     data = read_regular(path, 1024**2)
     digest = hashlib.sha256(data).hexdigest()
-    if expected_sha256 is not None and (not re.fullmatch(r'[0-9a-f]{64}', expected_sha256) or
-                                       digest != expected_sha256):
+    # The pin is supplied by the separately reviewed deployment transaction. Never
+    # derive it from this file, an observed lock, or the currently running images.
+    expected_sha256 = expected_sha256 if expected_sha256 is not None else os.environ.get(PIN_ENV)
+    if (type(expected_sha256) is not str or not re.fullmatch(r'[0-9a-f]{64}', expected_sha256) or
+            digest != expected_sha256):
         raise ValueError('Image approval differs from independently reviewed SHA-256')
     document = json.loads(data, object_pairs_hook=unique_object)
     if (type(document) is not dict or set(document) != {'version', 'images'} or
@@ -70,10 +76,26 @@ def check_available(approval, inspect):
             raise ValueError('Available image differs from reviewed approval: '+service)
 
 
-def check_containers(approval, containers):
+def check_containers(approval, containers, *, immutable=False):
     if set(containers) != SERVICES:
         raise ValueError('Expected exactly seven containers for image approval')
     for service, expected in approval['images'].items():
         actual = containers[service]
-        if actual.get('Config', {}).get('Image') != expected['reference'] or actual.get('Image') != expected['id']:
+        references = {expected['id']} if immutable else {expected['reference'], expected['id']}
+        if actual.get('Config', {}).get('Image') not in references or actual.get('Image') != expected['id']:
             raise ValueError('Container image differs from reviewed approval: '+service)
+
+
+def pinned_configuration(approval, rendered):
+    """Freeze an already rendered configuration; no mutable image resolution."""
+    if set(rendered.get('services', {})) != SERVICES:
+        raise ValueError('Expected exactly seven approved services')
+    result = copy.deepcopy(rendered)
+    for name, spec in result['services'].items():
+        expected = approval['images'][name]
+        if spec.get('image') != expected['reference']:
+            raise ValueError('Rendered image selection changed: '+name)
+        spec['image'] = expected['id']
+        spec.pop('build', None)
+        spec['pull_policy'] = 'never'
+    return result

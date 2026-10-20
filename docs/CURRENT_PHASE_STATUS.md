@@ -1,155 +1,165 @@
-# HoneyTrace current phase status — 2026-10-17
+# HoneyTrace current phase status — 2026-10-20 UTC
 
-**Active phase: supervised localhost beta qualification, including independent
-Stage 7 closeout. Overall status: BLOCKED.** This is the current phase disposition;
-the detailed obligations remain in
-[BETA_ACCEPTANCE.md](../honeypot/docs/BETA_ACCEPTANCE.md). Stage 8 boot/recovery
-and WAN qualification remain separate, unaccepted work. Phase 10 is
-**PLANNED — PENDING — DO NOT IMPLEMENT**.
+October 20 continuation of the sealed `79ea08847f5e` checkpoint: the exact-head
+independent review returned three further findings. The candidate removes the
+preview unit's conflicting Compose environment input, exposes/forwards the
+external image-approval pin through both operator startup subcommands, and
+reserves the audit log before lifecycle mutation with exact-ID startup cleanup on
+completion-write failure. Five initial methods reproduced two failed assertions
+and four errored cases/subtests; eight current methods cover the corrections without
+live operations. PR #26 has merged into HoneyWatch; its three coverage/review files
+are deliberately integrated. New commits use the existing GitHub-registered SSH
+signing agent. Earlier unsigned published commits are preserved; the default
+branch's signature/linear-history rules remain in force. Source review and all
+runtime, supported-installation and release gates remain pending. Exact commit,
+tree, package and validation bindings are retained in the continuation receipts.
 
-## Source and evidence authority
 
-The original polish2 directory is a dirty local `master` export at
-`2054c4f7762b01d969619629f785185e81413c09`, with no remote. Its 27 modified or
-untracked files were preserved before work. Development uses a separate clone,
-branch `fix/current-phase-qualification-20261017`, based on GitHub default branch
-`HoneyWatch` at `3e23eabc31bf1ca0a93adfafc6601df28739dc23`.
+**Supervised loopback beta: BLOCKED. Independent Phase 7 closeout: PENDING.
+Phase 8 execution: NOT GREEN-LIT. Phase 10: PLANNED — PENDING — DO NOT IMPLEMENT.**
 
-GitHub confirms PR #21 merged on October 17. Its inherited description still
-contains an earlier merge hold; the merge record and default-branch commit
-supersede that source-publication statement. PR #19 remains open as the original
-review record. Four subsequent reproduced review defects remained in the merged
-source. This follow-up completes a preserved local draft addressing those defects;
-the draft's original directory is unchanged. Review and merge of this follow-up
-remain pending. No issue or historical review thread is declared resolved here.
+The source integration branch is `fix/phase7-source-integration-20261019`.
+Its implementation checkpoint is
+`70ff9e3ee31d8d2f40ccd48b22f9c373fd75c4c7`; subsequent changes update
+current-phase documentation. The exact final PR head/tree and command receipts
+are recorded in the private integration handoff. Qualification must pin that
+final clean SHA, independently accepted images, target and boot. No candidate
+source checkpoint described here is deployed or accepted.
 
-The last completed historical seven-service matrix remains
-`stage7-fresh-ewnrhtur`, October 10, source
+The refreshed default was `cf9954282f51981aa2aba9c36b856431aebe9f41`.
+The integration retains both reviewed parents: desktop
+`2780f6d0131112a93d6748147dbbe485eb4a68e3` and laptop PR #23
+`3874261c01c6e28aa2cce1b3d929cacbb517854b`. Original dirty source and all 27
+preserved file hashes remain unchanged. The original Stage 8 draft stays separate.
+The newer default's security policy and review guidance are retained; unrelated
+coverage-workflow PR #26 remains separate.
+
+The integration restores durable late-duplicate fences, strict typed preservation
+metadata and streaming bounded static enumeration. Startup/update/boot-start now
+require a separately pinned image approval. Startup freezes configuration with
+immutable image IDs, creates without starting, verifies exact owned container IDs,
+then starts those IDs. Qualification rejects dirty source and requires the same
+approval digest, also bound into the schema-2 clean-room context. Runtime locks
+and observed IDs cannot authorize themselves. All seven Compose restart policies
+are disabled; startup and qualification reject automatic daemon restart policies.
+Quarantine/unquarantine reject unexpected mounts. Qualification binds exact runtime
+Compose bytes to the reviewed source, detects file drift, and forces untracked-file
+enumeration despite local Git status settings. Startup and locator name discovery
+stream directory entries and stop at their entry bound. No deployed policy changes.
+See
+[operations](../honeypot/docs/OPERATIONS.md) and
+[clean-room qualification](../honeypot/docs/CLEANROOM_QUALIFICATION.md).
+
+Offline validation: 606 unit tests and 89 retained Stage 7 tests pass with no
+skips; `make verify` passes. The full repository validator passes its 21 tooling
+tests, archive/provenance checks, source checks and required suite invocations.
+An additional local Compose 2.40.3 canonical JSON parser round-trip reproduced
+and corrected double-escaping in the initial frozen snapshot, retaining literal
+dollars and immutable IDs despite environment changes. Both failed and corrected
+receipts are private source evidence, with no daemon/container action.
+The original 11-method cross-branch failure replay is retained separately:
+desktop 19 failed assertions/subtests and eight errored subtests; laptop control
+zero failures/errors/skips. Mock-only startup reproductions on both old tips
+still demonstrate the prior bypass. Independent review is requested on the
+integration PR; it is not implied by these self-checks or historical reviews.
+Independent review additionally identified five startup/mount/enumeration/source
+binding gaps. Seven initial reproduction methods yielded eight failing assertions
+or subtests against the unchanged candidate; all fixes and thirteen focused
+regression methods are now committed. These are not eight separate test methods.
+Repository validation first rejected the new test file's inherited 664 mode; its
+mode was corrected to 644, and the validator then passed 224 source files. Both
+failed receipts remain retained. Review of this corrected checkpoint is pending.
+Further independent review found that per-incident checks could miss a globally
+duplicated event ID. The clean-room sweep now requires a bounded global unique-ID
+inventory, final stable file signatures, and a nonempty event store. Prerequisites
+require that explicit global result. Five initial methods reproduced four failures
+against the prior checkpoint; seven methods now cover duplicate copies restored
+after startup, uniqueness, entry bounds, missing proof, empty stores and later
+file changes. A test's broad os.open mock conflicted with the new directory
+descriptors; it now spies on real directory opens while still forbidding evidence
+FIFO opens. The corrected full validator passes 225 source files. Failed logs
+remain preserved. These changes do not alter the historical reconciliation scope
+or prove the current store is clean.
+
+The exact-head review of `00a8edd` returned three further findings: already-active
+containers during create, unreviewed effective Compose inputs, and a capture
+selection/open race. Five methods reproduced ten failed assertions/subtests on
+that unchanged checkpoint. The corrected implementation refuses active owned
+containers before creation (stops only their captured IDs), checks disabled
+policies before create, and validates stopped network/security/resource state
+and actual execution fields against the frozen model and approved image defaults.
+Compose uses one explicit file/project and rejects extra inputs. Packet acquisition
+pins the selected regular inode through O_NOFOLLOW and checks descriptor/path
+signatures after the bounded copy; independent verification requires that source
+identity receipt, distinct from raw/parser artifacts. Growth, replacement or rewrite
+during the copy fails. Fourteen focused methods pass. New positive fixtures include
+source identities; existing unreadable and marker checks remain enforced. A new
+self-reference control caught and corrected a source/parser-alias gap; failed logs
+are retained. Latest full validator: 227 source files PASS. Independent review of
+this newest corrected checkpoint is requested separately; no acceptance is implied.
+One further mock reproduction confirmed that a failed mount check could still
+reach inventory's diagnostic container process. The collector now blocks that
+execution unless runtime configuration is safe (or the explicit cleanly stopped
+decoy mode passes with a healthy, validated pipeline). Its failed receipt is kept.
+The final-review suite now has fifteen methods; all full source checks pass at
+606 unit tests, 89 retained Stage 7 tests and 227 source files, with no skips.
+
+The user selected the laptop as the intended Phase 8 target; desktop live results
+are separate and remain unacquired/unverified. A fresh non-modifying laptop
+acquisition on October 20 at approximately 03:21 UTC observed boot
+`38cd65f9-4ba0-4d37-8998-e1a45877f50b`, system Docker at `/run/docker.sock`,
+`/var/lib/docker`, and exactly seven healthy staging-owned containers. OpenCanary's
+current log is now nonempty. The existing health JSON at 03:20:06.707666Z reports
+only clock synchronization failure and has `boot_id: null`; no service invocation
+or boot attribution is assigned to that JSON. Direct timedatectl/Chrony readings
+remain unsynchronized, stratum 0, six sources Reach=0; cause is unresolved.
+
+The selected laptop is Ubuntu 26.04.1 x86_64/Python 3.14.4/Compose 2.40.3, with
+distro Docker 29.1.3. **It does not meet mandatory B17** (dedicated Ubuntu 24.04
+x86_64/Python 3.12/Compose v2). No package installation, OS change or contract
+change is authorized. Runtime source is older than the integration; source/image
+provenance, semantic guard/DNS/capture readiness, migration preservation, B15
+operator workflow, B16 package provenance, B18 deployment/rollback and current-build
+live qualification remain open. Container health does not prove these gates.
+
+Historical matrix `stage7-fresh-ewnrhtur` remains pinned to source
 `1a2b8c73106763d824999091c4e56c64f061f59e`, boot
-`67a93065-7f07-40e5-aa12-806d9ff14dcc`. Its report hash is
+`67a93065-7f07-40e5-aa12-806d9ff14dcc`, report SHA-256
 `97bee3ef001e17c0c65b376cf472ea183fff5ce6e37db6c938278dcf50fcbdbc`.
-All seven historical rows are recorded PASS; independent closeout is PENDING.
-Rehashing linked artifacts in this session verified 67 hashes; 11 protected
-packet/recovery inputs remain unavailable. Packet parsing and finite-prefix
-custody verification are incomplete. Do not rerun that completed historical
-matrix or apply its clean-source/current-boot verifier to a changed build or boot.
-A separately reviewed current-build plan is needed after any approved deployment.
+Operator-reported 78/78 linked hashes and 8/8 packet checks are complete and
+independently tuple-matched. All 1,196 historical prefix CONTENT hashes are
+accounted for, including rotated/compressed siblings. Pinned-source receipt replay
+verified classifications, seven stored rows and stored Loki/postflight results.
+These results supersede the old all-eleven-hashes-pending statement.
 
-## Read-only current host observations
+The October 20 03:39:41Z operator audit reports exit 0 and PASS for the actual
+recovery bundle: five unique ordered records, four original intact ranges,
+separately reconstructed fifth record, original/derivative hashes and manifest/
+metadata/provenance relationships. Its auditor SHA-256 is
+`a48f453375695bfad521d0b4cb9e52f3cdfa173b1cba5650da189ab391e32c0c`.
+The agent independently matched that code hash and returned values. Protected
+bytes remain operator-acquired; no raw terminal-transcript hash is asserted.
+The new audit also verified 734 retained custody copies across 1,183 incidents,
+and six stored offset relationships, within their stated scopes.
 
-Acquired approximately 23:31–23:36 UTC, boot
-`9b677efc-3972-4a13-910a-ffa2568fe6db`. The clock was unsynchronized; these are
-reported host times with no established accuracy bound. They supersede the
-October 16 clock/health observations for this acquisition only.
+**Historical global event-location consistency is AMBIGUOUS.** A separate exact
+stored-report enumeration found 20,569 unique event IDs, with 8,963 IDs in multiple
+incidents (25,751 extra locations, up to five per ID). Five directly re-read sample
+IDs match their original preserved prefix hashes in both locations; the raw
+objects agree while normalized objects differ. Per-incident counts/custody hashes
+do not establish global deduplication. Preserve all copies; do not select an
+unsupported canonical incident. The corrected candidate's ambiguity-fence behavior
+was rehearsed on two actual conflicting specimens without changing those originals.
+Full-state acquisition/reconciliation, migration/publication review and independent
+closeout remain required. A full historical acquisition stopped before migration
+on the first metadata hash drift (five stored IDs versus thirty current IDs, with
+all five retained). Its partial acquisition and failure receipt remain preserved;
+today's changing metadata cannot impersonate the exact historical snapshot.
+No historical restart-matrix rerun is authorized to
+compensate for this finding. No claim of zero loss, accurate absolute time, reboot
+continuity, corruption cause or power-loss durability follows from these checks.
 
-- System Docker owns the seven named HoneyTrace containers through
-  `unix:///run/docker.sock`, data root `/var/lib/docker`, daemon ID
-  `3612472c-c10a-4958-ad15-ce8f00884ec8`. All seven are healthy, restart counts 0,
-  with staging-root Compose labels. The Snap daemon is inactive/disabled; its
-  alternate socket is absent. No dual running daemon was observed.
-- Inspected units report `NeedDaemonReload=no`. The reload approval disposition
-  remains **HOLD**: this observation authorizes no manager or service action.
-- All published HoneyTrace ports are loopback-only. Container root filesystems
-  are read-only and none is privileged. Full semantic containment acceptance is
-  incomplete: the guard unit is active/exited, but reading the actual nftables
-  table requires root. Unit activity alone cannot prove guard policy.
-- Capture PID 5941 is `dumpcap` on both expected decoy bridges, with 100,000 KiB
-  size, 1,000-file and 300-second rotation settings. `Restart=no`; the Install-only
-  drop-in and PCAP enablement are present. A closed current-boot 13,140-byte
-  segment was acquired unchanged by hash and parsed: **74 packets**, parser exit
-  0. A separate older 300-byte sample has zero packets. These establish scoped
-  packet collection, not event attribution, continuous coverage or safe boot.
-- Staging source differs from this candidate. It lacks `runtime_inventory.py`,
-  `health_snapshot.py` and `state/images.lock.json`; the deployed evidence-store
-  module is 2,421 bytes, substantially older than the candidate. Current image
-  IDs are observations, not reviewed image approvals. No newer code is deployed.
-- The installed raw-log policy uses daily/rotate 7/copytruncate. It lacks the
-  candidate's maxsize/maxage and `cowrie.log` coverage. Retention enforcement,
-  complete evidence integrity and log ingestion continuity remain unqualified.
-- `timedatectl` reports synchronization **no**; Chrony reports stratum 0,
-  reference ID 0 and leap status **Not synchronised**. Do not reuse October 16's
-  reported clock bound for this boot or manufacture a packet/event time window.
-
-Private acquisition: `work/development-handoff-20261017-ebuqjgre/` under the
-original project directory. `host-acquisition.json` pins exact commands, times,
-exit codes and output hashes; `host-source-hashes.json`,
-`historical-hash-audit.json` and `capture-samples.json` record the remaining
-observations. Raw host, packet and incident artifacts stay private.
-
-## Source corrections and validation
-
-The updater requires a separately reviewed `configs/images.approved.json` and
-its explicit SHA-256 before stopping services. Prospective images must match
-before startup, which disables rebuilding/pulling; container identities are
-checked afterward. Post-start receipts are written to `images.observed.json`
-and cannot create approval. Qualification uses the candidate's approval, not
-runtime-generated locks. The shipped approval is intentionally empty: no
-production image identity has been approved by this patch.
-
-Custody checks require finite typed numbers, real timezone-aware timestamps and
-monotonic growth. Duplicate event locations discovered after migration commit
-durable conflict fences before diagnostics can fail; every conflicting incident
-remains blocked across writer restarts. Static configuration rejects special
-files and symlinks before opening, with finite file and inventory limits.
-
-Validation environment: Ubuntu development host, Linux 7.0.0-38, Python 3.14.4.
-Tested source commit: `8b1bff8a97d0b8933d5d034e44a74ef9b81d1d6e`.
-All 115 recorded script/test/configuration/validator hashes match that commit.
-Validation receipt SHA-256:
-`ca2b0ae78c81480ecffa562b53be2a8c1d387e17823de279e04b61bc0d9c3a2b`.
-The subsequent documentation commit does not change those files. Supported Python 3.12/Ubuntu 24.04
-installation acceptance remains separate.
-
-| Command | Observed result | Limits |
-|---|---|---|
-| `python3 -B -m unittest discover -s tests -p test_pr21_review.py -v` in `honeypot/` | 17 passed, 0 failed, 0 skipped; exit 0 | Synthetic controls and regressions |
-| `python3 -B tools/validate_baseline.py` at repository root | exit 0 | Runs all rows below, archive/source/dependency checks |
-| validator's `unittest discover -s tools/tests -v` | 21 passed, 0 failed, 0 skipped | Validator regressions |
-| validator's `make stage7-test` | 89 passed, 0 failed, 0 skipped | Retained synthetic qualification suite |
-| validator's `make test` | 436 passed, 0 failed, 0 skipped | Application regressions |
-| validator's `make verify` | 436 unit tests pass; 17 static PASS / 2 NOT TESTED; exit 0 | Native Suricata and Ubuntu live integration NOT TESTED; live checks NOT RUN |
-
-Full output and source hashes: private `validation-oc50mli2/validation.json` and
-adjacent stdout/stderr files. Initial sandbox Unix-socket denial and initial
-group-writable checkout-mode rejection were preserved; the focused fixture ran
-outside the sandbox and only the isolated checkout's modes were normalized to
-Git's recorded modes. Neither result was relabeled as a code failure or PASS.
-
-**SOURCE_VALIDATED** applies to these checks. **CONFIGURATION_VALIDATED**, full
-**RUNTIME_VALIDATED**, **END_TO_END_VALIDATED** and **RELEASE_ACCEPTED** are not
-established by this session.
-
-## Remaining acceptance and ordered next deliverables
-
-1. Independently review these four source corrections. Establish expected image
-   IDs from reviewed download/build provenance; never copy observed running IDs
-   into the approval merely to clear qualification.
-2. Complete protected read-only containment/evidence acquisition and historical
-   Stage 7 audit, including all eight exact packet links, recovery provenance and
-   finite baseline prefixes. Missing or rolled-away inputs stay unresolved.
-3. Reconcile clock health, deployed build/static mounts and complete current
-   custody. Preserve consistent source/evidence/locator/checkpoint copies and
-   rehearse the corrected migration on an isolated copy. No original is rewritten.
-4. Prepare an exact reviewed deployment/rollback for the accepted source and
-   images, with finite preservation and abort limits. Obtain separate approval
-   before target changes. No broad Compose recreation or daemon reload is implied.
-5. Qualify the accepted current build/boot: seven healthy owned services, actual
-   containment/DNS, clock bound, guarded event-to-Loki-to-packet demonstration,
-   complete evidence preservation, logging/rotation, capacity/manual failure
-   response, and independent Stage 7 final review (B05–B14).
-6. Finish operator walkthrough, accepted-source package/clean extraction,
-   supported installation and manual recovery/rollback qualification (B15–B18).
-   B01–B04 historical successes retain their exact source scope; source CI does
-   not extend them to a fresh installation or live deployment.
-
-**OPERATOR MUST RUN IN TERMINAL:** the private
-`operator-protected-readonly.sh` and `operator-historical-hashes.sh` are labeled
-**PROPOSED — NOT APPLIED / NOT EXECUTED** and syntax-checked only. They read
-observations; they do not repair policy, stop/start services or qualify gates.
-Review their complete output before choosing any live correction. Interactive
-sudo is the remaining access boundary, not an instruction to stop offline work.
-
-Service changes, clock configuration, firewall changes, daemon reload,
-deployment, merge, reboot, release/tag and WAN exposure require their separate
-operator gates. No such action occurred in this session. Historical corruption
-cause, power-loss durability and capture gaps remain unresolved.
+Deployment/rollback, supported-installation and exact-build qualification plans
+are in the private handoff. All host actions remain PROPOSED — NOT APPLIED / NOT
+EXECUTED. No PR/default-branch merge, deployment, package install, service action, live probe,
+restart matrix, boot test, unit enablement, release or WAN change occurred.

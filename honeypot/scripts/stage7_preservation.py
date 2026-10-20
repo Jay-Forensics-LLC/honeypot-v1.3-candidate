@@ -188,6 +188,8 @@ def snapshot(root, progress=None):
 
 def metadata_values(metadata):
     """Validate mutable qualification fields before comparing their growth."""
+    if type(metadata) is not dict:
+        raise ValueError('Complete incident metadata object required')
     levels = {'LOW': 0, 'MEDIUM': 1, 'HIGH': 2, 'CRITICAL': 3}
     severity = metadata.get('severity')
     count, confidence = metadata.get('auth_attempt_count'), metadata.get('confidence')
@@ -228,6 +230,8 @@ def compare(root, old, new):
         after = new['incidents'].get(path)
         if after is None or after['incident_id'] != before['incident_id']:
             raise ValueError('Incident history lost')
+        old_values = metadata_values(before.get('metadata_at_acquisition'))
+        new_values = metadata_values(after.get('metadata_at_acquisition'))
         if before['metadata_event_ids'] == after['metadata_event_ids']:
             if before['metadata_sha256_at_acquisition'] != after['metadata_sha256_at_acquisition']:
                 raise ValueError('Incident metadata changed without new events')
@@ -238,7 +242,6 @@ def compare(root, old, new):
                 raise ValueError('Metadata growth requires complete acquired metadata')
             for field in ('incident_id','source_ip','timestamp_start'):
                 if old_meta.get(field) != new_meta.get(field): raise ValueError('Incident metadata identity changed')
-            old_values, new_values = metadata_values(old_meta), metadata_values(new_meta)
             if any(after < before for before, after in zip(old_values, new_values)):
                 raise ValueError('Incident metadata regressed during growth')
             for field,value in old_meta.items():

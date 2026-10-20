@@ -15,6 +15,16 @@ from runtime_inventory import collect
 from live_capture import readiness as capture_readiness, packet_proof
 
 SOURCE = Path(__file__).resolve().parents[1]
+IMPLEMENTATION_FILES = (
+    'demo.py', 'incidentd.py', 'evidence_store.py', 'runtime_inventory.py',
+    'capture_status.py', 'live_capture.py', 'packet_snapshot.py', 'daemon_check.py',
+    'hp_common.py', 'guard_policy.py', 'health_snapshot.py')
+
+
+def implementation():
+    return {name: sha256(SOURCE/'scripts'/name)[0] for name in IMPLEMENTATION_FILES}
+
+
 STEPS = ('safety', 'interaction', 'source_event', 'normalization', 'incident', 'severity', 'evidence', 'loki', 'capture')
 
 
@@ -165,6 +175,8 @@ def _live_verification(root, folder, report, timeout):
     if ipaddress.ip_address(target_ip) not in ipaddress.ip_network('172.29.41.0/24'):
         raise ValueError('Inspected Canary address outside expected subnet')
     started=time.time()
+    report['interaction'] = {'started_epoch': started, 'target_ip': target_ip,
+                             'target_port': 2121, 'host_port': port, 'protocol': 'ftp'}
     ftp_interaction(port,report['demo_run_id'])
     report['steps']['interaction']='PASS: one localhost FTP attempt with synthetic credentials'
     deadline=time.monotonic()+timeout;event=None;raw=None;incident=None;central=False;captured=False
@@ -260,13 +272,19 @@ body{font:16px/1.5 system-ui,sans-serif;background:#101827;color:#e6edf7;margin:
 <footer>Replay uses synthetic source records and the real incident engine. It does not prove live sensors, packet capture, containment or centralized logging. A live demo does not qualify Stage 7, Stage 8 or WAN exposure.<p><a href="report.json">Machine-readable report</a></p></footer></main></html>'''
 
 
-def main(mode='replay', runtime_root=None, timeout=60):
+def main(mode='replay', runtime_root=None, timeout=60, output_root=None):
     if not 5<=timeout<=120: raise ValueError('Demo timeout must be 5..120 seconds')
     if mode=='live' and runtime_root is None: raise ValueError('--runtime-root is required for live mode')
     if mode not in ('replay','live'): raise ValueError('Unknown demo mode')
-    base=SOURCE/'work/demo'
-    base.resolve().relative_to(SOURCE)
-    base.mkdir(parents=True,exist_ok=True)
+    if output_root is None:
+        base=SOURCE/'work/demo'
+        base.resolve().relative_to(SOURCE)
+        base.mkdir(parents=True,exist_ok=True)
+    else:
+        base=Path(output_root)
+        if (not base.is_absolute() or base.resolve()!=base or not base.is_dir()
+                or base.is_relative_to(SOURCE)):
+            raise ValueError('Explicit demo output must be an existing canonical directory outside source')
     folder=Path(tempfile.mkdtemp(prefix='run-',dir=base))
     report={'demo_run_id':'honeytrace-demo-'+uuid.uuid4().hex,'synthetic':True,'source':'test',
             'timestamp':utc(),'mode':mode,'status':'INCOMPLETE',
@@ -277,10 +295,7 @@ def main(mode='replay', runtime_root=None, timeout=60):
         report['status']='PASS_REPLAY' if mode=='replay' else 'PASS_LIVE'
     except (OSError,ValueError,KeyError,TypeError,RuntimeError,subprocess.SubprocessError) as exc:
         report['status']='FAILED';report['error']=str(exc)
-    report['implementation']={name:sha256(SOURCE/'scripts'/name)[0] for name in (
-        'demo.py','incidentd.py','evidence_store.py','runtime_inventory.py',
-        'capture_status.py','live_capture.py','daemon_check.py','hp_common.py',
-        'guard_policy.py','health_snapshot.py')}
+    report['implementation']=implementation()
     atomic_json(folder/'report.json',report)
     with (folder/'index.html').open('x') as stream: stream.write(render(report))
     # Make only this newly created summary bundle readable by the invoking operator.

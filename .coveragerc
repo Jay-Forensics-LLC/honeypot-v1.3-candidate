@@ -1,0 +1,19 @@
+[run]
+branch = True
+relative_files = True
+source =
+    honeypot/scripts
+    honeypot/work/live-qualification
+    tools
+omit =
+    */tests/*
+    honeypot/work/live-qualification/test-*.py
+    honeypot/work/live-qualification/qualification-fixtures.py
+
+# Only the three directly instrumented Python runners and their in-process
+# imports are measured. Child Python processes, shell scripts, Docker services
+# and live qualification are not instrumented or certified by this report.
+[report]
+precision = 2
+show_missing = True
+skip_empty = True

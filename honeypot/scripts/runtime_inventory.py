@@ -1,8 +1,10 @@
 """Read-only, fail-closed local demo inventory. Not a Stage 7/8 qualification."""
 import hashlib
+from decimal import Decimal, InvalidOperation
 import ipaddress
 import json
 import re
+import os
 import stat
 from pathlib import Path
 import subprocess
@@ -11,8 +13,19 @@ from guard_policy import evaluate, canonical, DNS
 from capture_status import inspect_capture
 from daemon_check import inspect as inspect_daemon
 import image_approval
+import compose_input
 
 SERVICES = {'cowrie', 'opencanary', 'suricata', 'loki', 'alloy', 'grafana', 'incidentd'}
+USERS = {'cowrie': '999:2000', 'opencanary': '10002:2000', 'loki': '10001:2000',
+         'alloy': '10001:2000', 'grafana': '472:2000', 'incidentd': '10001:2000'}
+# Overrides may lower these candidate ceilings, never remove or increase them.
+RESOURCE_CEILINGS = {'cowrie': (768 * 1024**2, 1_000_000_000),
+                     'opencanary': (384 * 1024**2, 500_000_000),
+                     'suricata': (2 * 1024**3, 2_000_000_000),
+                     'loki': (2 * 1024**3, 1_500_000_000),
+                     'alloy': (512 * 1024**2, 500_000_000),
+                     'grafana': (512 * 1024**2, 500_000_000),
+                     'incidentd': (512 * 1024**2, 1_000_000_000)}
 PLACEMENT = {'cowrie': {'honeypot-cowrie-net'}, 'opencanary': {'honeypot-canary-net'},
              'suricata': {'host'}, 'grafana': {'honeypot-observability', 'honeypot-management'},
              **{n: {'honeypot-observability'} for n in ('loki', 'alloy', 'incidentd')}}
@@ -52,7 +65,51 @@ def stopped_decoy_configuration(rendered, containers, networks, root):
                      'capture, storage, quarantine and evidence checks remain separate'}
 
 
-def _validate_runtime(rendered, containers, networks, root, stopped=frozenset()):
+def security_resource_problems(name, spec, container):
+    problems = []
+    host, actual = container['HostConfig'], container['Config']
+    restart = host.get('RestartPolicy') or {}
+    if (spec.get('restart') != 'no' or restart.get('Name') != 'no' or
+            type(restart.get('MaximumRetryCount')) is not int or restart['MaximumRetryCount'] != 0):
+        problems.append(name + ': automatic restart policy bypasses supervised startup')
+    if name in USERS:
+        if spec.get('user') != USERS[name] or actual.get('User') != USERS[name]:
+            problems.append(name + ': reviewed numeric user differs')
+    elif spec.get('user', '') not in ('', '0', '0:0') or actual.get('User', '') not in ('', '0', '0:0'):
+        problems.append(name + ': sensor user differs')
+    if spec.get('group_add') != ['2000'] or host.get('GroupAdd') != ['2000']:
+        problems.append(name + ': evidence supplementary group differs')
+    for key in ('PidMode', 'UTSMode'):
+        if host.get(key, ''):
+            problems.append(name + ': unexpected shared namespace ' + key)
+    if host.get('IpcMode') != 'private' or spec.get('ipc', 'private') != 'private' or spec.get('pid'):
+        problems.append(name + ': unexpected PID/IPC namespace')
+    if any(host.get(key) for key in ('Devices', 'DeviceRequests', 'DeviceCgroupRules')) or any(
+            spec.get(key) for key in ('devices', 'device_cgroup_rules', 'gpus')):
+        problems.append(name + ': unexpected device access')
+    memory, cpus = RESOURCE_CEILINGS[name]
+    try:
+        declared_memory = spec.get('mem_limit')
+        # Native Compose JSON can encode byte limits as canonical decimal strings.
+        # Normalize that wire representation only; Docker inspect must remain int.
+        if type(declared_memory) is str and re.fullmatch(r'[1-9][0-9]*', declared_memory):
+            declared_memory = int(declared_memory)
+        declared_nano = Decimal(str(spec.get('cpus'))) * 1_000_000_000
+        declared_pids = spec.get('pids_limit')
+        if (type(declared_memory) is not int or not 0 < declared_memory <= memory or
+                not declared_nano.is_finite() or declared_nano != declared_nano.to_integral_value() or
+                not 0 < declared_nano <= cpus or type(declared_pids) is not int or not 0 < declared_pids <= 256):
+            raise ValueError('Invalid declared resource bounds')
+        if (type(host.get('Memory')) is not int or host['Memory'] != declared_memory or
+                type(host.get('NanoCpus')) is not int or host['NanoCpus'] != int(declared_nano) or
+                type(host.get('PidsLimit')) is not int or host['PidsLimit'] != declared_pids):
+            problems.append(name + ': runtime resource limits differ')
+    except (ValueError, TypeError, InvalidOperation):
+        problems.append(name + ': finite reviewed resource limits missing or invalid')
+    return problems
+
+
+def _validate_runtime(rendered, containers, networks, root, stopped=frozenset(), allow_created=False):
     """Share configuration checks while retaining strict live health gates."""
     problems = []
     if set(containers) != SERVICES or set(rendered.get('services', {})) != SERVICES:
@@ -61,12 +118,13 @@ def _validate_runtime(rendered, containers, networks, root, stopped=frozenset())
     for name, c in containers.items():
         spec = rendered['services'][name]
         host = c['HostConfig']
+        problems.extend(security_resource_problems(name, spec, c))
         if c['Config'].get('Image') != spec.get('image'):
             problems.append(name + ': image reference differs from rendered configuration')
         state = c['State']
         if name in stopped:
-            if (state.get('Status'), state.get('Running'), state.get('Pid'),
-                state.get('ExitCode'), state.get('Error')) != ('exited', False, 0, 0, ''):
+            if (state.get('Status') not in ({'created','exited'} if allow_created else {'exited'}) or
+                    (state.get('Running'),state.get('Pid'),state.get('ExitCode'),state.get('Error'))!=(False,0,0,'')):
                 problems.append(name + ': cleanly stopped state not established')
             for endpoint in c['NetworkSettings']['Networks'].values():
                 if any(endpoint.get(k) for k in ('EndpointID', 'IPAddress', 'GlobalIPv6Address',
@@ -239,10 +297,17 @@ def static_configuration_hashes(rendered, root):
                 mode = file.lstat().st_mode
                 if file.is_symlink(): raise ValueError('Static config symlink requires review')
                 if stat.S_ISDIR(mode):
-                    for child in file.iterdir():
-                        if entries + len(pending) >= 500:
-                            raise ValueError('Static config inventory budget exceeded')
-                        pending.append(child)
+                    # Stream directory entries: Path.iterdir/rglob may materialize
+                    # an entire hostile directory before yielding the first item.
+                    fd = os.open(file, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+                    try:
+                        with os.scandir(fd) as children:
+                            for child in children:
+                                if entries + len(pending) >= 500:
+                                    raise ValueError('Static config inventory budget exceeded')
+                                pending.append(file/child.name)
+                    finally:
+                        os.close(fd)
                 elif stat.S_ISREG(mode):
                     data = image_approval.read_regular(file, 8*1024**2)
                     mounted[str(file.relative_to(root))] = hashlib.sha256(data).hexdigest()
@@ -303,13 +368,14 @@ def verify_static_configuration(rendered, root, source_root):
     return deployed
 
 
-def collect(root, source_root, probe_readiness=True):
+def collect(root, source_root, probe_readiness=True, *, approval_sha256=None):
     root = Path(root).resolve()
     run = lambda argv, **kw: command(root, argv, **kw)
     row = {'timestamp': utc(), 'runtime_root': str(root), 'ok': False, 'problems': [],
            'qualification': 'UNQUALIFIED_CURRENT_OBSERVATION; prior Stage 7 invalidated by host reboot'}
     try:
         cfg = config(root)
+        compose_input.require_single_input(root,cfg)
         if cfg.get('WAN_CRITERIA', 'false') != 'false' or cfg.get('WAN_SOURCE_MODE', 'off') != 'off':
             raise ValueError('WAN must be disabled for the local demo')
         if cfg.get('DECOY_BIND') != '127.0.0.1' or cfg.get('MANAGEMENT_BIND') != '127.0.0.1':
@@ -317,19 +383,37 @@ def collect(root, source_root, probe_readiness=True):
         row['daemon'] = inspect_daemon(root, require_existing=True)
         if not row['daemon']['ok']:
             raise ValueError('Docker ownership gate failed: '+'; '.join(row['daemon']['problems']))
-        rendered = json.loads(run(['docker', 'compose', '-f', str(root / 'docker-compose.yml'), 'config', '--format', 'json']).stdout)
+        row['candidate_source_commit'] = command(source_root, ['git', 'rev-parse', 'HEAD']).stdout.strip()
+        row['candidate_source_dirty'] = bool(command(source_root, ['git', 'status', '--porcelain', '--untracked-files=all']).stdout)
+        if row['candidate_source_dirty']:
+            raise ValueError('Dirty candidate source cannot qualify a deployment')
+        reviewed_compose = image_approval.read_regular(Path(source_root) / 'docker-compose.yml', 1024**2)
+        if image_approval.read_regular(root / 'docker-compose.yml', 1024**2) != reviewed_compose:
+            raise ValueError('Runtime Compose file differs from the reviewed candidate source')
+        rendered = json.loads(run(compose_input.argv(root,'config','--format','json')).stdout)
         ids = run(['docker', 'ps', '-aq', '--filter', 'label=com.docker.compose.project=honeypot']).stdout.split()
         if len(ids) != 7: raise ValueError('Expected exactly seven project containers')
         inspected = json.loads(run(['docker', 'inspect', *ids]).stdout)
         containers = {c['Config']['Labels']['com.docker.compose.service']: c for c in inspected}
         nets = json.loads(run(['docker', 'network', 'inspect', 'honeypot-cowrie-net', 'honeypot-canary-net', 'honeypot-observability', 'honeypot-management']).stdout)
-        row['problems'] += validate_runtime(rendered, containers, nets, root)
         # The separately reviewed candidate tree is the trust anchor. Mutable
         # post-start state/images.lock.json is only a historical observation.
-        approval = image_approval.load(source_root, {name: spec['image'] for name, spec in rendered['services'].items()})
+        approval = image_approval.load(source_root, {name: spec['image'] for name, spec in rendered['services'].items()}, approval_sha256)
         image_approval.check_containers(approval, containers)
+        images=compose_input.approved_image_configs(approval,run)
+        execution=compose_input.execution_problems(rendered,containers,images)
+        if execution:raise ValueError('Runtime execution configuration: '+'; '.join(execution))
         row['image_approval_sha256'] = approval['sha256']
-        row['stopped_decoy_configuration'] = stopped_decoy_configuration(rendered, containers, nets, root)
+        # Both retained tag-named containers and new ID-named containers must
+        # match the external approval. Normalize only after that exact check.
+        import copy
+        actual_rendered = copy.deepcopy(rendered)
+        for name, container in containers.items():
+            actual_rendered['services'][name]['image'] = container['Config']['Image']
+        row['problems'] += validate_runtime(actual_rendered, containers, nets, root)
+        row['stopped_decoy_configuration'] = stopped_decoy_configuration(actual_rendered, containers, nets, root)
+        if row['problems'] and row['stopped_decoy_configuration']['status']!='CONFIGURATION_CHECKS_PASSED':
+            raise ValueError('Unsafe runtime configuration; no diagnostic container process may execute')
         nft = json.loads(run(['nft', '-j', 'list', 'table', 'inet', 'hp_guard']).stdout)
         row['guard'] = evaluate(nft, cfg)
         if not row['guard']['ok']: row['problems'].append('hp_guard policy failed validation')
@@ -367,18 +451,24 @@ print(json.dumps(result))
                                'networks': c['NetworkSettings']['Networks'], 'ports': c['NetworkSettings']['Ports'],
                                'mounts': c['Mounts'], 'tmpfs':c['HostConfig'].get('Tmpfs') or {}, 'environment_hash': fingerprint(c['Config'].get('Env', []))} for n,c in containers.items()}
         row['networks'] = nets
-        row['compose_hash'] = hashlib.sha256((root / 'docker-compose.yml').read_bytes()).hexdigest()
+        row['compose_hash'] = hashlib.sha256(reviewed_compose).hexdigest()
         row['rendered_config_hash'] = fingerprint(rendered)
         row['config_hash'] = fingerprint(cfg)
         row['boot_id'] = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
-        row['candidate_source_commit'] = command(source_root, ['git', 'rev-parse', 'HEAD']).stdout.strip()
-        row['candidate_source_dirty'] = bool(command(source_root, ['git', 'status', '--porcelain']).stdout)
+        if (command(source_root, ['git', 'rev-parse', 'HEAD']).stdout.strip() != row['candidate_source_commit'] or
+                command(source_root, ['git', 'status', '--porcelain', '--untracked-files=all']).stdout):
+            raise ValueError('Candidate source changed during qualification')
+        image_approval.load(source_root, {name: spec['image'] for name, spec in rendered['services'].items()}, approval['sha256'])
         row['deployed_source_commit']='UNKNOWN: selected deployed module hashes verified; image revision label not established'
         row['network_fingerprint']=fingerprint({n['Name']:{'driver':n['Driver'],'internal':n['Internal'],'ipam':n['IPAM'],'options':n.get('Options'),
                  'members':sorted(service for service in containers if n['Name'] in PLACEMENT[service])} for n in nets})
         mounted = verify_static_configuration(rendered, root, Path(source_root))
+        compose_input.require_single_input(root,cfg)
+        if (image_approval.read_regular(root / 'docker-compose.yml', 1024**2) != reviewed_compose or
+                image_approval.read_regular(Path(source_root) / 'docker-compose.yml', 1024**2) != reviewed_compose):
+            raise ValueError('Reviewed or runtime Compose file changed during qualification')
         row['mounted_config_hashes']=mounted
-        row['observation_fingerprint']=fingerprint({k:row[k] for k in ('config_hash','rendered_config_hash','deployed_source_hashes','guard_fingerprint','network_fingerprint','mounted_config_hashes')})
+        row['observation_fingerprint']=fingerprint({k:row[k] for k in ('config_hash','rendered_config_hash','deployed_source_hashes','guard_fingerprint','network_fingerprint','mounted_config_hashes','image_approval_sha256')})
         row['wan_enabled'] = False
         row['ok'] = not row['problems']
     except (OSError, ValueError, KeyError, IndexError, TypeError, subprocess.SubprocessError) as exc:

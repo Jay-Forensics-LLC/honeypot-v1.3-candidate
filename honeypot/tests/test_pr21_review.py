@@ -38,6 +38,7 @@ class ImageTrust(unittest.TestCase):
             c.update(Image=self.document['images'][name]['id'], Created='synthetic', RestartCount=0)
             c['State']['StartedAt'] = '2026-10-17T00:00:00Z'
         (self.root/'docker-compose.yml').write_text('synthetic compose')
+        (self.source/'docker-compose.yml').write_text('synthetic compose')
         (self.source/'scripts').mkdir()
         self.module_hashes = {}
         for name in ('incidentd.py','evidence_store.py','hp_common.py','bait.py'):
@@ -46,23 +47,31 @@ class ImageTrust(unittest.TestCase):
             self.module_hashes[name] = hashlib.sha256(data).hexdigest()
         self.approval_path = self.source/image_approval.APPROVAL_PATH
         self.write_approval()
+        self.approval_pin = hashlib.sha256(self.approval_path.read_bytes()).hexdigest()
+        self.source_dirty = False
+        self.commands = []
 
     def write_approval(self):
         self.approval_path.write_text(json.dumps(self.document))
 
     def collect(self):
         def run(root, argv, **kwargs):
+            self.commands.append(argv)
             if argv[:2] == ['docker','compose']: value = json.dumps(self.rendered)
             elif argv[:2] == ['docker','ps']: value = '\n'.join(c['Id'] for c in self.containers.values())
             elif argv[:2] == ['docker','inspect']: value = json.dumps(list(self.containers.values()))
+            elif argv[:3]==['docker','image','inspect']:
+                value=json.dumps([{'Id':identity,'Config':{'Cmd':[],'Entrypoint':[],'Env':[]}} for identity in argv[3:]])
             elif argv[:3] == ['docker','network','inspect']: value = json.dumps(self.networks)
             elif argv[0] == 'nft': value = '{}'
             elif argv[:2] == ['docker','exec']: value = json.dumps(self.module_hashes)
             elif argv == ['git','rev-parse','HEAD']: value = 'synthetic-reviewed-commit'
-            elif argv == ['git','status','--porcelain']: value = ''
+            elif argv == ['git','status','--porcelain','--untracked-files=all']: value = ' M configs/images.approved.json' if self.source_dirty else ''
             else: self.fail('Unexpected command: '+repr(argv))
             return subprocess.CompletedProcess(argv, 0, value, '')
-        with patch.object(inventory,'command',side_effect=run), \
+        with patch.dict(os.environ, {image_approval.PIN_ENV: self.approval_pin,
+                                    image_approval.FILE_ENV: str(self.approval_path)}), \
+             patch.object(inventory,'command',side_effect=run), \
              patch.object(inventory,'config',return_value={'DECOY_BIND':'127.0.0.1','MANAGEMENT_BIND':'127.0.0.1'}), \
              patch.object(inventory,'inspect_daemon',return_value={'ok':True}), \
              patch.object(inventory,'evaluate',return_value={'ok':True,'problems':[],'observed':{},'expected':{}}), \
@@ -73,6 +82,43 @@ class ImageTrust(unittest.TestCase):
         result = self.collect()
         self.assertTrue(result['ok'], result['problems'])
         self.assertEqual(result['image_approval_sha256'], hashlib.sha256(self.approval_path.read_bytes()).hexdigest())
+
+    def test_dirty_self_blessed_candidate_cannot_qualify(self):
+        self.source_dirty = True
+        self.document['images']['incidentd']['id'] = 'sha256:'+'f'*64
+        self.containers['incidentd']['Image'] = self.document['images']['incidentd']['id']
+        self.write_approval()
+        self.approval_pin = hashlib.sha256(self.approval_path.read_bytes()).hexdigest()
+        row = self.collect()
+        self.assertFalse(row['ok'])
+        self.assertTrue(any('Dirty candidate' in error for error in row['problems']))
+
+    def test_clean_checkout_still_requires_separately_supplied_pin(self):
+        self.approval_pin = ''
+        row = self.collect()
+        self.assertFalse(row['ok'])
+        self.assertTrue(any('independently reviewed' in error for error in row['problems']))
+
+    def test_source_approval_edits_cannot_replace_external_pin(self):
+        self.document['images']['incidentd']['id'] = 'sha256:'+'f'*64
+        self.containers['incidentd']['Image'] = self.document['images']['incidentd']['id']
+        self.write_approval()
+        self.assertFalse(self.collect()['ok'])
+
+    def test_external_review_manifest_keeps_candidate_source_unchanged(self):
+        external = self.root/'separate-reviewed-images.json'
+        external.write_bytes(self.approval_path.read_bytes())
+        self.approval_path.write_text('{"version":1,"images":{}}')
+        with patch.dict(os.environ, {image_approval.FILE_ENV: str(external)}):
+            approved = image_approval.load(self.source, self.references, self.approval_pin)
+        self.assertEqual(approved['path'], str(external))
+        self.assertEqual(approved['sha256'], self.approval_pin)
+
+    def test_immutable_container_references_are_checked_against_same_approval(self):
+        for name, row in self.containers.items():
+            row['Config']['Image'] = self.document['images'][name]['id']
+        result = self.collect()
+        self.assertTrue(result['ok'], result['problems'])
 
     def test_runtime_receipts_cannot_bless_an_unreviewed_image(self):
         self.containers['incidentd']['Image'] = 'sha256:'+'f'*64
@@ -141,6 +187,13 @@ class MetadataGrowth(unittest.TestCase):
 
     def test_actual_growth_control_passes(self):
         self.assertEqual(custody.compare(self.root,self.before,self.after)['status'],'PASS')
+
+    def test_comparison_validates_metadata_even_without_new_ids(self):
+        for value in (None, [], {'confidence': float('nan')}):
+            invalid = copy.deepcopy(self.before)
+            invalid['incidents'][str(self.incident)]['metadata_at_acquisition'] = value
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                custody.compare(self.root, invalid, invalid)
 
     def test_invalid_numbers_types_and_times_cannot_qualify_growth(self):
         mutations = [('confidence',x) for x in (float('nan'),float('inf'),-0.1,1.1,True,None,'0.9')]
@@ -235,6 +288,23 @@ class SpecialStaticEntries(unittest.TestCase):
         path=self.fixture.root/'detections/suricata'
         for number in range(501): (path/f'empty-{number}').mkdir()
         with self.assertRaisesRegex(ValueError,'inventory budget'): self.verify()
+
+    def test_entry_bound_is_enforced_while_streaming_directory(self):
+        from contextlib import contextmanager
+        from types import SimpleNamespace
+        yielded = []
+        @contextmanager
+        def children(fd):
+            def stream():
+                for number in range(100000):
+                    yielded.append(number)
+                    if len(yielded) > 501:
+                        self.fail('Unbounded directory materialized before budget enforcement')
+                    yield SimpleNamespace(name='unread-'+str(number))
+            yield stream()
+        with patch.object(inventory.os, 'scandir', side_effect=children):
+            with self.assertRaisesRegex(ValueError, 'inventory budget'): self.verify()
+        self.assertLessEqual(len(yielded), 501)
 
 
 if __name__ == '__main__': unittest.main()

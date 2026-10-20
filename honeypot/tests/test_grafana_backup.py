@@ -214,7 +214,7 @@ class UpdateBackupOrdering(GrafanaFixture):
              patch.object(ops, 'require_local_daemon', side_effect=lambda *a, **kw: events.append('daemon-owned')), \
              patch.object(ops, 'run', side_effect=run), patch.object(ops, 'compose', side_effect=compose), \
              patch.object(ops, 'stop', side_effect=lambda: events.append('stop')), \
-             patch.object(ops, 'start', side_effect=lambda **kwargs: events.append('start' if kwargs == {'build':False} else 'unsafe-start')), \
+             patch.object(ops, 'start', side_effect=lambda **kwargs: events.append('start' if kwargs == {'build':False, 'approval_sha256':approval_hash} else 'unsafe-start')), \
              patch.object(ops, 'config', return_value=cfg), \
              patch.object(ops, 'atomic_json', side_effect=lambda path,doc: events.append('observation-write') if path.name=='images.observed.json' else self.fail('Approval/old lock was overwritten')), \
              patch.object(backup, 'create_backup', side_effect=snapshot), \
