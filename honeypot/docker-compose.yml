@@ -14,7 +14,7 @@ x-common: &common
 services:
   cowrie:
     <<: *common
-    image: ${COWRIE_IMAGE:-cowrie/cowrie:3.0.15@sha256:fc57120d88c2bfb5817f63f6c132ce5c2969b641c2f1ac67887652b6f294148d}
+    image: ${COWRIE_IMAGE:-cowrie/cowrie:3.1.2@sha256:019726c8deef20729162cda492d9385917b579c9ace6368e47e7566cd2491ba1}
     container_name: honeypot-cowrie
     user: "999:2000"
     mem_limit: 768m
