@@ -110,6 +110,13 @@ class FinalReview(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'restart policy'):fixture.exercise()
         self.assertEqual(fixture.starts(),[]);self.assertEqual(fixture.snapshots,[])
 
+    def test_unsafe_mount_cannot_reach_diagnostic_container_execution(self):
+        fixture=self.image_fixture()
+        fixture.containers['incidentd']['Mounts'].append({'Type':'bind','Source':'/unreviewed',
+            'Destination':'/app','RW':True})
+        self.assertFalse(fixture.collect()['ok'])
+        self.assertFalse(any(argv[:2]==['docker','exec'] for argv in fixture.commands))
+
     def test_source_identity_receipts_are_required_and_independently_checked(self):
         fixture=snapshots.AcquisitionVerification();fixture.setUp();self.addCleanup(fixture.doCleanups)
         packet=fixture.packet();self.assertEqual(packet_snapshot.verify_acquisition(packet)['status'],'PASS')

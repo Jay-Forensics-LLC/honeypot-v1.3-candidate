@@ -49,12 +49,14 @@ class ImageTrust(unittest.TestCase):
         self.write_approval()
         self.approval_pin = hashlib.sha256(self.approval_path.read_bytes()).hexdigest()
         self.source_dirty = False
+        self.commands = []
 
     def write_approval(self):
         self.approval_path.write_text(json.dumps(self.document))
 
     def collect(self):
         def run(root, argv, **kwargs):
+            self.commands.append(argv)
             if argv[:2] == ['docker','compose']: value = json.dumps(self.rendered)
             elif argv[:2] == ['docker','ps']: value = '\n'.join(c['Id'] for c in self.containers.values())
             elif argv[:2] == ['docker','inspect']: value = json.dumps(list(self.containers.values()))

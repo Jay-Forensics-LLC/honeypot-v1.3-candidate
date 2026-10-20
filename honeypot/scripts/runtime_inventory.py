@@ -412,6 +412,8 @@ def collect(root, source_root, probe_readiness=True, *, approval_sha256=None):
             actual_rendered['services'][name]['image'] = container['Config']['Image']
         row['problems'] += validate_runtime(actual_rendered, containers, nets, root)
         row['stopped_decoy_configuration'] = stopped_decoy_configuration(actual_rendered, containers, nets, root)
+        if row['problems'] and row['stopped_decoy_configuration']['status']!='CONFIGURATION_CHECKS_PASSED':
+            raise ValueError('Unsafe runtime configuration; no diagnostic container process may execute')
         nft = json.loads(run(['nft', '-j', 'list', 'table', 'inet', 'hp_guard']).stdout)
         row['guard'] = evaluate(nft, cfg)
         if not row['guard']['ok']: row['problems'].append('hp_guard policy failed validation')

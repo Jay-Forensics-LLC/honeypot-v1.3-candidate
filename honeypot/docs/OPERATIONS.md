@@ -38,6 +38,9 @@ All lifecycle Compose calls select exactly one file and the explicit project.
 Automatic override files and additional COMPOSE_FILE/environment inputs are
 refused; qualification applies the same checks and compares actual execution
 fields even when no override file remains.
+Inventory refuses diagnostic container execution when runtime configuration is
+unsafe. The explicit cleanly-stopped-decoy mode still requires the incident
+pipeline's configuration and health to pass before its diagnostic process runs.
 
 An update still requires `--apply --image-approval-sha256 SHA256`, the verified
 stopped Grafana backup, and separate deployment approval. It checks approval
