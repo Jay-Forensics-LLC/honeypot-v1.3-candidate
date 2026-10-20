@@ -1,6 +1,5 @@
 """Independent final-review reproductions; all processes and capture data are fixtures."""
 import copy
-import json
 import os
 from pathlib import Path
 import sys

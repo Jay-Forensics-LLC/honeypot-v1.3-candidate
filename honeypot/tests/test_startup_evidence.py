@@ -30,7 +30,7 @@ class StartupEvidence(unittest.TestCase):
             engine.inspect_existing_evidence()
             if engine.startup_scan_reported:
                 return self.diagnostics()[-1]
-        self.fail('Startup scan did not finish within fixture bound')
+        raise AssertionError('Startup scan did not finish within fixture bound')
 
     def test_empty_startup_is_scoped_once_and_identifies_process(self):
         engine = incidentd.Engine(self.root)

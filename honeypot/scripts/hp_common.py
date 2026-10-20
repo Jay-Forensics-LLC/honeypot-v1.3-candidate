@@ -76,6 +76,8 @@ def _log_parent(path):
                 try:
                     os.mkdir(part, mode=0o750, dir_fd=fd)
                 except FileExistsError:
+                    # A concurrent creator won. The immediately following
+                    # O_DIRECTORY|O_NOFOLLOW open still validates the entry.
                     pass
                 child = os.open(part, flags, dir_fd=fd)
             os.close(fd)

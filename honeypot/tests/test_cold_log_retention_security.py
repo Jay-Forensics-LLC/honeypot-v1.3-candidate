@@ -66,14 +66,15 @@ class ColdLogSecurity(unittest.TestCase):
         before = self.log.lstat(); opened = cold.os.fdopen; reads = []
         @contextlib.contextmanager
         def growing_reader(fd, *args, **kwargs):
+            test_case = self
             with opened(fd, *args, **kwargs) as source:
                 class Reader:
-                    def read(inner, count):
+                    def read(self, count):
                         reads.append(count)
                         if len(reads) > 1:
                             raise AssertionError('Compression read followed a growing EOF')
                         chunk = source.read(count)
-                        with self.log.open('ab') as writer: writer.write(b'concurrent growth')
+                        with test_case.log.open('ab') as writer: writer.write(b'concurrent growth')
                         return chunk
                 yield Reader()
         with patch.object(cold.os, 'fdopen', growing_reader), self.assertRaises(ValueError):

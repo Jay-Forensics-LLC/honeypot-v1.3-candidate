@@ -14,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'scripts'))
 import image_approval
 import ops
 import test_demo
-from guard_policy import DNS
 
 
 class StartupFixture(unittest.TestCase):
