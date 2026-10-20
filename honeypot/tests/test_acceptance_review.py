@@ -86,6 +86,30 @@ class AcceptanceReview(unittest.TestCase):
         self.assertEqual([row['action'] for row in rows], ['stop.attempt', 'stop'])
         self.assertIs(rows[1]['success'], True)
 
+    def test_lifecycle_does_not_starve_sibling_operational_writers(self):
+        @hp_common.audited('start')
+        def operation():
+            hp_common.append_json(self.logs / 'sensor-progress.jsonl', {'progress': True})
+        with patch.object(hp_common, 'ROOT', self.root), patch.object(hp_common, '_LOG_LOCK_TIMEOUT', 0):
+            operation()
+        self.assertEqual(json.loads((self.logs / 'sensor-progress.jsonl').read_text()), {'progress': True})
+
+    def test_completion_lock_contention_invokes_cleanup_after_start(self):
+        events = []
+        held = os.open(self.logs, os.O_RDONLY | os.O_DIRECTORY)
+        @hp_common.audited('start')
+        def operation():
+            hp_common.on_audit_failure(lambda: events.append('stop-captured-ids'))
+            events.append('started')
+            fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        try:
+            with patch.object(hp_common, 'ROOT', self.root), patch.object(hp_common, '_LOG_LOCK_TIMEOUT', 0), \
+                    self.assertRaises(TimeoutError):
+                operation()
+        finally:
+            os.close(held)
+        self.assertEqual(events, ['started', 'stop-captured-ids'])
+
     def test_startup_audit_device_failure_stops_only_the_captured_owned_ids(self):
         for boot in (False, True):
             fixture = StartupFixture()

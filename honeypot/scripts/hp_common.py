@@ -236,11 +236,13 @@ def audited(action):
         @functools.wraps(fn)
         def wrapped(*args, **kwargs):
             # Acquire and exercise the pinned audit file BEFORE lifecycle work.
-            # Hold its directory lock through completion, so a later contender
-            # cannot turn successful startup into a post-operation lock timeout.
+            # Release the lock during slow lifecycle work so sibling telemetry
+            # writers can progress. Keep the file/parent descriptors pinned;
+            # completion contention or replacement invokes exact-ID cleanup.
             with _open_log(ROOT/'logs/system/audit.jsonl', rotate=True) as log:
                 _append_log(log, _audit_row(action+'.attempt', approval_flags=sys.argv[1:]))
                 os.fsync(log[0]); os.fsync(log[1])
+                fcntl.flock(log[1], fcntl.LOCK_UN)
                 operation = {'cleanup': None}
                 token = _AUDIT_OPERATION.set(operation)
                 success = False
@@ -250,6 +252,7 @@ def audited(action):
                     return result
                 finally:
                     try:
+                        _lock_log_directory(log[1])
                         _append_log(log, _audit_row(action, success=success, approval_flags=sys.argv[1:]))
                         os.fsync(log[0])
                     except BaseException:

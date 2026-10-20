@@ -6,7 +6,7 @@ preview unit's conflicting Compose environment input, exposes/forwards the
 external image-approval pin through both operator startup subcommands, and
 reserves the audit log before lifecycle mutation with exact-ID startup cleanup on
 completion-write failure. Five initial methods reproduced two failed assertions
-and four errored cases/subtests; six current methods cover the corrections without
+and four errored cases/subtests; eight current methods cover the corrections without
 live operations. PR #26 has merged into HoneyWatch; its three coverage/review files
 are deliberately integrated. New commits use the existing GitHub-registered SSH
 signing agent. Earlier unsigned published commits are preserved; the default
