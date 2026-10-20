@@ -1,4 +1,6 @@
 import copy
+from contextlib import ExitStack
+import datetime as dt
 import hashlib
 import json
 from pathlib import Path
@@ -9,12 +11,44 @@ import struct
 import subprocess
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
 import stage7_qualification as qualification
 from test_pcap_demo_recovery import runtime_fixture
 from incidentd import Engine
+
+
+class CleanStartupAudit(unittest.TestCase):
+    def run_audit(self, changes=None, producer=None, since=None):
+        stamp = dt.datetime.now(dt.timezone.utc).isoformat()
+        audit = {'action': 'EVIDENCE_STARTUP_SCAN_COMPLETE', 'status': 'CLEAN',
+            'scan_complete': True, 'locator_ready': True, 'migration_failed': False,
+            'scanned_incidents': 0, 'blocked_incidents': 0, 'boot_id': 'boot',
+            'producer_pid': 1, 'producer_started_ticks': 123, 'started_utc': stamp, 'timestamp': stamp}
+        audit.update(changes or {})
+        context = Mock(value={'boot_id': 'boot'})
+        producer = producer or {'pid': 1, 'started_ticks': 123, 'boot_id': 'boot'}
+        with patch.object(qualification, 'CONTEXT', context), \
+             patch.object(qualification.preservation, 'stable_bytes', return_value=json.dumps(audit).encode()), \
+             patch.object(qualification, 'command', side_effect=['a' * 64, json.dumps(producer)]):
+            return qualification.integrity_startup(since)
+
+    def test_positive_complete_scan_bound_to_current_process_leaves_history_unknown(self):
+        self.assertEqual(self.run_audit()['historical_closeout'], 'UNKNOWN')
+
+    def test_missing_incomplete_or_failed_scan_never_passes(self):
+        for changes in ({'status': 'BLOCKED'}, {'scan_complete': False}, {'locator_ready': False},
+                        {'migration_failed': True}, {'blocked_incidents': 1}, {'boot_id': 'another'},
+                        {'producer_started_ticks': None}, {'timestamp': '2000-01-01T00:00:00Z'}):
+            with self.subTest(changes=changes), self.assertRaises((ValueError, TypeError)):
+                self.run_audit(changes)
+
+    def test_other_producer_or_prerestart_scan_rejected(self):
+        with self.assertRaisesRegex(ValueError, 'another producer'):
+            self.run_audit(producer={'pid': 1, 'started_ticks': 456, 'boot_id': 'boot'})
+        future = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=1)).isoformat()
+        with self.assertRaisesRegex(ValueError, 'after restart'): self.run_audit(since=future)
 
 
 def synthetic_probe(marker='honeytrace-demo-stage7-test'):
@@ -363,6 +397,71 @@ class MatrixAcceptance(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'response proof incomplete'):
             qualification.complete_rows(rows)
 
+    def run_completed_matrix(self, cleanroom, postflight_status='PASS'):
+        before = StrictRestart().fixture()
+        for index, name in enumerate(qualification.ORDER):
+            before['containers'][name]['id'] = format(index + 1, '064x')
+        before['networks'][0]['Containers'] = {container['id']: {
+            'EndpointID': container['networks']['net']['EndpointID'],
+            'MacAddress': container['networks']['net']['MacAddress']}
+            for container in before['containers'].values()}
+        before['mounted_config_hashes']['detections/correlation/rules.json'] = 'rules'
+        rows = self.complete(); anchor = before
+        for index, row in enumerate(rows):
+            row['before'] = copy.deepcopy(anchor)
+            after = copy.deepcopy(anchor)
+            after['containers'][row['service']]['started_at'] = 'after-' + str(index)
+            row['postflight']['runtime'] = after
+            row['restart_requested_utc'] = qualification.utc()
+            row['preservation_after'] = {}
+            anchor = after
+        configuration = {'dynamic_mac': {name: False for name in qualification.ORDER}}
+        base = {'boot_id': before['boot_id'], 'runtime': before, 'existing_event': {},
+                'execution_configuration': configuration, 'routes': {}, 'evidence_permissions': {},
+                'quarantine': {}, 'preservation': {}, 'source_commit': 'source', 'implementation': {},
+                'historical_obligations': []}
+        mocks = [(qualification, 'CONTEXT', {'new': Mock() if cleanroom else None}),
+            (qualification, 'restart_row', {'side_effect': rows}),
+            (qualification.review, 'inspect', {'return_value': {}}),
+            (qualification, 'prerequisite_passed', {'return_value': None}),
+            (qualification, 'observe', {'return_value': (anchor, {})}),
+            (qualification, 'execution_configuration', {'return_value': configuration}),
+            (qualification, 'routes_and_tty', {'return_value': {}}),
+            (qualification, 'evidence_permissions', {'return_value': {}}),
+            (qualification, 'quarantine_state', {'return_value': {}}),
+            (qualification, 'acquire_preservation', {'return_value': {}}),
+            (qualification.preservation, 'compare', {'return_value': {'status': 'PASS'}}),
+            (qualification, 'loki_event', {'return_value': {'status': 'PASS'}}),
+            (qualification, 'verify_packets', {'return_value': {'status': 'PASS'}}),
+            (qualification, 'integrity_startup', {'return_value': {'status': 'PASS'}}),
+            (qualification, 'source_revision', {'return_value': 'source'}),
+            (qualification, 'implementation', {'return_value': {}}),
+            (qualification, 'postflight', {'side_effect': lambda result, *_: result.update(
+                postflight={'status': postflight_status})})]
+        with tempfile.TemporaryDirectory() as tmp, ExitStack() as stack:
+            for module, name, options in mocks:
+                stack.enter_context(patch.object(module, name, **options))
+            folder = Path(tmp)
+            link = qualification.save(folder / 'baseline.json', base)
+            return qualification.execute_matrix(base, link, folder)
+
+    def test_cleanroom_matrix_pass_does_not_clear_stage7_or_stage8(self):
+        result = self.run_completed_matrix(True)
+        self.assertEqual((result['STATUS'], result['MATRIX_GATE'], result['STAGE7_GATE'], result['STAGE8_GATE']),
+                         ('PASS', 'PASS', 'BLOCKED', 'BLOCKED'))
+        self.assertIn('B17', result['qualification_disposition'])
+        self.assertTrue(result['historical_closeout'].startswith('UNKNOWN'))
+
+    def test_legacy_completed_matrix_disposition_is_preserved(self):
+        result = self.run_completed_matrix(False)
+        self.assertEqual((result['STATUS'], result['STAGE7_GATE'], result['STAGE8_GATE']),
+                         ('PASS', 'PASS', 'READY_FOR_OPERATOR_DIRECTION'))
+
+    def test_cleanroom_final_postflight_failure_blocks_matrix_gate(self):
+        result = self.run_completed_matrix(True, 'FAILED')
+        self.assertEqual((result['STATUS'], result['MATRIX_GATE'], result['STAGE7_GATE'], result['STAGE8_GATE']),
+                         ('FAILED', 'BLOCKED', 'BLOCKED', 'BLOCKED'))
+
     def test_failure_stops_later_restarts_and_attempts_postflight(self):
         with tempfile.TemporaryDirectory() as tmp:
             folder=Path(tmp); baseline={'runtime':{},'boot_id':'boot','existing_event':{},'historical_obligations':[]}
@@ -598,11 +697,51 @@ class IndependentPacketVerification(unittest.TestCase):
         self.probe['classification']=qualification.probe_classification(raw,event,context,'ftp')
         self.rows=[{'probes':[self.probe]}]
 
+    def test_cleanroom_requires_acquisition_and_rechecks_supplied_legacy_metadata(self):
+        with patch.object(qualification, 'CONTEXT', Mock()), self.assertRaisesRegex(ValueError, 'acquisition metadata'):
+            qualification.verify_packets(self.rows, self.rules_hash)
+        packet = self.probe['packet']
+        receipt = {'path': packet['snapshot'], 'sha256': packet['sha256'], 'bytes': packet['bytes']}
+        packet['acquisition'] = {'raw_snapshot': dict(receipt), 'parser_snapshot': dict(receipt), 'derivation': None}
+        with patch.object(qualification, 'CONTEXT', Mock()), \
+             patch.object(qualification, 'command', return_value=f'{time.time()}\t172.29.41.2\t2121\n'):
+            result = qualification.verify_packets(self.rows, self.rules_hash)
+        self.assertEqual(result['artifacts'][0]['packet_acquisition']['status'], 'PASS')
+        packet['acquisition']['raw_snapshot']['sha256'] = '0' * 64
+        with patch.object(qualification, 'CONTEXT', None), self.assertRaisesRegex(ValueError, 'hash or size differs'):
+            qualification.verify_packets(self.rows, self.rules_hash)
+
     def test_real_retained_marker_passes_and_missing_marker_fails(self):
         if not shutil.which('tshark'): self.skipTest('tshark unavailable')
         self.assertEqual(qualification.verify_packets(self.rows,self.rules_hash)['verified_probe_count'],1)
         self.probe['demo_run_id']+='-missing'
         with self.assertRaisesRegex(ValueError,'marker recheck failed'):qualification.verify_packets(self.rows,self.rules_hash)
+
+    def test_offline_parser_uses_source_checkout_without_runtime_directory(self):
+        response = subprocess.CompletedProcess([], 0,
+            f'{time.time()}\t172.29.41.2\t2121\n', '')
+        with patch.object(qualification.subprocess, 'run', return_value=response) as run:
+            self.assertEqual(qualification.verify_packets(self.rows, self.rules_hash)['verified_probe_count'], 1)
+        self.assertEqual(run.call_args.kwargs['cwd'], qualification.SOURCE)
+        self.assertIn('-r', run.call_args.args[0])
+        self.assertNotIn('-i', run.call_args.args[0])
+
+    def test_offline_parser_stays_in_private_tmp_when_tempdir_overridden(self):
+        inputs = []
+        def runner(argv, **kwargs):
+            path = Path(argv[argv.index('-r') + 1])
+            inputs.append(path)
+            self.assertEqual(path.parent.parent, Path('/tmp'))
+            self.assertEqual(path.parent.stat().st_mode & 0o777, 0o700)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(path.read_bytes(), self.path.read_bytes())
+            return subprocess.CompletedProcess(argv, 0,
+                f'{time.time()}\t172.29.41.2\t2121\n', '')
+        with patch.object(tempfile, 'tempdir', str(self.folder)), \
+             patch.object(qualification.subprocess, 'run', side_effect=runner):
+            self.assertEqual(qualification.verify_packets(self.rows, self.rules_hash)['verified_probe_count'], 1)
+        self.assertTrue(inputs)
+        self.assertFalse(inputs[0].parent.exists())
 
     def test_unreadable_tampered_and_duplicate_proof_cannot_pass(self):
         with patch.object(qualification.preservation,'regular',side_effect=PermissionError('unreadable')):

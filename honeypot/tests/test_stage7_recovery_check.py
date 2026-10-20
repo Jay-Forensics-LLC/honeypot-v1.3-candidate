@@ -7,7 +7,7 @@ import shutil
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import stage7_recovery_check as review
@@ -93,6 +93,21 @@ class ActiveReview(unittest.TestCase):
         self.assertEqual(row['STAGE7_GATE'], 'BLOCKED'); self.assertEqual(row['STAGE8_GATE'], 'BLOCKED')
         self.assertFalse(row['NEW_STAGE7_BASELINE_READY'])
         self.assertFalse(row['runtime_mutated']); self.assertFalse(row['traffic_generated'])
+
+    def test_explicit_cleanroom_identity_stays_blocked_on_boot_or_source_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            context = Mock(runtime=root)
+            context.check_runtime.side_effect = ValueError('Observed runtime source/boot/root differs from context')
+            with patch.object(review, 'CONTEXT', context), patch.object(review.os, 'geteuid', return_value=0), \
+                 patch.object(review, 'collect', return_value=self.fixture()), \
+                 patch.object(review, 'capture_setup') as capture:
+                row = review.inspect(root, active=True)
+            self.assertEqual(row['STATUS'], 'BLOCKED')
+            self.assertIn('source/boot/root differs', row['error'])
+            self.assertTrue(row['historical_closeout'].startswith('UNKNOWN'))
+            self.assertFalse(row['NEW_STAGE7_BASELINE_READY'])
+            capture.assert_not_called()
 
     def test_readiness_pid_and_evidence_errors_never_pass(self):
         for args in ({'resources': {'ok': False, 'problems': ['stale capture']}},

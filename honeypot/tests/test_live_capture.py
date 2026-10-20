@@ -1,4 +1,5 @@
 import os
+import hashlib
 from pathlib import Path
 import shutil
 import struct
@@ -25,6 +26,99 @@ class CaptureProof(unittest.TestCase):
         self.marker='honeytrace-demo-packet-test';self.started=time.time()-1
     def proof(self,runner):
         return capture.packet_proof(self.root,self.folder,self.marker,'172.29.41.2',self.started,runner)
+
+    def pcapng(self,partial_tail=True):
+        payload=('USER '+self.marker+'\r\n').encode();stamp=int(time.time());self.started=stamp-1
+        ethernet=b'\0'*12+b'\x08\x00'
+        ip=struct.pack('!BBHHHBBH4s4s',0x45,0,40+len(payload),1,0,64,6,0,b'\xac\x1d\x29\x01',b'\xac\x1d\x29\x02')
+        tcp=struct.pack('!HHIIBBHHH',41000,2121,1,0,0x50,0x18,4096,0,0)
+        packet=ethernet+ip+tcp+payload;padded=packet+b'\0'*((-len(packet))%4)
+        micros=stamp*1000000;size=32+len(padded)
+        section=struct.pack('<IIIHHqI',0x0a0d0d0a,28,0x1a2b3c4d,1,0,-1,28)
+        interface=struct.pack('<IIHHII',1,20,1,0,65535,20)
+        enhanced=(struct.pack('<IIIIIII',6,size,0,micros>>32,micros&0xffffffff,len(packet),len(packet))+
+                  padded+struct.pack('<I',size))
+        complete=section+interface+enhanced
+        return complete+(enhanced[:12] if partial_tail else b''),complete
+
+    def test_partial_pcapng_retains_raw_and_exact_complete_prefix_with_provenance(self):
+        raw,complete=self.pcapng();self.path.write_bytes(raw)
+        def runner(argv,**kwargs):
+            self.assertEqual(Path(argv[argv.index('-r')+1]).read_bytes(),complete)
+            return SimpleNamespace(returncode=0,stdout=f'{time.time()}\t172.29.41.2\t2121\n')
+        result=self.proof(runner);acquisition=result['acquisition']
+        self.assertTrue(result['ok']);self.assertEqual(self.path.read_bytes(),raw)
+        self.assertEqual(Path(acquisition['raw_snapshot']['path']).read_bytes(),raw)
+        self.assertEqual(Path(result['snapshot']).read_bytes(),complete)
+        self.assertEqual(acquisition['parser_snapshot'],{
+            'path':result['snapshot'],'sha256':hashlib.sha256(complete).hexdigest(),'bytes':len(complete)})
+        self.assertEqual(acquisition['raw_snapshot']['sha256'],hashlib.sha256(raw).hexdigest())
+        self.assertEqual(acquisition['derivation']['discarded_tail_bytes'],12)
+        self.assertEqual(acquisition['derivation']['source_sha256'],acquisition['raw_snapshot']['sha256'])
+        for artifact in ('raw_snapshot','parser_snapshot'):
+            self.assertEqual(Path(acquisition[artifact]['path']).stat().st_mode&0o777,0o600)
+
+    def test_partial_derivative_no_match_and_parser_error_never_pass_or_leave_copies(self):
+        raw,_=self.pcapng();self.path.write_bytes(raw)
+        for outcome in (SimpleNamespace(returncode=0,stdout=''),
+                        SimpleNamespace(returncode=14,stdout=f'{time.time()}\t172.29.41.2\t2121\n')):
+            self.assertFalse(self.proof(lambda *a,**k:outcome)['ok'])
+            self.assertEqual(self.path.read_bytes(),raw)
+            self.assertFalse((self.folder/'capture-match.pcapng').exists())
+            self.assertFalse((self.folder/'capture-complete-prefix.pcapng').exists())
+
+    def test_partial_derivative_timeout_cleans_only_new_copies(self):
+        raw,_=self.pcapng();self.path.write_bytes(raw)
+        def runner(*args,**kwargs):raise capture.subprocess.TimeoutExpired('tshark',15)
+        with self.assertRaises(capture.subprocess.TimeoutExpired):self.proof(runner)
+        self.assertEqual(self.path.read_bytes(),raw)
+        self.assertFalse((self.folder/'capture-match.pcapng').exists())
+        self.assertFalse((self.folder/'capture-complete-prefix.pcapng').exists())
+
+    def test_raw_snapshot_tampering_during_derivative_parse_cannot_pass(self):
+        raw,_=self.pcapng();self.path.write_bytes(raw)
+        def runner(*args,**kwargs):
+            (self.folder/'capture-match.pcapng').write_bytes(raw+b'changed')
+            return SimpleNamespace(returncode=0,stdout=f'{time.time()}\t172.29.41.2\t2121\n')
+        with self.assertRaisesRegex(ValueError,'Acquired packet snapshot changed during verification'):
+            self.proof(runner)
+        self.assertEqual(self.path.read_bytes(),raw)
+        self.assertFalse((self.folder/'capture-match.pcapng').exists())
+        self.assertFalse((self.folder/'capture-complete-prefix.pcapng').exists())
+
+    def test_existing_derived_evidence_cannot_be_overwritten_or_deleted(self):
+        raw,_=self.pcapng();self.path.write_bytes(raw)
+        existing=self.folder/'capture-complete-prefix.pcapng';existing.write_bytes(b'preserve')
+        with self.assertRaises(FileExistsError):self.proof(lambda *a,**k:None)
+        self.assertEqual(existing.read_bytes(),b'preserve');self.assertEqual(self.path.read_bytes(),raw)
+        self.assertFalse((self.folder/'capture-match.pcapng').exists())
+
+    def test_malformed_complete_interior_block_fails_before_parser_without_source_change(self):
+        raw,complete=self.pcapng();broken=complete[:-4]+struct.pack('<I',12)+raw[len(complete):]
+        self.path.write_bytes(broken)
+        with patch.object(capture.subprocess,'run',side_effect=AssertionError('Malformed snapshot must not be parsed')):
+            with self.assertRaisesRegex(ValueError,'block trailer'):self.proof(capture.subprocess.run)
+        self.assertEqual(self.path.read_bytes(),broken)
+        self.assertFalse((self.folder/'capture-match.pcapng').exists())
+
+    def test_raw_and_derived_bytes_both_consume_aggregate_budget(self):
+        raw,complete=self.pcapng();self.path.write_bytes(raw)
+        # Exactly enough for the raw bytes, one byte too little for both copies.
+        with patch.object(capture,'SNAPSHOT_TOTAL_LIMIT',len(raw)+len(complete)-1):
+            with self.assertRaisesRegex(ValueError,'budget exceeded by complete-prefix'):
+                self.proof(lambda *a,**k:None)
+        self.assertEqual(self.path.read_bytes(),raw);self.assertFalse((self.folder/'capture-match.pcapng').exists())
+
+    def test_native_tshark_partial_pcapng_matches_only_exact_complete_marker(self):
+        if not shutil.which('tshark'):self.skipTest('tshark unavailable')
+        raw,complete=self.pcapng();self.path.write_bytes(raw)
+        result=self.proof(capture.subprocess.run)
+        self.assertTrue(result['ok']);self.assertEqual(Path(result['snapshot']).read_bytes(),complete)
+        for artifact in ('raw_snapshot','parser_snapshot'):
+            Path(result['acquisition'][artifact]['path']).unlink()
+        self.marker+='-absent'
+        self.assertFalse(self.proof(capture.subprocess.run)['ok'])
+        self.assertEqual(self.path.read_bytes(),raw)
     def test_matching_packet_retained_and_source_unchanged(self):
         original=self.path.read_bytes()
         def runner(argv,**kw):
