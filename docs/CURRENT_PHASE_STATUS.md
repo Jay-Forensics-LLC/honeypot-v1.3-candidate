@@ -5,7 +5,7 @@ Phase 8 execution: NOT GREEN-LIT. Phase 10: PLANNED — PENDING — DO NOT IMPLE
 
 The source integration branch is `fix/phase7-source-integration-20261019`.
 Its implementation checkpoint is
-`8070509d1ef9ee83a9c6f8c67f71fd05260d827b`; subsequent changes update
+`f402bd8cac2f5e868cc8700d45986af6278495ab`; subsequent changes update
 current-phase documentation. The exact final PR head/tree and command receipts
 are recorded in the private integration handoff. Qualification must pin that
 final clean SHA, independently accepted images, target and boot. No candidate
@@ -35,7 +35,7 @@ See
 [operations](../honeypot/docs/OPERATIONS.md) and
 [clean-room qualification](../honeypot/docs/CLEANROOM_QUALIFICATION.md).
 
-Offline validation: 584 unit tests and 89 retained Stage 7 tests pass with no
+Offline validation: 591 unit tests and 89 retained Stage 7 tests pass with no
 skips; `make verify` passes. The full repository validator passes its 21 tooling
 tests, archive/provenance checks, source checks and required suite invocations.
 An additional local Compose 2.40.3 canonical JSON parser round-trip reproduced
@@ -54,6 +54,17 @@ regression methods are now committed. These are not eight separate test methods.
 Repository validation first rejected the new test file's inherited 664 mode; its
 mode was corrected to 644, and the validator then passed 224 source files. Both
 failed receipts remain retained. Review of this corrected checkpoint is pending.
+Further independent review found that per-incident checks could miss a globally
+duplicated event ID. The clean-room sweep now requires a bounded global unique-ID
+inventory, final stable file signatures, and a nonempty event store. Prerequisites
+require that explicit global result. Five initial methods reproduced four failures
+against the prior checkpoint; seven methods now cover duplicate copies restored
+after startup, uniqueness, entry bounds, missing proof, empty stores and later
+file changes. A test's broad os.open mock conflicted with the new directory
+descriptors; it now spies on real directory opens while still forbidding evidence
+FIFO opens. The corrected full validator passes 225 source files. Failed logs
+remain preserved. These changes do not alter the historical reconciliation scope
+or prove the current store is clean.
 
 The user selected the laptop as the intended Phase 8 target; desktop live results
 are separate and remain unacquired/unverified. A fresh non-modifying laptop
