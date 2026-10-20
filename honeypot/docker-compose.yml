@@ -115,7 +115,7 @@ services:
       retries: 3
   alloy:
     <<: *common
-    image: ${ALLOY_IMAGE:-grafana/alloy:v1.14.1@sha256:8f5666aebb871ba43ee2d65159c5d1c26c903720efafaf2d9ed4e237afc3bc88}
+    image: ${ALLOY_IMAGE:-grafana/alloy:v1.20.1@sha256:2aa2099af76c0098d4af7a4d6e48f86cb66dc1a000222ad927a1c67c6542d13f}
     container_name: honeypot-alloy
     user: "10001:2000"
     mem_limit: 512m
