@@ -5,7 +5,7 @@ Phase 8 execution: NOT GREEN-LIT. Phase 10: PLANNED — PENDING — DO NOT IMPLE
 
 The source integration branch is `fix/phase7-source-integration-20261019`.
 Its implementation checkpoint is
-`ce2d5b3f16ebf610a04bcfb665f5eab5faf0c233`; subsequent changes add regressions and
+`5c876712c44ac804c85969174b06bc5d58f7f349`; subsequent changes add regressions and
 current-phase documentation. The exact final PR head/tree and command receipts
 are recorded in the private integration handoff. Qualification must pin that
 final clean SHA, independently accepted images, target and boot. No candidate
@@ -29,9 +29,13 @@ and observed IDs cannot authorize themselves. See
 [operations](../honeypot/docs/OPERATIONS.md) and
 [clean-room qualification](../honeypot/docs/CLEANROOM_QUALIFICATION.md).
 
-Offline validation: 570 unit tests and 89 retained Stage 7 tests pass with no
+Offline validation: 571 unit tests and 89 retained Stage 7 tests pass with no
 skips; `make verify` passes. The full repository validator passes its 21 tooling
 tests, archive/provenance checks, source checks and required suite invocations.
+An additional local Compose 2.40.3 canonical JSON parser round-trip reproduced
+and corrected double-escaping in the initial frozen snapshot, retaining literal
+dollars and immutable IDs despite environment changes. Both failed and corrected
+receipts are private source evidence, with no daemon/container action.
 The original 11-method cross-branch failure replay is retained separately:
 desktop 19 failed assertions/subtests and eight errored subtests; laptop control
 zero failures/errors/skips. Mock-only startup reproductions on both old tips
