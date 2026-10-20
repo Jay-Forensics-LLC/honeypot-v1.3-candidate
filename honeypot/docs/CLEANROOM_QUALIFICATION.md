@@ -22,6 +22,10 @@ seven actual container restart policies must be disabled (`no`, zero retries).
 Inventory rejects a mismatch or mid-observation file change; it forces enumeration
 of untracked source files even if Git's local status configuration hides them.
 These source checks do not change the deployed policies or qualify boot ordering.
+Additional Compose files/input environment are refused. Effective command,
+entrypoint, environment, healthcheck, working-directory and stop-signal fields
+must match the reviewed model and independently approved image defaults. Labels
+or recorded environment hashes alone cannot establish this relationship.
 
 The complete clean-room evidence sweep also requires event-ID uniqueness across
 all incident locations, independently of incidentd's earlier startup audit. An
@@ -114,6 +118,13 @@ Unavailable or failed enumeration cannot be relabeled CLEAN on a subsequent poll
   exact prefix and derivation. Interior corruption, unsafe tails, nonzero TShark
   exits and missing markers fail. Do not claim this resolves the historical timeout
   without a controlled live reproduction. Original ring segments remain untouched.
+- Acquisition must pin a regular source segment through O_NOFOLLOW, compare the
+  selected entry with fstat before reading, and recheck both descriptor and path
+  after the finite copy. Ring replacement, rewrite or growth during that copy
+  aborts before parsing; use a stable segment. The acquisition includes the source
+  path and matching selected/opened/after-FD/after-path identities. Independent
+  verification requires these typed identities as well as raw/parser hashes and
+  exact derivative bytes. Never invent missing source identity for an old receipt.
 - Use only approved bridge interfaces. Do not substitute a physical LAN interface,
   enable WAN/boot automation, mount a Docker socket into decoys or relax controls.
 - A rendered Compose configuration is not proof that secrets, mounts, images,

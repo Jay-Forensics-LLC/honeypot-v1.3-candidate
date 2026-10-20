@@ -26,6 +26,19 @@ separately approved deployment transaction. Mutable tags, environment files and 
 are not resolved again for execution. `start(build=True)` is rejected. A DNS
 postcheck failure stops the verified IDs before Suricata starts.
 
+Startup requires every existing owned project container to be stopped, with
+disabled daemon restart policies, before creating anything. An active owned
+project is stopped by captured IDs and refused for operator review; startup is
+not an idempotent operation on a running stack. Foreign ownership blocks without
+stopping foreign containers. Before execution, the new stopped containers must
+pass actual network, bind, security and resource checks. Their command,
+entrypoint, environment, healthcheck, working directory and stop signal are
+compared with the frozen model plus defaults from the approved immutable images.
+All lifecycle Compose calls select exactly one file and the explicit project.
+Automatic override files and additional COMPOSE_FILE/environment inputs are
+refused; qualification applies the same checks and compares actual execution
+fields even when no override file remains.
+
 An update still requires `--apply --image-approval-sha256 SHA256`, the verified
 stopped Grafana backup, and separate deployment approval. It checks approval
 before backup/stop, pulls/builds, validates available images, and passes the same

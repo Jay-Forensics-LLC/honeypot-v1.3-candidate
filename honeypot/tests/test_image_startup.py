@@ -13,6 +13,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'scripts'))
 import image_approval
 import ops
+import test_demo
 from guard_policy import DNS
 
 
@@ -23,24 +24,28 @@ class StartupFixture(unittest.TestCase):
         for name in ('state', 'configs', 'secrets'):
             (self.root/name).mkdir()
         (self.root/'secrets/grafana_admin_password').write_text('synthetic-only')
-        self.rendered = {'name': 'honeypot', 'services': {
-            name: {'image': 'local:'+name, 'build': {'context': '/synthetic'},
-                   'environment': {'LITERAL': 'keep-$$VALUE'}, 'restart': 'no'} for name in sorted(image_approval.SERVICES)}}
+        self.rendered,self.containers,self.networks,old_root=test_demo.fixture()
+        self.rendered['name']='honeypot'
+        for name,spec in self.rendered['services'].items():
+            spec.update(image='local:'+name,build={'context':'/synthetic'},environment={'LITERAL':'keep-$$VALUE'})
+            for volume in spec.get('volumes',[]):volume['source']=volume['source'].replace(str(old_root),str(self.root),1)
         self.document = {'version': 1, 'images': {name: {'reference': spec['image'],
             'id': 'sha256:'+f'{index:064x}'} for index, (name, spec) in enumerate(self.rendered['services'].items(), 1)}}
         self.path = self.root/image_approval.APPROVAL_PATH
         self.path.write_text(json.dumps(self.document))
         self.pin = hashlib.sha256(self.path.read_bytes()).hexdigest()
-        self.containers = {name: {'Id': f'{index+100:064x}', 'Image': expected['id'],
-            'Config': {'Image': expected['id'], 'Labels': {'com.docker.compose.project': 'honeypot',
-                'com.docker.compose.service': name, 'com.docker.compose.project.working_dir': str(self.root)}},
-            'HostConfig': {'Dns': [DNS[name]] if name in DNS else [], 'PortBindings': {},
-                           'RestartPolicy': {'Name':'no','MaximumRetryCount':0}},
-            'State': {'Running': True, 'Health': {'Status': 'healthy'}}}
-            for index, (name, expected) in enumerate(self.document['images'].items())}
+        for index,(name,expected) in enumerate(self.document['images'].items()):
+            row=self.containers[name];row.update(Id=f'{index+100:064x}',Image=expected['id'])
+            row['Config'].update(Image=expected['id'],Cmd=[],Entrypoint=[],Env=['LITERAL=keep-$VALUE'])
+            row['Config']['Labels']['com.docker.compose.project.working_dir']=str(self.root)
+            row['State'].update(Running=False,Status='created',Pid=0,ExitCode=0,Error='')
+            row['NetworkSettings']['Ports']={}
+            for mount in row['Mounts']:mount['Source']=mount['Source'].replace(str(old_root),str(self.root),1)
+        for network in self.networks:network['Containers']={}
+        self.image_configs={row['id']:{'Cmd':[],'Entrypoint':[],'Env':[]} for row in self.document['images'].values()}
         self.events = []; self.snapshots = []
 
-    def exercise(self, *, pin=True, build=False, boot=False, drift=None, dns=True, boot_error=False):
+    def exercise(self, *, pin=True, build=False, boot=False, drift=None, dns=True, boot_error=False, input_env=None):
         def run(argv, **kwargs):
             self.events.append(tuple(argv))
             value = ''
@@ -52,7 +57,7 @@ class StartupFixture(unittest.TestCase):
                     # The create request must still use only the frozen IDs.
                     self.rendered['services']['incidentd']['image'] = 'evil:retargeted'
                     os.environ['VALUE'] = 'changed'
-                value = json.dumps([{'Id': argv[3]}])
+                value = json.dumps([{'Id':identity,'Config':self.image_configs[identity]} for identity in argv[3:]])
             elif argv[:3] == ['docker', 'ps', '-aq']:
                 value = '\n'.join(row['Id'] for row in self.containers.values())
             elif argv[:2] == ['docker', 'inspect']:
@@ -62,6 +67,10 @@ class StartupFixture(unittest.TestCase):
                 if drift == 'owner': rows[0]['Config']['Labels']['com.docker.compose.project.working_dir'] = '/foreign'
                 if boot_error and len(argv) == 3: raise ValueError('synthetic health inspection failure')
                 value = json.dumps(rows)
+            elif argv[:3]==['docker','network','inspect']:value=json.dumps(self.networks)
+            elif argv[:2]==['docker','start']:
+                for row in self.containers.values():
+                    if row['Id'] in argv[2:]:row['State'].update(Running=True,Status='running')
             elif argv[:2] not in (['docker', 'start'], ['docker', 'stop']) and argv[0] != 'systemctl':
                 self.fail('Unexpected external operation: '+repr(argv))
             return subprocess.CompletedProcess(argv, 0, value, '')
@@ -71,12 +80,13 @@ class StartupFixture(unittest.TestCase):
             if args[0] == 'config':
                 return subprocess.CompletedProcess(args, 0, json.dumps(self.rendered), '')
             self.assertIn('create', args)
-            snapshot = Path(args[args.index('-f')+1])
+            snapshot = Path(kwargs['file'])
             self.snapshots.append(json.loads(snapshot.read_text()))
             self.assertEqual(snapshot.stat().st_mode & 0o777, 0o600)
             return subprocess.CompletedProcess(args, 0, '', '')
 
         env = {image_approval.PIN_ENV: self.pin} if pin else {}
+        env.update(input_env or {})
         with patch.object(ops, 'ROOT', self.root), patch.object(ops, 'require_root'), \
              patch.object(ops, 'require_local_daemon'), patch.object(ops, 'require_guard'), \
              patch.object(ops, 'config', return_value={'MANAGEMENT_BIND':'127.0.0.1','DECOY_BIND':'127.0.0.1'}), \
@@ -130,6 +140,7 @@ class ImageStartup(StartupFixture):
     def test_canonical_config_escapes_are_retained_without_second_escaping(self):
         environment={'DOLLAR':'keep-$$VALUE','BRACED':'keep-$${VALUE}','DOUBLE':'literal-$$$$'}
         for spec in self.rendered['services'].values():spec['environment']=environment.copy()
+        for row in self.containers.values():row['Config']['Env']=[key+'='+value.replace('$$','$') for key,value in environment.items()]
         self.exercise()
         for spec in self.snapshots[0]['services'].values():self.assertEqual(spec['environment'],environment)
 

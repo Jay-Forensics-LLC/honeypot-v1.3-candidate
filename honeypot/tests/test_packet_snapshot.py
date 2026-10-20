@@ -11,6 +11,16 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
 import packet_snapshot as snapshots
 
 
+def bind_fixture_source(packet, path):
+    source=Path(path).with_name('source-ring-'+Path(path).name)
+    source.write_bytes(Path(path).read_bytes())
+    identity=snapshots.source_identity(source.stat())
+    packet['source_segment']=str(source)
+    packet['acquisition']['source_segment']={'path':str(source),
+        **{key:dict(identity) for key in ('selected','opened','after_fd','after_path')}}
+    return packet
+
+
 def block(kind, body, order='<'):
     size=12+len(body)
     return struct.pack(order+'II',kind,size)+body+struct.pack(order+'I',size)
@@ -125,9 +135,9 @@ class AcquisitionVerification(unittest.TestCase):
         raw=complete+tail[:12] if partial else complete
         raw_receipt=self.receipt(self.folder/'raw.pcapng',raw)
         parser_receipt=self.receipt(self.folder/'prefix.pcapng',complete) if partial else dict(raw_receipt)
-        return {'snapshot':parser_receipt['path'],'sha256':parser_receipt['sha256'],'bytes':parser_receipt['bytes'],
+        return bind_fixture_source({'snapshot':parser_receipt['path'],'sha256':parser_receipt['sha256'],'bytes':parser_receipt['bytes'],
                 'acquisition':{'raw_snapshot':raw_receipt,'parser_snapshot':parser_receipt,
-                               'derivation':snapshots.inspect_snapshot(raw_receipt['path'])['derivation']}}
+                               'derivation':snapshots.inspect_snapshot(raw_receipt['path'])['derivation']}},raw_receipt['path'])
 
     def test_valid_derived_and_complete_acquisitions_recheck_without_source_writes(self):
         for partial in (True,False):
@@ -144,6 +154,7 @@ class AcquisitionVerification(unittest.TestCase):
             receipt=self.receipt(self.folder/'classic.pcap',raw)
             packet={'snapshot':receipt['path'],'sha256':receipt['sha256'],'bytes':receipt['bytes'],
                     'acquisition':{'raw_snapshot':dict(receipt),'parser_snapshot':dict(receipt),'derivation':None}}
+            bind_fixture_source(packet,receipt['path'])
             self.assertFalse(snapshots.verify_acquisition(packet)['derived'])
 
     def test_tampered_raw_or_prefix_fails_hash_or_exact_prefix_checks(self):

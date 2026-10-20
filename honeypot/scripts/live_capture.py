@@ -3,21 +3,26 @@ import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
 import time
 from hp_common import config, runtime_path, sha256
-from packet_snapshot import inspect_snapshot
+from packet_snapshot import inspect_snapshot, source_identity
 
 SNAPSHOT_FILE_LIMIT=64*1024**2
 SNAPSHOT_TOTAL_LIMIT=128*1024**2
+CAPTURE_ENTRY_LIMIT=5000
 
 
 def capture_segments(directory):
     """Unlike Path.glob, preserve permission errors instead of an empty inventory."""
     paths=[]
     with os.scandir(directory) as entries:
+        count=0
         for entry in entries:
+            count+=1
+            if count>CAPTURE_ENTRY_LIMIT:raise ValueError('Capture inventory exceeds bound')
             if entry.name.startswith('ring_') and entry.name.endswith('.pcapng'):
                 paths.append(Path(entry.path))
                 if len(paths)>5000:raise ValueError('Capture inventory exceeds bound')
@@ -87,24 +92,33 @@ def packet_proof(root, folder, marker, target_ip, started, runner=subprocess.run
     inspections=[]
     budget=SNAPSHOT_TOTAL_LIMIT
     for path in paths:
-        if path.is_symlink() or not path.is_file(): raise ValueError('Nonregular capture segment')
-        size=path.stat().st_size
-        entry={'path':str(path),'size':size,'mtime_epoch':path.stat().st_mtime};inspections.append(entry)
-        if (candidate_paths is None and path.stat().st_mtime<started) or size==0:
+        before=path.lstat()
+        if path.resolve()!=path.absolute() or not stat.S_ISREG(before.st_mode):raise ValueError('Nonregular capture segment')
+        size=before.st_size;selected=source_identity(before)
+        entry={'path':str(path),'size':size,'mtime_epoch':before.st_mtime,'selected_source_identity':selected};inspections.append(entry)
+        if (candidate_paths is None and before.st_mtime<started) or size==0:
             entry['status']='SKIPPED: predates interaction or empty';continue
         if size>SNAPSHOT_FILE_LIMIT or size>budget: raise ValueError('Packet proof snapshot budget exceeded')
         budget-=size
         snapshot=folder/'capture-match.pcapng'
         matched=False;created=[]
         try:
-            with path.open('rb') as source, snapshot.open('xb') as out:
-                created.append(snapshot)
-                os.chmod(snapshot,0o600)
-                remaining=size
-                while remaining:
-                    chunk=source.read(min(1024**2,remaining))
-                    if not chunk: raise ValueError('Capture rotated during snapshot')
-                    out.write(chunk);remaining-=len(chunk)
+            fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+            with os.fdopen(fd,'rb') as source:
+                opened=source_identity(os.fstat(source.fileno()))
+                if opened!=selected:raise ValueError('Capture source identity changed before open')
+                with snapshot.open('xb') as out:
+                    created.append(snapshot)
+                    os.chmod(snapshot,0o600)
+                    remaining=size
+                    while remaining:
+                        chunk=source.read(min(1024**2,remaining))
+                        if not chunk: raise ValueError('Capture changed during snapshot')
+                        out.write(chunk);remaining-=len(chunk)
+                after_fd=source_identity(os.fstat(source.fileno()))
+                after_path=source_identity(path.lstat())
+                if after_fd!=selected or after_path!=selected:
+                    raise ValueError('Capture source identity changed during snapshot')
             plan=inspect_snapshot(snapshot)
             raw={'path':str(snapshot),'sha256':plan['raw_sha256'],'bytes':plan['raw_bytes']}
             parser_snapshot=snapshot
@@ -127,7 +141,8 @@ def packet_proof(root, folder, marker, target_ip, started, runner=subprocess.run
                 if sha256(snapshot)!=(raw['sha256'],raw['bytes']):
                     raise ValueError('Acquired packet snapshot changed during derivation')
             parser_hash,parser_bytes=sha256(parser_snapshot)
-            acquisition={'raw_snapshot':raw,
+            acquisition={'source_segment':{'path':str(path),'selected':selected,'opened':opened,
+                                           'after_fd':after_fd,'after_path':after_path},'raw_snapshot':raw,
                          'parser_snapshot':{'path':str(parser_snapshot),'sha256':parser_hash,'bytes':parser_bytes},
                          'derivation':plan['derivation']}
             entry['acquisition']=acquisition

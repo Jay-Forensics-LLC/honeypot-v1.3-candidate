@@ -58,6 +58,8 @@ class ImageTrust(unittest.TestCase):
             if argv[:2] == ['docker','compose']: value = json.dumps(self.rendered)
             elif argv[:2] == ['docker','ps']: value = '\n'.join(c['Id'] for c in self.containers.values())
             elif argv[:2] == ['docker','inspect']: value = json.dumps(list(self.containers.values()))
+            elif argv[:3]==['docker','image','inspect']:
+                value=json.dumps([{'Id':identity,'Config':{'Cmd':[],'Entrypoint':[],'Env':[]}} for identity in argv[3:]])
             elif argv[:3] == ['docker','network','inspect']: value = json.dumps(self.networks)
             elif argv[0] == 'nft': value = '{}'
             elif argv[:2] == ['docker','exec']: value = json.dumps(self.module_hashes)

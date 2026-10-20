@@ -159,11 +159,11 @@ class CaptureProof(unittest.TestCase):
         self.assertFalse(row['ok']);self.assertEqual(row['inspections'][0]['status'],'PARSER_FAILED')
         self.assertEqual(row['inspections'][0]['parser_error'],'incomplete capture block')
     def test_unreadable_segment_cannot_pass(self):
-        original=Path.open
+        original=os.open
         def guarded(path,*args,**kwargs):
-            if path==self.path:raise PermissionError('unreadable capture')
+            if Path(path)==self.path:raise PermissionError('unreadable capture')
             return original(path,*args,**kwargs)
-        with patch.object(Path,'open',guarded):
+        with patch.object(capture.os,'open',guarded):
             with self.assertRaises(PermissionError):self.proof(lambda *a,**kw:None)
         self.assertFalse((self.folder/'capture-match.pcapng').exists())
     def test_unreadable_directory_is_not_empty_inventory(self):

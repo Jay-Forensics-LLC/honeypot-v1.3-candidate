@@ -15,6 +15,7 @@ import sys
 import time
 import tempfile
 import image_approval
+import compose_input
 from hp_common import ROOT, config, runtime_path, run, require_root, atomic_json, utc, audited
 from guard_policy import DNS, require_guard, inspect_dns
 from daemon_check import require_local_daemon
@@ -81,8 +82,9 @@ def refuse_docker_provider_conflict():
         raise SystemExit('Official Docker packages already present or pending; refusing distro docker.io installation before APT. '
                          'Preserve the approved provider and review dependencies separately.')
 
-def compose(*args,check=True):
-    result=run(['docker','compose',*args],timeout=1200,check=check)
+def compose(*args,check=True,file=None):
+    compose_input.require_single_input(ROOT,config(ROOT))
+    result=run(compose_input.argv(ROOT,*args,file=file),timeout=1200,check=check)
     print(result.stdout,end='');print(result.stderr,end='',file=sys.stderr);return result
 
 def secrets_generate():
@@ -229,10 +231,11 @@ def image_pin(value=None):
     return os.environ.get(image_approval.PIN_ENV)
 
 
-def approved_containers(approval, *, immutable=False):
+def owned_containers(*, allow_empty=False):
     """Capture exact owned IDs before execution; names are never start targets."""
     ids = run(['docker', 'ps', '-aq', '--no-trunc', '--filter',
                'label=com.docker.compose.project=honeypot']).stdout.split()
+    if not ids and allow_empty:return {}
     if (len(ids) != 7 or len(set(ids)) != 7 or
             any(not re.fullmatch('[0-9a-f]{64}', value) for value in ids)):
         raise ValueError('Expected seven unique owned container identities before startup')
@@ -248,13 +251,42 @@ def approved_containers(approval, *, immutable=False):
                 name in containers):
             raise ValueError('Container ownership differs before startup')
         containers[name] = row
+    if set(containers)!=image_approval.SERVICES:
+        raise ValueError('Expected seven owned service identities before startup')
+    return containers
+
+
+def refuse_active(containers):
+    if any(row.get('State',{}).get('Running') is not False or
+           any(row.get('State',{}).get(key) for key in ('Paused','Restarting','Dead'))
+           for row in containers.values()):
+        # Identity/ownership was checked first; never stop a foreign container.
+        run(['docker','stop',*[row['Id'] for row in containers.values()]],check=False)
+        raise ValueError('Owned containers already active; stopped for review before any create/start transaction')
+
+
+def approved_containers(approval, *, immutable=False, containers=None):
+    containers=owned_containers() if containers is None else containers
     image_approval.check_containers(approval, containers, immutable=immutable)
+    require_disabled_policies(containers)
+    return containers
+
+
+def require_disabled_policies(containers):
     for name, row in containers.items():
         policy = row.get('HostConfig', {}).get('RestartPolicy') or {}
         if (policy.get('Name') != 'no' or type(policy.get('MaximumRetryCount')) is not int or
                 policy['MaximumRetryCount'] != 0):
             raise ValueError(name + ': automatic restart policy bypasses supervised startup')
-    return containers
+
+
+def stopped_configuration(rendered, containers, images):
+    from runtime_inventory import _validate_runtime
+    networks=json.loads(run(['docker','network','inspect','honeypot-cowrie-net','honeypot-canary-net',
+                             'honeypot-observability','honeypot-management']).stdout)
+    problems=_validate_runtime(rendered,containers,networks,ROOT,stopped=set(SERVICES),allow_created=True)
+    problems+=compose_input.execution_problems(rendered,containers,images)
+    if problems:raise ValueError('Stopped startup configuration: '+'; '.join(problems))
 
 
 @audited('start')
@@ -262,6 +294,7 @@ def start(*, build=False, approval_sha256=None):
     if build:
         raise ValueError('Startup cannot build images; review built IDs and supply an independent approval pin first')
     require_root();require_local_daemon(ROOT);cfg=config()
+    compose_input.require_single_input(ROOT,cfg)
     if not (ROOT/'secrets/grafana_admin_password').exists():raise SystemExit('Run bootstrap first')
     for p in (ROOT/'state/quarantine').glob('*.json'):
         if json.loads(p.read_text()).get('active'):raise SystemExit('Outstanding quarantine: investigate and explicitly unquarantine before startup')
@@ -270,7 +303,7 @@ def start(*, build=False, approval_sha256=None):
         raise SystemExit('MANAGEMENT_BIND must remain loopback')
     approved = '--exposure-approved' in sys.argv
     exposure_gate(cfg['DECOY_BIND'], approved)
-    rendered = json.loads(run(['docker', 'compose', 'config', '--format', 'json']).stdout)
+    rendered = json.loads(compose('config','--format','json').stdout)
     rendered_start_gate(rendered, approved)
     approval = image_approval.load(ROOT, {name: spec['image'] for name, spec in rendered['services'].items()},
                                    image_pin(approval_sha256))
@@ -282,6 +315,9 @@ def start(*, build=False, approval_sha256=None):
             raise SystemExit(reason)
     containers = None
     try:
+        existing=owned_containers(allow_empty=True)
+        refuse_active(existing)
+        require_disabled_policies(existing)
         # No process executes during create. Freeze the complete configuration
         # and images so later tag/.env/override edits cannot alter this transaction.
         with tempfile.TemporaryDirectory(prefix='.approved-compose-', dir=ROOT/'state') as directory:
@@ -291,14 +327,14 @@ def start(*, build=False, approval_sha256=None):
             # commands/environment. Retain it exactly except approved image IDs.
             snapshot.write_text(json.dumps(frozen))
             snapshot.chmod(0o600)
-            for expected in approval['images'].values():
-                images = json.loads(run(['docker', 'image', 'inspect', expected['id']]).stdout)
-                if len(images) != 1 or images[0].get('Id') != expected['id']:
-                    raise ValueError('Approved immutable image unavailable before create')
+            images=compose_input.approved_image_configs(approval,run)
             image_approval.load(ROOT, {name: spec['image'] for name, spec in rendered['services'].items()}, approval['sha256'])
-            compose('--project-directory', str(ROOT), '--project-name', 'honeypot', '-f', str(snapshot),
-                    'create', '--no-build', '--pull', 'never', *SERVICES)
-        containers = approved_containers(approval, immutable=True)
+            compose_input.require_single_input(ROOT,cfg)
+            compose('create','--no-build','--pull','never',*SERVICES,file=snapshot)
+        containers=owned_containers()
+        refuse_active(containers)
+        approved_containers(approval,immutable=True,containers=containers)
+        stopped_configuration(frozen,containers,images)
         require_guard(cfg)
         run(['docker', 'start', *[containers[name]['Id'] for name in
                                   ('loki','alloy','grafana','incidentd','cowrie','opencanary')]])
@@ -309,7 +345,7 @@ def start(*, build=False, approval_sha256=None):
         if containers is not None:
             run(['docker', 'stop', *[row['Id'] for row in containers.values()]], check=False)
         raise
-    print('No router rules were changed. Run local tests, enable target timers and check readiness.')
+    print('Approved container IDs started. Acquire separately approved readiness/qualification evidence. No router rules were changed.')
 
 @audited('boot-start')
 def boot_start():
@@ -320,6 +356,7 @@ def boot_start():
     require_root()
     require_local_daemon(ROOT, require_existing=True)
     cfg=config()
+    compose_input.require_single_input(ROOT,cfg)
 
     if not (ROOT/'secrets/grafana_admin_password').exists():
         raise SystemExit('Run bootstrap first')
@@ -358,7 +395,14 @@ def boot_start():
     rendered = json.loads(compose('config', '--format', 'json').stdout)
     rendered_start_gate(rendered)
     approval = image_approval.load(ROOT, {name: spec['image'] for name, spec in rendered['services'].items()}, image_pin())
-    containers = approved_containers(approval)
+    containers=owned_containers()
+    refuse_active(containers)
+    approved_containers(approval,containers=containers)
+    images=compose_input.approved_image_configs(approval,run)
+    import copy
+    expected=copy.deepcopy(rendered)
+    for name,row in containers.items():expected['services'][name]['image']=row['Config']['Image']
+    stopped_configuration(expected,containers,images)
 
     # Existing containers only. Validate their actual runtime configuration
     # before they are allowed to start.

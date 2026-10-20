@@ -13,6 +13,7 @@ from guard_policy import evaluate, canonical, DNS
 from capture_status import inspect_capture
 from daemon_check import inspect as inspect_daemon
 import image_approval
+import compose_input
 
 SERVICES = {'cowrie', 'opencanary', 'suricata', 'loki', 'alloy', 'grafana', 'incidentd'}
 USERS = {'cowrie': '999:2000', 'opencanary': '10002:2000', 'loki': '10001:2000',
@@ -108,7 +109,7 @@ def security_resource_problems(name, spec, container):
     return problems
 
 
-def _validate_runtime(rendered, containers, networks, root, stopped=frozenset()):
+def _validate_runtime(rendered, containers, networks, root, stopped=frozenset(), allow_created=False):
     """Share configuration checks while retaining strict live health gates."""
     problems = []
     if set(containers) != SERVICES or set(rendered.get('services', {})) != SERVICES:
@@ -122,8 +123,8 @@ def _validate_runtime(rendered, containers, networks, root, stopped=frozenset())
             problems.append(name + ': image reference differs from rendered configuration')
         state = c['State']
         if name in stopped:
-            if (state.get('Status'), state.get('Running'), state.get('Pid'),
-                state.get('ExitCode'), state.get('Error')) != ('exited', False, 0, 0, ''):
+            if (state.get('Status') not in ({'created','exited'} if allow_created else {'exited'}) or
+                    (state.get('Running'),state.get('Pid'),state.get('ExitCode'),state.get('Error'))!=(False,0,0,'')):
                 problems.append(name + ': cleanly stopped state not established')
             for endpoint in c['NetworkSettings']['Networks'].values():
                 if any(endpoint.get(k) for k in ('EndpointID', 'IPAddress', 'GlobalIPv6Address',
@@ -374,6 +375,7 @@ def collect(root, source_root, probe_readiness=True, *, approval_sha256=None):
            'qualification': 'UNQUALIFIED_CURRENT_OBSERVATION; prior Stage 7 invalidated by host reboot'}
     try:
         cfg = config(root)
+        compose_input.require_single_input(root,cfg)
         if cfg.get('WAN_CRITERIA', 'false') != 'false' or cfg.get('WAN_SOURCE_MODE', 'off') != 'off':
             raise ValueError('WAN must be disabled for the local demo')
         if cfg.get('DECOY_BIND') != '127.0.0.1' or cfg.get('MANAGEMENT_BIND') != '127.0.0.1':
@@ -388,7 +390,7 @@ def collect(root, source_root, probe_readiness=True, *, approval_sha256=None):
         reviewed_compose = image_approval.read_regular(Path(source_root) / 'docker-compose.yml', 1024**2)
         if image_approval.read_regular(root / 'docker-compose.yml', 1024**2) != reviewed_compose:
             raise ValueError('Runtime Compose file differs from the reviewed candidate source')
-        rendered = json.loads(run(['docker', 'compose', '-f', str(root / 'docker-compose.yml'), 'config', '--format', 'json']).stdout)
+        rendered = json.loads(run(compose_input.argv(root,'config','--format','json')).stdout)
         ids = run(['docker', 'ps', '-aq', '--filter', 'label=com.docker.compose.project=honeypot']).stdout.split()
         if len(ids) != 7: raise ValueError('Expected exactly seven project containers')
         inspected = json.loads(run(['docker', 'inspect', *ids]).stdout)
@@ -398,6 +400,9 @@ def collect(root, source_root, probe_readiness=True, *, approval_sha256=None):
         # post-start state/images.lock.json is only a historical observation.
         approval = image_approval.load(source_root, {name: spec['image'] for name, spec in rendered['services'].items()}, approval_sha256)
         image_approval.check_containers(approval, containers)
+        images=compose_input.approved_image_configs(approval,run)
+        execution=compose_input.execution_problems(rendered,containers,images)
+        if execution:raise ValueError('Runtime execution configuration: '+'; '.join(execution))
         row['image_approval_sha256'] = approval['sha256']
         # Both retained tag-named containers and new ID-named containers must
         # match the external approval. Normalize only after that exact check.
@@ -456,6 +461,7 @@ print(json.dumps(result))
         row['network_fingerprint']=fingerprint({n['Name']:{'driver':n['Driver'],'internal':n['Internal'],'ipam':n['IPAM'],'options':n.get('Options'),
                  'members':sorted(service for service in containers if n['Name'] in PLACEMENT[service])} for n in nets})
         mounted = verify_static_configuration(rendered, root, Path(source_root))
+        compose_input.require_single_input(root,cfg)
         if (image_approval.read_regular(root / 'docker-compose.yml', 1024**2) != reviewed_compose or
                 image_approval.read_regular(Path(source_root) / 'docker-compose.yml', 1024**2) != reviewed_compose):
             raise ValueError('Reviewed or runtime Compose file changed during qualification')

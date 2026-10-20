@@ -15,6 +15,7 @@ import struct
 MAX_SNAPSHOT_BYTES = 64 * 1024**2
 MAX_ACQUISITION_BYTES = 128 * 1024**2
 METHOD = 'pcapng-complete-block-prefix-v1'
+SOURCE_IDENTITY_FIELDS={'device','inode','bytes','mtime_ns','ctime_ns','mode'}
 SHB = b'\x0a\x0d\x0d\x0a'
 MINIMUM = {1: 20, 2: 32, 3: 16, 5: 24, 6: 32, 0x0A0D0D0A: 28}
 
@@ -191,6 +192,33 @@ def _receipt(value):
     return path
 
 
+def source_identity(info):
+    return {'device':info.st_dev,'inode':info.st_ino,'bytes':info.st_size,
+            'mtime_ns':info.st_mtime_ns,'ctime_ns':info.st_ctime_ns,'mode':info.st_mode}
+
+
+def verify_source_identity(packet, acquisition, raw_bytes):
+    source=acquisition['source_segment']
+    if type(source) is not dict or set(source)!={'path','selected','opened','after_fd','after_path'}:
+        raise ValueError('Incomplete capture source identity receipt')
+    path=source['path']
+    if (type(path) is not str or not Path(path).is_absolute() or '..' in Path(path).parts or
+            '\x00' in path or path.startswith('//') or str(Path(path))!=path or
+            path!=packet.get('source_segment') or path in (acquisition['raw_snapshot']['path'],acquisition['parser_snapshot']['path'])):
+        raise ValueError('Capture source segment relationship differs')
+    selected=source['selected']
+    if (type(selected) is not dict or set(selected)!=SOURCE_IDENTITY_FIELDS or
+            any(type(value) is not int or value<0 for value in selected.values()) or
+            selected['inode']==0 or not stat.S_ISREG(selected['mode']) or
+            not 0<selected['bytes']==raw_bytes<=MAX_SNAPSHOT_BYTES):
+        raise ValueError('Invalid capture source identity or extent')
+    for key in ('opened','after_fd','after_path'):
+        current=source[key]
+        if (type(current) is not dict or set(current)!=SOURCE_IDENTITY_FIELDS or
+                any(type(value) is not int for value in current.values()) or current!=selected):
+            raise ValueError('Capture source identity changed during acquisition')
+
+
 def verify_acquisition(packet):
     """Independently verify retained raw-to-parser linkage, without TShark.
 
@@ -201,7 +229,7 @@ def verify_acquisition(packet):
     if type(packet) is not dict or type(packet.get('acquisition')) is not dict:
         raise ValueError('Packet acquisition metadata is required')
     acquisition=packet['acquisition']
-    if set(acquisition)!={'raw_snapshot','parser_snapshot','derivation'}:
+    if set(acquisition)!={'raw_snapshot','parser_snapshot','derivation','source_segment'}:
         raise ValueError('Incomplete or unexpected packet acquisition metadata')
     raw_receipt=acquisition['raw_snapshot'];parser_receipt=acquisition['parser_snapshot']
     raw_path=_receipt(raw_receipt);parser_path=_receipt(parser_receipt)
@@ -228,6 +256,7 @@ def verify_acquisition(packet):
             raise ValueError('Packet derivation metadata differs from the acquired bytes')
         if raw_path==parser_path or parsed!=raw[:plan['prefix_bytes']]:
             raise ValueError('Retained parser artifact is not the exact complete-block prefix')
+    verify_source_identity(packet,acquisition,len(raw))
     return {'status':'PASS','raw_sha256':raw_receipt['sha256'],
             'parser_sha256':parser_receipt['sha256'],'unique_bytes':unique_bytes,
             'derived':plan is not None}

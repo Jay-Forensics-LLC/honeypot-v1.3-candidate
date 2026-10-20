@@ -17,6 +17,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
 import stage7_qualification as qualification
 from test_pcap_demo_recovery import runtime_fixture
 from incidentd import Engine
+from test_packet_snapshot import bind_fixture_source
 
 
 class CleanStartupAudit(unittest.TestCase):
@@ -703,6 +704,7 @@ class IndependentPacketVerification(unittest.TestCase):
         packet = self.probe['packet']
         receipt = {'path': packet['snapshot'], 'sha256': packet['sha256'], 'bytes': packet['bytes']}
         packet['acquisition'] = {'raw_snapshot': dict(receipt), 'parser_snapshot': dict(receipt), 'derivation': None}
+        bind_fixture_source(packet,packet['snapshot'])
         with patch.object(qualification, 'CONTEXT', Mock()), \
              patch.object(qualification, 'command', return_value=f'{time.time()}\t172.29.41.2\t2121\n'):
             result = qualification.verify_packets(self.rows, self.rules_hash)

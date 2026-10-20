@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import qualification_context as contexts
 import stage7_recovery_check as recovery
 import stage7_qualification as qualification
+from test_packet_snapshot import bind_fixture_source
 
 
 class ContextFixture(unittest.TestCase):
@@ -285,6 +286,7 @@ class CleanDemoTests(ContextFixture):
         if acquisition:
             report['capture_evidence']['acquisition'] = {'raw_snapshot': dict(capture_receipt),
                 'parser_snapshot': dict(capture_receipt), 'derivation': None}
+            bind_fixture_source(report['capture_evidence'],capture_receipt['path'])
         data = json.dumps(report).encode(); Path(value['receipts']['demo']['path']).write_bytes(data)
         value['receipts']['demo']['sha256'] = hashlib.sha256(data).hexdigest()
         confirmation = {'status': 'PASS', 'qualification_identity': context.identity(),
