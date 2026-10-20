@@ -5,7 +5,7 @@ Phase 8 execution: NOT GREEN-LIT. Phase 10: PLANNED — PENDING — DO NOT IMPLE
 
 The source integration branch is `fix/phase7-source-integration-20261019`.
 Its implementation checkpoint is
-`9b688b49b46064d8016bb97f975a08f4484c615c`; subsequent changes update
+`70ff9e3ee31d8d2f40ccd48b22f9c373fd75c4c7`; subsequent changes update
 current-phase documentation. The exact final PR head/tree and command receipts
 are recorded in the private integration handoff. Qualification must pin that
 final clean SHA, independently accepted images, target and boot. No candidate
@@ -35,7 +35,7 @@ See
 [operations](../honeypot/docs/OPERATIONS.md) and
 [clean-room qualification](../honeypot/docs/CLEANROOM_QUALIFICATION.md).
 
-Offline validation: 605 unit tests and 89 retained Stage 7 tests pass with no
+Offline validation: 606 unit tests and 89 retained Stage 7 tests pass with no
 skips; `make verify` passes. The full repository validator passes its 21 tooling
 tests, archive/provenance checks, source checks and required suite invocations.
 An additional local Compose 2.40.3 canonical JSON parser round-trip reproduced
@@ -82,6 +82,12 @@ source identities; existing unreadable and marker checks remain enforced. A new
 self-reference control caught and corrected a source/parser-alias gap; failed logs
 are retained. Latest full validator: 227 source files PASS. Independent review of
 this newest corrected checkpoint is requested separately; no acceptance is implied.
+One further mock reproduction confirmed that a failed mount check could still
+reach inventory's diagnostic container process. The collector now blocks that
+execution unless runtime configuration is safe (or the explicit cleanly stopped
+decoy mode passes with a healthy, validated pipeline). Its failed receipt is kept.
+The final-review suite now has fifteen methods; all full source checks pass at
+606 unit tests, 89 retained Stage 7 tests and 227 source files, with no skips.
 
 The user selected the laptop as the intended Phase 8 target; desktop live results
 are separate and remain unacquired/unverified. A fresh non-modifying laptop
