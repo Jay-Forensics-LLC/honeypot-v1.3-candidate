@@ -44,6 +44,7 @@ class EventLocations:
                        'evidence_sha256 TEXT, metadata_sha256 TEXT, reason TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS conflicts '
                        '(event_id TEXT NOT NULL, incident TEXT NOT NULL, PRIMARY KEY(event_id, incident))')
+            db.execute('CREATE INDEX IF NOT EXISTS conflict_incidents ON conflicts(incident)')
             scope = str(self.incidents.resolve())
             db.execute('INSERT OR IGNORE INTO settings VALUES (?, ?)', ('scope', scope))
             if db.execute('SELECT value FROM settings WHERE key=?', ('scope',)).fetchone()[0] != scope:
@@ -95,18 +96,33 @@ class EventLocations:
 
     def remember(self, directory, event_ids, evidenced=False):
         relative = self.relative(directory)
+        event_ids = list(event_ids)
+        if (len(event_ids) > 10000 or
+                any(type(eid) is not str or not 1 <= len(eid) <= 128 for eid in event_ids)):
+            raise EvidenceIntegrityError('Invalid event IDs for locator')
+        conflicted = False
         with self.database() as db:
             for event_id in event_ids:
-                if not isinstance(event_id, str) or not 1 <= len(event_id) <= 128:
-                    raise EvidenceIntegrityError('Invalid event ID for locator')
                 row = db.execute('SELECT incident FROM locations WHERE event_id=?', (event_id,)).fetchone()
                 if row is not None and row[0] != relative:
-                    raise EvidenceIntegrityError('Event ID already belongs to another incident')
+                    self.validate_relative(row[0])
+                    for location in (row[0], relative):
+                        db.execute('INSERT OR IGNORE INTO conflicts VALUES (?, ?)', (event_id, location))
+                    conflicted = True
+                    continue
+                if db.execute('SELECT 1 FROM conflicts WHERE event_id=? LIMIT 1', (event_id,)).fetchone():
+                    db.execute('INSERT OR IGNORE INTO conflicts VALUES (?, ?)', (event_id, relative))
+                    conflicted = True
+                    continue
                 db.execute('INSERT INTO locations VALUES (?, ?, ?) ON CONFLICT(event_id) '
                            'DO UPDATE SET evidenced=MAX(evidenced, excluded.evidenced)',
                            (event_id, relative, int(evidenced)))
         # Also make creation/removal of SQLite journal and database entries durable.
         sync_directory(self.path.parent)
+        # Raise only after the transaction commits: raising inside it would undo
+        # the conflict fence and leave the first location eligible for replay.
+        if conflicted:
+            raise EvidenceIntegrityError('Ambiguous historical event location; replay blocked')
 
     def ready(self):
         with self.database() as db:
@@ -138,16 +154,20 @@ class EventLocations:
             seals = {'.': directory_signature(self.incidents)}
             count = 0
             if self.incidents.exists():
-                for day in self.incidents.iterdir():
-                    count += 1
-                    if count > MAX_MIGRATION_ENTRIES: raise EvidenceIntegrityError('Migration name inventory exceeds bound')
-                    seals[day.name] = directory_signature(day)
-                    for directory in day.iterdir():
+                with scan_directory(self.incidents) as days:
+                    for day_entry in days:
                         count += 1
                         if count > MAX_MIGRATION_ENTRIES: raise EvidenceIntegrityError('Migration name inventory exceeds bound')
-                        relative = self.relative(directory)
-                        db.execute("INSERT INTO migration(incident,state,signatures) VALUES (?, 'pending', ?)",
-                                   (relative, json.dumps(self.signatures(directory))))
+                        day = self.incidents/day_entry.name
+                        seals[day.name] = directory_signature(day)
+                        with scan_directory(day) as directories:
+                            for entry in directories:
+                                count += 1
+                                if count > MAX_MIGRATION_ENTRIES: raise EvidenceIntegrityError('Migration name inventory exceeds bound')
+                                directory = day/entry.name
+                                relative = self.relative(directory)
+                                db.execute("INSERT INTO migration(incident,state,signatures) VALUES (?, 'pending', ?)",
+                                           (relative, json.dumps(self.signatures(directory))))
             if any(directory_signature(self.incidents/name) != stamp for name, stamp in seals.items()):
                 raise EvidenceIntegrityError('Incident inventory changed during discovery')
             db.execute('INSERT INTO settings VALUES (?, ?)', ('inventory', json.dumps(seals)))
@@ -204,8 +224,10 @@ class EventLocations:
 
     def blocked(self, directory):
         with self.database() as db:
-            row = db.execute('SELECT state FROM migration WHERE incident=?', (self.relative(directory),)).fetchone()
-        return row is not None and row[0] in ('quarantined', 'blocked')
+            relative = self.relative(directory)
+            row = db.execute('SELECT state FROM migration WHERE incident=?', (relative,)).fetchone()
+            conflict = db.execute('SELECT 1 FROM conflicts WHERE incident=? LIMIT 1', (relative,)).fetchone()
+        return bool(conflict) or (row is not None and row[0] in ('quarantined', 'blocked'))
 
     def status(self):
         with self.database() as db:
@@ -215,6 +237,20 @@ class EventLocations:
                        db.execute("SELECT incident,state,evidence_sha256,metadata_sha256,reason FROM migration WHERE state IN ('blocked','quarantined') ORDER BY incident LIMIT 32")]
         return {'complete': self.ready(), 'counts': counts, 'inventory_error': error[0] if error else None,
                 'details': details, 'detail_limit': 32}
+
+
+@contextmanager
+def scan_directory(path):
+    """Stream names from an opened directory, never a materialized name list."""
+    path = Path(path)
+    if path.resolve() != path.absolute():
+        raise EvidenceIntegrityError('Symlink incident inventory directory')
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        with os.scandir(fd) as entries:
+            yield entries
+    finally:
+        os.close(fd)
 
 
 def directory_signature(path):

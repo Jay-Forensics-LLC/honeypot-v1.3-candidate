@@ -12,8 +12,6 @@ After=honeypot-hp-guard.service
 Type=oneshot
 WorkingDirectory=@ROOT@
 
-Environment=COMPOSE_PROJECT_NAME=honeypot
-
 ExecStartPre=/usr/sbin/nft list table inet hp_guard
 
 ExecStart=/usr/bin/python3 @ROOT@/scripts/ops.py boot-start

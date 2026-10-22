@@ -2,7 +2,24 @@
 
 Candidate: **v1.3.0-beta.1 — UNVERIFIED SOURCE CANDIDATE**.
 
+Current engineering disposition is in [CURRENT_PHASE_STATUS](../../docs/CURRENT_PHASE_STATUS.md).
+The observations and scoring below are retained historical scopes. The selected
+Phase 8 target is the laptop; its October 20 read-only acquisition reports Ubuntu
+26.04/Python 3.14, seven healthy owned services and an unsynchronized clock. It
+does not meet B17's dedicated Ubuntu 24.04 x86_64/Python 3.12 requirement. No
+installation, deployment, current-build qualification or boot execution is accepted.
+The previously empty OpenCanary current log is now nonempty; fresh end-to-end
+logging/rotation acceptance remains pending. Health JSON still has no boot ID.
+
 Initial-beta release disposition: **BLOCKED — acceptance incomplete**.
+
+**2026-10-17 reconciliation:** [current phase status](../../docs/CURRENT_PHASE_STATUS.md)
+is the latest disposition. It supersedes the October 16 current-state statements
+below while preserving their historical evidence. Current system Docker ownership
+and seven healthy services are observed; a closed capture sample contains 74
+packets. The new boot's clock is unsynchronized, containment/evidence acceptance
+is incomplete, and independent Stage 7 closeout remains PENDING. No beta gate is
+silently advanced by these scoped observations or the new source regressions.
 
 **LATEST OBSERVATION — successful health unit and healthy state reported.**
 [E33][e33] supersedes the earlier health-failure snapshot: the unit completed with

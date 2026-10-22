@@ -159,11 +159,11 @@ class StartupTests(unittest.TestCase):
         with self.assertRaises(SystemExit): ops.exposure_gate('203.0.113.10',True)
     def test_start_stops_before_compose_when_guard_missing(self):
         (self.root/'secrets').mkdir();(self.root/'secrets/grafana_admin_password').touch()
-        with patch.object(ops,'require_root'),patch.object(ops,'config',return_value={}),patch.object(ops,'require_guard',side_effect=SystemExit('missing')),patch.object(ops,'compose') as compose,patch.object(hp_common,'audit'):
+        with patch.object(ops,'require_root'),patch.object(ops,'config',return_value={}),patch.object(ops,'require_guard',side_effect=SystemExit('missing')),patch.object(ops,'compose') as compose,patch.object(hp_common,'ROOT',self.root):
             with self.assertRaises(SystemExit): ops.start()
             compose.assert_not_called()
     def rendered(self):
-        return {'services':{name:{'dns':[dns],'ports':[{'host_ip':'127.0.0.1'}],'networks':{network:{}}} for name,dns,network in [('cowrie',policy.DNS['cowrie'],'cowrie'),('opencanary',policy.DNS['opencanary'],'canary')]},
+        return {'services':{name:{'restart':'no','dns':[dns],'ports':[{'host_ip':'127.0.0.1'}],'networks':{network:{}}} for name,dns,network in [('cowrie',policy.DNS['cowrie'],'cowrie'),('opencanary',policy.DNS['opencanary'],'canary')]},
                 'networks':{n:{'driver_opts':{'com.docker.network.bridge.name':b}} for n,b in [('cowrie','br-hp-cowrie'),('canary','br-hp-canary')]}}
     def test_rendered_dns_and_actual_hostip_gates(self):
         good=self.rendered();ops.rendered_start_gate(good)
@@ -175,26 +175,27 @@ class StartupTests(unittest.TestCase):
             else: doc['services']['cowrie']['networks']={'management':{}}
             with self.subTest(kind=kind),self.assertRaises(SystemExit): ops.rendered_start_gate(doc)
     def test_explicit_start_can_create_and_stops_on_postcheck_failure(self):
-        (self.root/'secrets').mkdir();(self.root/'secrets/grafana_admin_password').touch()
-        cfg={'MANAGEMENT_BIND':'127.0.0.1','DECOY_BIND':'127.0.0.1'}
-        for postcheck in (True,False):
-            with patch.object(ops,'require_root'),patch.object(ops,'config',return_value=cfg),patch.object(ops,'require_guard'),patch.object(ops,'run',return_value=subprocess.CompletedProcess([],0,json.dumps(self.rendered()),'')),patch.object(ops,'inspect_dns',return_value={'cowrie':postcheck,'opencanary':True}),patch.object(ops,'compose') as compose,patch.object(hp_common,'audit'),contextlib.redirect_stdout(io.StringIO()):
-                if postcheck: ops.start()
-                else:
-                    with self.assertRaises(SystemExit): ops.start()
-                self.assertIn('up',compose.call_args_list[0].args)
-                if not postcheck: compose.assert_called_with('stop','cowrie','opencanary',check=False)
+        import test_image_startup
+        for postcheck in (True, False):
+            fixture = test_image_startup.StartupFixture()
+            fixture.setUp(); self.addCleanup(fixture.doCleanups)
+            if postcheck:
+                fixture.exercise()
+                self.assertEqual(len(fixture.starts()), 2)
+            else:
+                with self.assertRaises(SystemExit): fixture.exercise(dns=False)
+                self.assertEqual(len(fixture.starts()), 1)
+                self.assertEqual(fixture.events[-1][:2], ('docker', 'stop'))
+                self.assertEqual(set(fixture.events[-1][2:]), {row['Id'] for row in fixture.containers.values()})
+            self.assertEqual(len(fixture.snapshots), 1)
+
     def test_boot_inspection_failure_after_start_stops_only_decoys(self):
-        (self.root/'secrets').mkdir();(self.root/'secrets/grafana_admin_password').touch()
-        def run(argv,**kwargs):
-            if argv[0]=='systemctl': return subprocess.CompletedProcess(argv,0,'','')
-            name=argv[-1].removeprefix('honeypot-')
-            row={'HostConfig':{'Dns':[policy.DNS[name]],'PortBindings':{'2222/tcp':[{'HostIp':'127.0.0.1'}]}}}
-            return subprocess.CompletedProcess(argv,0,json.dumps([row]),'')
-        with patch.object(ops,'require_root'),patch.object(ops,'config',return_value={'MANAGEMENT_BIND':'127.0.0.1','DECOY_BIND':'127.0.0.1'}),patch.object(ops,'require_guard'),patch.object(ops,'run',side_effect=run),patch.object(ops,'_start_existing_decoys',side_effect=ValueError('bad inspection')),patch.object(ops,'compose') as compose,patch.object(hp_common,'audit'):
-            with self.assertRaises(ValueError): ops.boot_start()
-            compose.assert_called_with('stop','cowrie','opencanary',check=False)
-            self.assertFalse(any('up' in c.args or 'build' in c.args for c in compose.call_args_list))
+        import test_image_startup
+        fixture = test_image_startup.StartupFixture()
+        fixture.setUp(); self.addCleanup(fixture.doCleanups)
+        with self.assertRaises(ValueError): fixture.exercise(boot=True, boot_error=True)
+        self.assertEqual(fixture.events[-1], ('docker','stop',fixture.containers['cowrie']['Id'],fixture.containers['opencanary']['Id']))
+        self.assertEqual(fixture.snapshots, [])
 
 class TelemetryTests(unittest.TestCase):
     def test_password_never_enters_searchable_stream(self):

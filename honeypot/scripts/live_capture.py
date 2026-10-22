@@ -3,17 +3,26 @@ import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
 import tempfile
 import time
 from hp_common import config, runtime_path, sha256
+from packet_snapshot import inspect_snapshot, source_identity
+
+SNAPSHOT_FILE_LIMIT=64*1024**2
+SNAPSHOT_TOTAL_LIMIT=128*1024**2
+CAPTURE_ENTRY_LIMIT=5000
 
 
 def capture_segments(directory):
     """Unlike Path.glob, preserve permission errors instead of an empty inventory."""
     paths=[]
     with os.scandir(directory) as entries:
+        count=0
         for entry in entries:
+            count+=1
+            if count>CAPTURE_ENTRY_LIMIT:raise ValueError('Capture inventory exceeds bound')
             if entry.name.startswith('ring_') and entry.name.endswith('.pcapng'):
                 paths.append(Path(entry.path))
                 if len(paths)>5000:raise ValueError('Capture inventory exceeds bound')
@@ -81,26 +90,62 @@ def packet_proof(root, folder, marker, target_ip, started, runner=subprocess.run
         if len(paths)>8:raise ValueError('Diagnostic segment budget exceeded')
         if any(p.parent.resolve()!=dest.resolve() for p in paths):raise ValueError('Diagnostic path outside capture directory')
     inspections=[]
-    budget=128*1024**2
+    budget=SNAPSHOT_TOTAL_LIMIT
     for path in paths:
-        if path.is_symlink() or not path.is_file(): raise ValueError('Nonregular capture segment')
-        size=path.stat().st_size
-        entry={'path':str(path),'size':size,'mtime_epoch':path.stat().st_mtime};inspections.append(entry)
-        if (candidate_paths is None and path.stat().st_mtime<started) or size==0:
+        before=path.lstat()
+        if path.resolve()!=path.absolute() or not stat.S_ISREG(before.st_mode):raise ValueError('Nonregular capture segment')
+        size=before.st_size;selected=source_identity(before)
+        entry={'path':str(path),'size':size,'mtime_epoch':before.st_mtime,'selected_source_identity':selected};inspections.append(entry)
+        if (candidate_paths is None and before.st_mtime<started) or size==0:
             entry['status']='SKIPPED: predates interaction or empty';continue
-        if size>64*1024**2 or size>budget: raise ValueError('Packet proof snapshot budget exceeded')
+        if size>SNAPSHOT_FILE_LIMIT or size>budget: raise ValueError('Packet proof snapshot budget exceeded')
         budget-=size
         snapshot=folder/'capture-match.pcapng'
-        matched=False;created=False
+        matched=False;created=[]
         try:
-            with path.open('rb') as source, snapshot.open('xb') as out:
-                created=True
-                os.chmod(snapshot,0o600)
-                remaining=size
-                while remaining:
-                    chunk=source.read(min(1024**2,remaining))
-                    if not chunk: raise ValueError('Capture rotated during snapshot')
-                    out.write(chunk);remaining-=len(chunk)
+            fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+            with os.fdopen(fd,'rb') as source:
+                opened=source_identity(os.fstat(source.fileno()))
+                if opened!=selected:raise ValueError('Capture source identity changed before open')
+                with snapshot.open('xb') as out:
+                    created.append(snapshot)
+                    os.chmod(snapshot,0o600)
+                    remaining=size
+                    while remaining:
+                        chunk=source.read(min(1024**2,remaining))
+                        if not chunk: raise ValueError('Capture changed during snapshot')
+                        out.write(chunk);remaining-=len(chunk)
+                after_fd=source_identity(os.fstat(source.fileno()))
+                after_path=source_identity(path.lstat())
+                if after_fd!=selected or after_path!=selected:
+                    raise ValueError('Capture source identity changed during snapshot')
+            plan=inspect_snapshot(snapshot)
+            raw={'path':str(snapshot),'sha256':plan['raw_sha256'],'bytes':plan['raw_bytes']}
+            parser_snapshot=snapshot
+            if plan['derivation'] is not None:
+                prefix_size=plan['derivation']['prefix_bytes']
+                # Both the acquired bytes and derivative count toward the
+                # existing aggregate allowance. Never increase either limit.
+                if prefix_size>SNAPSHOT_FILE_LIMIT or prefix_size>budget:
+                    raise ValueError('Packet proof snapshot budget exceeded by complete-prefix derivative')
+                budget-=prefix_size
+                parser_snapshot=folder/'capture-complete-prefix.pcapng'
+                with snapshot.open('rb') as source, parser_snapshot.open('xb') as out:
+                    created.append(parser_snapshot)
+                    os.chmod(parser_snapshot,0o600)
+                    remaining=prefix_size
+                    while remaining:
+                        chunk=source.read(min(1024**2,remaining))
+                        if not chunk:raise ValueError('Acquired packet snapshot changed during derivation')
+                        out.write(chunk);remaining-=len(chunk)
+                if sha256(snapshot)!=(raw['sha256'],raw['bytes']):
+                    raise ValueError('Acquired packet snapshot changed during derivation')
+            parser_hash,parser_bytes=sha256(parser_snapshot)
+            acquisition={'source_segment':{'path':str(path),'selected':selected,'opened':opened,
+                                           'after_fd':after_fd,'after_path':after_path},'raw_snapshot':raw,
+                         'parser_snapshot':{'path':str(parser_snapshot),'sha256':parser_hash,'bytes':parser_bytes},
+                         'derivation':plan['derivation']}
+            entry['acquisition']=acquisition
             payload=(prefix+marker).encode().hex(':')
             query=f'ip.dst == {address} && tcp.dstport == {port} && frame.time_epoch >= {started:.6f} && tcp contains {payload}'
             # Ubuntu's tshark profile permits owner files in /tmp, but not
@@ -108,9 +153,9 @@ def packet_proof(root, folder, marker, target_ip, started, runner=subprocess.run
             # identical private disposable copy; never relax AppArmor or modes.
             with tempfile.TemporaryDirectory(prefix='honeytrace-packet-',dir='/tmp') as scratch:
                 parser_input=Path(scratch)/'input.pcapng'
-                shutil.copyfile(snapshot,parser_input)
+                shutil.copyfile(parser_snapshot,parser_input)
                 parser_input.chmod(0o600)
-                if sha256(parser_input)!=sha256(snapshot):
+                if sha256(parser_input)!=(parser_hash,parser_bytes):
                     raise ValueError('Parser input differs from retained snapshot')
                 result=runner(['tshark','-n','-r',str(parser_input),'-Y',query,'-T','fields',
                                '-e','frame.time_epoch','-e','ip.dst','-e','tcp.dstport'],
@@ -122,15 +167,22 @@ def packet_proof(root, folder, marker, target_ip, started, runner=subprocess.run
                 for line in result.stdout.splitlines():
                     values=line.split('\t')
                     if len(values)==3 and float(values[0])>=started and values[1]==str(address) and values[2]==str(port):
-                        digest,length=sha256(snapshot)
+                        digest,length=sha256(parser_snapshot)
+                        if (digest,length)!=(parser_hash,parser_bytes):
+                            raise ValueError('Retained parser snapshot changed during verification')
+                        if sha256(snapshot)!=(raw['sha256'],raw['bytes']):
+                            raise ValueError('Acquired packet snapshot changed during verification')
                         matched=True
                         entry['status']='MATCHED_MARKER'
                         return {'ok':True,'packet_epoch':float(values[0]),'target_ip':str(address),
-                                'target_port':port,'demo_run_id':marker,'snapshot':str(snapshot),
+                                'target_port':port,'demo_run_id':marker,'snapshot':str(parser_snapshot),
                                 'sha256':digest,'bytes':length,'source_segment':str(path),
+                                'acquisition':acquisition,
                                 'inspections':inspections,
                                 'continuity':'UNKNOWN; this proves only the demo marker packet'}
         finally:
             # Retain a matching snapshot only; never delete the source segment.
-            if created and not matched and snapshot.exists(): snapshot.unlink()
+            if not matched:
+                for artifact in reversed(created):
+                    if artifact.exists():artifact.unlink()
     return {'ok':False,'reason':'Matching complete packet snapshot not yet available','inspections':inspections}

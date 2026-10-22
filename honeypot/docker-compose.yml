@@ -1,6 +1,7 @@
 name: honeypot
 x-common: &common
-  restart: unless-stopped
+  # Supervised beta: Docker must not execute images before reviewed startup gates.
+  restart: "no"
   security_opt: ["no-new-privileges:true"]
   cap_drop: [ALL]
   logging:
@@ -13,7 +14,6 @@ x-common: &common
 services:
   cowrie:
     <<: *common
-    restart: "on-failure:5"
     image: ${COWRIE_IMAGE:-cowrie/cowrie:3.0.15@sha256:fc57120d88c2bfb5817f63f6c132ce5c2969b641c2f1ac67887652b6f294148d}
     container_name: honeypot-cowrie
     user: "999:2000"
@@ -42,7 +42,6 @@ services:
       start_period: 30s
   opencanary:
     <<: *common
-    restart: "on-failure:5"
     build:
       context: .
       dockerfile: docker/opencanary.Dockerfile
