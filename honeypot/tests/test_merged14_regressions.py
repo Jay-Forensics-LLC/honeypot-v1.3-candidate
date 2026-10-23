@@ -255,3 +255,51 @@ class OptimizedReconciliation(unittest.TestCase):
             code="import importlib.util,pathlib; s=importlib.util.spec_from_file_location('review',%r); m=importlib.util.module_from_spec(s);s.loader.exec_module(m);m.REPORT=pathlib.Path(%r);m.verify()"%(str(path),str(Path(tmp)/'stage7-evidence-recovery-remediation-cc48cdb7f95b.json'))
             result=subprocess.run([sys.executable,'-O','-B','-c',code],capture_output=True,text=True,timeout=10)
             self.assertNotEqual(result.returncode,0);self.assertIn('Recovery report hash drift',result.stderr)
+
+    def test_tampered_recovery_record_rejected_under_optimized_python(self):
+        path=ROOT/'work/live-qualification/stage7-reconciled-evidence.py'
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);incident=root/'incident';incident.mkdir()
+            ids=['one','two','three','four','five']
+            lines=[(json.dumps({'event_id':eid})+'\n').encode() for eid in ids[:3]]
+            last=json.dumps({'event_id':ids[3]}).encode()
+            padding=33944-sum(map(len,lines))-len(last)-1
+            original=b''.join(lines)+last+b' '*padding+b'\n'+b'\0'*2920
+            (incident/'events.jsonl').write_bytes(original)
+            (incident/'incident.json').write_text(json.dumps({'related_events':ids}))
+            recovered=original[:33944]+(json.dumps({'event_id':ids[4],'normalized':{},'raw':{}})+'\n').encode()
+            offset=0;records=[]
+            for line,eid in zip(original[:33944].splitlines(keepends=True),ids[:4]):
+                records.append({'method':'ORIGINAL_INTACT','event_id':eid,'offset':offset,
+                                'length':len(line),'sha256':hashlib.sha256(line).hexdigest()})
+                offset+=len(line)
+            records.append({'method':'RECONSTRUCTED_FROM_RAW_AND_NORMALIZED','event_id':ids[4]})
+            records[-1]['method']='TAMPERED'
+            bundle=root/'stage7-recovery-dfd9b409bd28ff3fbed5848f-0000-c885754e4bc7'
+            bundle.mkdir()
+            manifest={'original':{'sha256':hashlib.sha256(original).hexdigest()},
+                      'derivative_sha256':hashlib.sha256(recovered).hexdigest(),
+                      'ordered_records':records,'raw_provenance':{},
+                      'normalized_provenance':{}}
+            (bundle/'events.recovered.jsonl').write_bytes(recovered)
+            (bundle/'recovery-manifest.json').write_text(json.dumps(manifest))
+            (bundle/'README.txt').write_text('synthetic fixture')
+            report={'ORIGINAL_UNCHANGED':True,
+                    'STATUS':'RECOVERY_COMPLETE_SOURCE_PATCH_TESTED_NOT_DEPLOYED',
+                    'RECOVERY_BUNDLE':str(bundle),'RAW_SOURCE_VERIFIED':{},
+                    'NORMALIZED_SOURCE_VERIFIED':{}}
+            report_path=root/'report.json';report_path.write_text(json.dumps(report))
+            code="""import hashlib,importlib.util,json,pathlib,sys
+s=importlib.util.spec_from_file_location('review',sys.argv[1])
+m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
+m.HERE=pathlib.Path(sys.argv[2]);m.REPORT=pathlib.Path(sys.argv[3])
+m.REPORT_HASH=hashlib.sha256(m.REPORT.read_bytes()).hexdigest()
+m.ORIGINAL=pathlib.Path(sys.argv[4])
+m.ORIGINAL_HASH=hashlib.sha256(m.ORIGINAL.read_bytes()).hexdigest()
+m.verify()
+"""
+            result=subprocess.run([sys.executable,'-O','-B','-c',code,str(path),
+                                   str(root),str(report_path),str(incident/'events.jsonl')],
+                                  capture_output=True,text=True,timeout=10)
+            self.assertNotEqual(result.returncode,0)
+            self.assertIn('Historical reconciliation integrity check failed',result.stderr)
