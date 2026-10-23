@@ -224,7 +224,7 @@ def main():
     try:
         summary = review_transport(read_closed_log(args.closed_log), expected_vm_uuid=args.expected_vm_uuid,
                                    expected_collector_sha256=args.expected_collector_sha256)
-    except (OSError, ValueError, RecursionError) as error:
+    except (OSError, ValueError, RuntimeError) as error:
         summary = {'review_status': 'INVALID_TRANSPORT', 'complete_baseline_only': False,
                    'errors': [str(error)], 'B17_passed': False, 'phase7_gate': 'BLOCKED', 'phase8_gate': 'BLOCKED'}
     print(json.dumps(summary, indent=2, sort_keys=True, allow_nan=False))
