@@ -2,6 +2,7 @@ import base64
 import copy
 import hashlib
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -310,6 +311,45 @@ class NativeReviewTest(unittest.TestCase):
                 output = json.loads(result.stdout)
                 self.assertFalse(output['B17_passed'])
                 self.assertEqual(output['phase7_gate'], 'BLOCKED')
+
+
+    def test_cli_rejects_cyclic_symlink_with_blocked_json(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'cycle'
+            path.symlink_to(path.name)
+            result = subprocess.run([sys.executable, '-I', '-B', str(TOOLS / 'native_target_review.py'),
+                                     str(path), '--expected-vm-uuid', VM,
+                                     '--expected-collector-sha256', COLLECTOR], capture_output=True, timeout=5)
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertEqual(result.stderr, b'')
+            output = json.loads(result.stdout)
+            self.assertEqual(output['review_status'], 'INVALID_TRANSPORT')
+            self.assertFalse(output['complete_baseline_only'])
+            self.assertFalse(output['B17_passed'])
+            self.assertEqual(output['phase7_gate'], 'BLOCKED')
+            self.assertEqual(output['phase8_gate'], 'BLOCKED')
+
+    def test_cli_handles_runtime_error_at_both_path_resolutions(self):
+        # Python 3.12 reports resolution loops as RuntimeError. Exercise both
+        # resolution points with that exception regardless of the host version.
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'native.log'
+            path.write_bytes(frame(baseline()))
+            argv = [str(TOOLS / 'native_target_review.py'), str(path),
+                    '--expected-vm-uuid', VM, '--expected-collector-sha256', COLLECTOR]
+            for stage, results in (('before_read', [RuntimeError('Symlink loop')]),
+                                   ('after_read', [path, RuntimeError('Symlink loop')])):
+                with self.subTest(stage=stage), mock.patch.object(sys, 'argv', argv), \
+                        mock.patch.object(Path, 'resolve', side_effect=results), \
+                        mock.patch.object(sys, 'stdout', io.StringIO()) as stdout:
+                    self.assertEqual(review.main(), 2)
+                    output = json.loads(stdout.getvalue())
+                    self.assertEqual(output['review_status'], 'INVALID_TRANSPORT')
+                    self.assertEqual(output['errors'], ['Symlink loop'])
+                    self.assertFalse(output['complete_baseline_only'])
+                    self.assertFalse(output['B17_passed'])
+                    self.assertEqual(output['phase7_gate'], 'BLOCKED')
+                    self.assertEqual(output['phase8_gate'], 'BLOCKED')
 
 
 if __name__ == '__main__':
