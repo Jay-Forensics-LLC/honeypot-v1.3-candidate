@@ -5,6 +5,21 @@ Readiness, `wan check`, and lab scripts write `state/` in the directory you run 
 Daily: status, health JSON, failed timers, parser errors, incident queue and storage.
 Weekly: verify a backup checksum/read, review inactive sensors and capture losses,
 review image/security advisories and test a restoration into a new directory.
+No broad automated updates are enabled. An approved update now also requires
+`--image-approval-sha256 SHA256`, pinning a separately reviewed
+`configs/images.approved.json`. The document must have version 1 and exactly the
+seven service names, each with its exact Compose `reference` and immutable image
+`id` (`sha256:` plus 64 lowercase hex digits). The shipped empty document is an
+unapproved template and intentionally blocks updates and runtime qualification.
+Establish expected IDs from independently reviewed build/download provenance
+before authorizing an update; current running IDs and post-start receipts are
+observations only. Do not generate approval from them or fill it merely to pass.
+The updater checks this input before backup/stop, retains the verified stopped
+Grafana backup requirement, pulls/builds, compares available images before
+startup, and starts without rebuilding or pulling. It checks the resulting
+containers and writes `state/images.observed.json` only; it never overwrites the
+approval or historical `images.lock.json`. A mismatch leaves services stopped.
+Keep previous image identities and obtain separate deployment/rollback approval.
 No broad automated updates are enabled. All startup paths require the same
 separately reviewed version-1 image manifest: exactly seven service names, each
 with `reference` and immutable `id`. Supply its independent SHA-256 using
