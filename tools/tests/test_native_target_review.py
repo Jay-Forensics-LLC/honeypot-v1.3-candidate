@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest import mock
+import unittest.mock as mock
 
 TOOLS = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('native_target_review', TOOLS / 'native_target_review.py')
