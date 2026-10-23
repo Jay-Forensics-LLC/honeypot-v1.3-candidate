@@ -4,6 +4,7 @@ import argparse
 import base64
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -48,8 +49,14 @@ def strict_json(raw):
     def invalid_constant(value):
         raise ValueError('Non-finite JSON number')
 
+    def finite_float(value):
+        number = float(value)
+        require(math.isfinite(number), 'Non-finite JSON number')
+        return number
+
     try:
-        return json.loads(raw.decode('utf-8'), object_pairs_hook=pairs, parse_constant=invalid_constant)
+        return json.loads(raw.decode('utf-8'), object_pairs_hook=pairs,
+                          parse_constant=invalid_constant, parse_float=finite_float)
     except (UnicodeError, RecursionError) as error:
         raise ValueError('Invalid JSON encoding or nesting') from error
 
@@ -217,7 +224,7 @@ def main():
     except (OSError, ValueError, RecursionError) as error:
         summary = {'review_status': 'INVALID_TRANSPORT', 'complete_baseline_only': False,
                    'errors': [str(error)], 'B17_passed': False, 'phase7_gate': 'BLOCKED', 'phase8_gate': 'BLOCKED'}
-    print(json.dumps(summary, indent=2, sort_keys=True))
+    print(json.dumps(summary, indent=2, sort_keys=True, allow_nan=False))
     return 0 if summary['complete_baseline_only'] else 2
 
 

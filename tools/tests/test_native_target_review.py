@@ -222,6 +222,24 @@ class NativeReviewTest(unittest.TestCase):
         data = frame(baseline()).replace(b'"bytes":', b'"exit_code": 0, "bytes":', 1)
         with self.assertRaisesRegex(ValueError, 'Duplicate JSON'): inspect(data)
 
+    def test_exponent_overflow_cannot_make_the_cli_emit_nonstandard_json(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'native.log'
+            for exponent in (b'1e400', b'-1e400'):
+                with self.subTest(exponent=exponent):
+                    body = json.dumps(baseline()).encode().replace(b'"COMPLETE_BASELINE_ONLY"', exponent, 1)
+                    data = frame({}, body=body)
+                    with self.assertRaisesRegex(ValueError, 'Non-finite'):
+                        inspect(data)
+                    path.write_bytes(data)
+                    result = subprocess.run([sys.executable, '-I', '-B', str(TOOLS / 'native_target_review.py'),
+                                             str(path), '--expected-vm-uuid', VM,
+                                             '--expected-collector-sha256', COLLECTOR], capture_output=True, timeout=5)
+                    self.assertEqual(result.returncode, 2)
+                    output = review.strict_json(result.stdout)
+                    self.assertEqual(output['review_status'], 'INVALID_TRANSPORT')
+                    self.assertFalse(output['complete_baseline_only'])
+
     def test_report_cannot_claim_phase_acceptance_or_reserved_transaction(self):
         for field, value in (('B17_passed', True), ('phase7_gate', 'PASS'), ('phase8_gate', 'PASS')):
             report = baseline()
