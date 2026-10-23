@@ -240,6 +240,27 @@ class NativeReviewTest(unittest.TestCase):
                     self.assertEqual(output['review_status'], 'INVALID_TRANSPORT')
                     self.assertFalse(output['complete_baseline_only'])
 
+    def test_nested_collection_status_produces_bounded_blocked_cli_output(self):
+        report = baseline()
+        nested = []
+        for _ in range(250):
+            nested = [nested]
+        report['collection_status'] = nested
+        data = frame(report)
+        self.assertLess(len(data), 8192)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'native.log'
+            path.write_bytes(data)
+            result = subprocess.run([sys.executable, '-I', '-B', str(TOOLS / 'native_target_review.py'),
+                                     str(path), '--expected-vm-uuid', VM,
+                                     '--expected-collector-sha256', COLLECTOR], capture_output=True, timeout=5)
+        self.assertEqual(result.returncode, 2)
+        self.assertLessEqual(len(result.stdout), 2048)
+        output = review.strict_json(result.stdout)
+        self.assertEqual(output['review_status'], 'INVALID_TRANSPORT')
+        self.assertFalse(output['B17_passed'])
+        self.assertEqual(output['phase7_gate'], 'BLOCKED')
+
     def test_report_cannot_claim_phase_acceptance_or_reserved_transaction(self):
         for field, value in (('B17_passed', True), ('phase7_gate', 'PASS'), ('phase8_gate', 'PASS')):
             report = baseline()

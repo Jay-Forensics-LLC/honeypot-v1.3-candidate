@@ -176,12 +176,15 @@ def review_transport(data, *, expected_vm_uuid, expected_collector_sha256):
             and type(metadata.get('exit_code')) is int, 'Transport count/digest/source/status mismatch')
     report = strict_json(body)
     require(isinstance(report, dict), 'Native report is not an object')
+    collection_status = report.get('collection_status')
+    require(isinstance(collection_status, str) and collection_status in ('COMPLETE_BASELINE_ONLY', 'INCOMPLETE'),
+            'Invalid native collection status')
     require(report.get('B17_passed') is False and report.get('phase7_gate') == 'BLOCKED'
             and report.get('phase8_gate') == 'BLOCKED', 'Unsupported acceptance claim in baseline-only report')
     summary = {'schema': 1, 'transport': 'COMPLETE', 'transport_sha256': digest(data),
                'body_sha256': digest(body), 'body_bytes': len(body),
                'collector_sha256': expected_collector_sha256, 'collector_exit_code': metadata['exit_code'],
-               'collection_status': report.get('collection_status'), 'complete_baseline_only': False,
+               'collection_status': collection_status, 'complete_baseline_only': False,
                'review_status': 'INCOMPLETE_BASELINE', 'errors': [],
                'B17_passed': False, 'phase7_gate': 'BLOCKED', 'phase8_gate': 'BLOCKED'}
     try:
