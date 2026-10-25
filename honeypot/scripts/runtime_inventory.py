@@ -334,8 +334,18 @@ def static_mount_problems(rendered, root):
             by_target[target] = volume
             if target not in required:
                 source = Path(volume.get('source', ''))
-                if (any(source.is_relative_to(root/p) for p in ('configs', 'detections', 'dashboards')) or
-                        overlaps_static(target, required)):
+                approved_grafana_state = (
+                    name == 'grafana'
+                    and target == '/var/lib/grafana'
+                    and volume.get('type') == 'bind'
+                    and source == root / 'state/grafana'
+                    and volume.get('read_only', False) is False
+                    and source.resolve() == source
+                )
+                if not approved_grafana_state and (
+                    any(source.is_relative_to(root/p) for p in ('configs', 'detections', 'dashboards'))
+                    or overlaps_static(target, required)
+                ):
                     problems.append(name + ': unreviewed static mount ' + target)
         for target, relative in required.items():
             volume = by_target.get(target, {})
