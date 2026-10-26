@@ -66,3 +66,42 @@ No guest collector execution is implied by adding this tool. VM creation,
 installed-system boot, provisioning, images, deployment, current qualification
 and Phase 8 boot/recovery remain separately scoped actions. Preserve all prior
 receipts, failed attempts and the original dirty workspace.
+
+## Offline review of a closed transport
+
+`tools/native_target_review.py` independently checks the V1 framed private output
+of the proposed native-facts serial transport. Run it only on a closed retained
+log, after separately confirming the producing VM has exited. Its file checks
+detect changes during the read; they do not prove that the producer has stopped.
+The tool reads one bounded regular file and prints JSON. It executes no queries
+or guest code, requires no sudo, and creates no files.
+
+```bash
+python3 -I -B tools/native_target_review.py CLOSED_PRIVATE_SERIAL_LOG \
+  --expected-vm-uuid REVIEWED_VM_UUID \
+  --expected-collector-sha256 INDEPENDENTLY_REVIEWED_COLLECTOR_SHA256
+```
+
+Obtain both expected inputs from the separately reviewed transaction and pinned
+collector source. Taking them from the report being checked cannot establish
+approval. Real target identifiers and logs remain private and outside Git.
+
+Framing, body length/hash and nested output hashes alone do not establish a
+complete baseline. The reviewer also requires native OS/Python/machine/boot/VM
+identities, all eight queries in order, complete cleanup, two identical complete
+package inventories, package count and required-package observations derived
+from those bytes, empty dpkg audit, matching status digests, and all five paired
+lock observations with unchanged file identities. Duplicate JSON keys, unknown
+schemas, mismatched counts and premature acceptance claims are rejected. Missing
+optional tools or their nonzero version-query results remain compatible with a
+complete package baseline; inspect the retained commands for their actual state.
+They do not establish that deployment dependencies are installed or approved.
+
+Exit 0 and `CONSISTENT_BASELINE_ONLY` mean the retained baseline is internally
+consistent. Exit 2 retains an incomplete/invalid disposition. Neither outcome
+authenticates guest claims, independently measures clock/freshness, proves a
+transaction-free interval, approves a dependency closure or passes B17/Phase 7.
+A self-consistent fabricated report can pass integrity checks; native acquisition
+provenance and independent review remain necessary. Every output keeps B17 false
+and Phase 7/Phase 8 blocked. Preserve partial bytes and investigate failures;
+do not automatically recollect or boot again.
