@@ -3,7 +3,10 @@
 **UNVERIFIED SOURCE CANDIDATE; beta release blocked.** See the
 [beta quickstart](docs/BETA_QUICKSTART.md) and
 [acceptance checklist](docs/BETA_ACCEPTANCE.md) for scope and remaining gates.
-The frozen polish2 source is preserved separately. No changes are deployed.
+The frozen polish2 source is preserved separately. See
+[current phase status](../docs/CURRENT_PHASE_STATUS.md) for HoneyWatch through
+PR #38, CI/review outcomes and remaining gates. Deployed source identity is not
+established by source publication or the scoped startup/health reports.
 
 **Scope frozen:** the first beta targets operator-supervised, localhost-only use.
 New features are deferred. The single [acceptance checklist](docs/BETA_ACCEPTANCE.md)

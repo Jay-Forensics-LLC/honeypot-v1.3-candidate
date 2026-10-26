@@ -1,13 +1,15 @@
 # HoneyTrace source candidate
 
 The latest reviewed application source is in [honeypot/](honeypot/README.md).
-This snapshot includes the October 16 local beta candidate and its uncommitted
-qualification integration. See [source provenance](docs/SOURCE_SYNC.md) and
+HoneyWatch includes the signed Phase 7 reconciliation and merged corrections
+through PR #38; the exact source checkpoint is recorded in current status. See
+[source provenance](docs/SOURCE_SYNC.md) and
 [beta acceptance](honeypot/docs/BETA_ACCEPTANCE.md).
 
 **UNVERIFIED SOURCE CANDIDATE. Beta release remains BLOCKED.**
-The [current phase status](docs/CURRENT_PHASE_STATUS.md) reconciles the October 17
-source, runtime observations, validation and remaining acceptance work.
+The [current phase status](docs/CURRENT_PHASE_STATUS.md) reconciles source through PR #38
+(as of October 26), CI/review outcomes, dated runtime observations and remaining
+acceptance work.
 Independent Stage 7 closeout is PENDING; daemon-reload remains HOLD. Publishing
 source does not qualify the live deployment, retained evidence, packet flow,
 continuity, fresh installation or release acceptance. WAN remains unauthorized.

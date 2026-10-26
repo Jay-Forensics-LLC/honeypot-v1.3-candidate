@@ -2,7 +2,12 @@
 
 Candidate: **v1.3.0-beta.1 — UNVERIFIED SOURCE CANDIDATE**.
 
-Current engineering disposition is in [CURRENT_PHASE_STATUS](../../docs/CURRENT_PHASE_STATUS.md).
+**October 26 reconciliation:** [CURRENT_PHASE_STATUS](../../docs/CURRENT_PHASE_STATUS.md)
+records HoneyWatch through merged PR #38, verified CI totals/skips, superseded
+PRs #23/#30, review dispositions and outstanding Phase 7 gates. It supersedes
+current-state wording in the dated observations below without rescoring this
+historical checklist. B17 and current-build live acceptance remain unaccepted;
+Phase 8 execution and public beta remain unauthorized.
 The observations and scoring below are retained historical scopes. The selected
 Phase 8 target is the laptop; its October 20 read-only acquisition reports Ubuntu
 26.04/Python 3.14, seven healthy owned services and an unsynchronized clock. It
@@ -21,7 +26,7 @@ packets. The new boot's clock is unsynchronized, containment/evidence acceptance
 is incomplete, and independent Stage 7 closeout remains PENDING. No beta gate is
 silently advanced by these scoped observations or the new source regressions.
 
-**LATEST OBSERVATION — successful health unit and healthy state reported.**
+**Historical October 16 observation — successful health unit and healthy state reported.**
 [E33][e33] supersedes the earlier health-failure snapshot: the unit completed with
 Result=success and ExecMainStatus=0 at 2026-10-16 20:08:37 UTC. A later health JSON
 timestamped 20:10:39.708822 UTC reports clock_synchronized, pcap_running and
