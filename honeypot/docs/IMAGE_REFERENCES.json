@@ -69,53 +69,34 @@
       ]
     },
     {
-      "image": "grafana/alloy:v1.14.1",
-      "digest": "sha256:8f5666aebb871ba43ee2d65159c5d1c26c903720efafaf2d9ed4e237afc3bc88",
-      "reference": "grafana/alloy:v1.14.1@sha256:8f5666aebb871ba43ee2d65159c5d1c26c903720efafaf2d9ed4e237afc3bc88",
-      "source": "https://hub.docker.com/v2/repositories/grafana/alloy/tags/v1.14.1",
-      "last_updated": "2026-03-17T15:48:00.049218Z",
+      "image": "grafana/alloy:v1.21.2",
+      "digest": "sha256:89a5a320168387336b9ac3c850609c3ba7757eadd4ae5f1d819deb35e9854b18",
+      "reference": "grafana/alloy:v1.21.2@sha256:89a5a320168387336b9ac3c850609c3ba7757eadd4ae5f1d819deb35e9854b18",
+      "source": "https://hub.docker.com/v2/repositories/grafana/alloy/tags/v1.21.2",
+      "last_updated": "2026-10-22T21:41:42.334844Z",
       "platforms": [
         {
           "architecture": "amd64",
           "os": "linux",
-          "digest": "sha256:e3a1fff5eee8e2535fb75b350d0ccb722149720c788e57fd8d93b33e9163d85b"
+          "digest": "sha256:2fc2ae17ed3b712e37047724efd1cdf7a4124016c0b7522ac469dab0ddf8a8d7"
         },
         {
           "architecture": "ppc64le",
           "os": "linux",
-          "digest": "sha256:72dafeb23436cc8039a05ee4a5b87a61a540c872391f9510d2b9e4a01d9176b5"
+          "digest": "sha256:2829e773d7eae8a69a4228814c5ce71c8ce5059d98d565d09d2789b203bf3145"
         },
         {
           "architecture": "arm64",
           "os": "linux",
-          "digest": "sha256:ebd1be79271ade60d6b33883ee6782f9c12b60a3e9d364dfeca93ba7c19024da"
+          "digest": "sha256:c760b7384b5f06f05cbd9a6e2cc3e5f60d5527d9437b03017dca0473df2d8c83"
         },
         {
           "architecture": "s390x",
           "os": "linux",
-          "digest": "sha256:ea8c184355a6e6bf249fb644c97c45f703fd1c19d92b6d64727698d124d77d36"
-        },
-        {
-          "architecture": "unknown",
-          "os": "unknown",
-          "digest": "sha256:42a1015fb9ebc478cd083ca9cbcbb16689976d3ff02a5ba6108b0252888a2f83"
-        },
-        {
-          "architecture": "unknown",
-          "os": "unknown",
-          "digest": "sha256:3927226cad2c3e00054f4e549d2980fa85265acd73e08e5962ec2b912332c7d1"
-        },
-        {
-          "architecture": "unknown",
-          "os": "unknown",
-          "digest": "sha256:41268185ad871938a3571a42c13b2dbf7dc355896e0b2629d30583d29b719971"
-        },
-        {
-          "architecture": "unknown",
-          "os": "unknown",
-          "digest": "sha256:e717366d2cccb5590038df88c1bd0f4035008511d8e9dcb7a05ef70ae4ec85d9"
+          "digest": "sha256:0cc8b8987ccc85fa4eb9d4e643ee13260d72b88fd4863778c00189b3f00fb38a"
         }
-      ]
+      ],
+      "checked_at": "2026-10-27T03:45:01.570818+00:00"
     },
     {
       "image": "python:3.12.13-slim-bookworm",
