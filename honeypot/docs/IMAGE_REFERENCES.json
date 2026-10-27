@@ -2,21 +2,21 @@
   "checked_at": "2026-09-27T20:41:18.548330+00:00",
   "images": [
     {
-      "image": "cowrie/cowrie:3.0.15",
-      "digest": "sha256:fc57120d88c2bfb5817f63f6c132ce5c2969b641c2f1ac67887652b6f294148d",
-      "reference": "cowrie/cowrie:3.0.15@sha256:fc57120d88c2bfb5817f63f6c132ce5c2969b641c2f1ac67887652b6f294148d",
-      "source": "https://hub.docker.com/v2/repositories/cowrie/cowrie/tags/3.0.15",
-      "last_updated": "2026-09-21T03:15:30.627085Z",
+      "image": "cowrie/cowrie:3.1.3",
+      "digest": "sha256:69e3317c6ecf8811d18faecb8a2fcedee0af1f0f864b50de07b688c7409f515c",
+      "reference": "cowrie/cowrie:3.1.3@sha256:69e3317c6ecf8811d18faecb8a2fcedee0af1f0f864b50de07b688c7409f515c",
+      "source": "https://hub.docker.com/v2/repositories/cowrie/cowrie/tags/3.1.3",
+      "last_updated": "2026-10-19T03:12:11.777294Z",
       "platforms": [
         {
           "architecture": "amd64",
           "os": "linux",
-          "digest": "sha256:461f1070bd118bb1e4052429b6b180a3b9933b03a776f10a0b7cd74fec2b567f"
+          "digest": "sha256:f9b2c61ae7115169c030816c2dc087a59fcd79e78de2439d272040e8aa89c4cf"
         },
         {
           "architecture": "arm64",
           "os": "linux",
-          "digest": "sha256:e14466eba607705ece7f64f067572ea6927e29d35eb25c2898120686ecc5c116"
+          "digest": "sha256:f0e75d2660bb581b2543291e46fb786598375cf783f9a8d698f7925a66c22413"
         }
       ]
     },
