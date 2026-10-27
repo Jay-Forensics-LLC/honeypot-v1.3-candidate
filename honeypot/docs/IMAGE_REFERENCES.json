@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-27T02:16:53.451+00:00",
+  "checked_at": "2026-10-27T02:18:08+00:00",
   "images": [
     {
       "image": "cowrie/cowrie:3.1.3",
@@ -22,26 +22,26 @@
       ]
     },
     {
-      "image": "grafana/loki:3.6.7",
-      "digest": "sha256:3c8fd3570dd9219951a60d3f919c7f31923d10baee578b77bc26c4a0b32d092d",
-      "reference": "grafana/loki:3.6.7@sha256:3c8fd3570dd9219951a60d3f919c7f31923d10baee578b77bc26c4a0b32d092d",
-      "source": "https://hub.docker.com/v2/repositories/grafana/loki/tags/3.6.7",
-      "last_updated": "2026-02-23T10:28:27.227068Z",
+      "image": "grafana/loki:3.7.8",
+      "digest": "sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193",
+      "reference": "grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193",
+      "source": "https://hub.docker.com/v2/repositories/grafana/loki/tags/3.7.8",
+      "last_updated": "2026-09-17T15:45:46.597217Z",
       "platforms": [
         {
           "architecture": "amd64",
           "os": "linux",
-          "digest": "sha256:13e00a4f6aa64db624e78365d11ce2ee868cf49e202e511cadbd6fbc6c8b0e3a"
+          "digest": "sha256:81a6802ec4bd1b88c564494f06376889ed022998a188826190d26d2754ac2aae"
         },
         {
           "architecture": "arm64",
           "os": "linux",
-          "digest": "sha256:aec81b0ab063f30d942e2a34d7fc92e6fcce6dacdb3cc0a8dac8bc02ba88805b"
+          "digest": "sha256:a2753977b07471e0bb271f421677036fb1c84a2fd409e14fa19dfc7cc3b789b5"
         },
         {
           "architecture": "arm",
           "os": "linux",
-          "digest": "sha256:f97d757c04401b3708e883deb417667e06a36425e8760fc3a6d7bbdefea600c0"
+          "digest": "sha256:6f043292552634eaf5285dcaa14b9a72096a8e8f6ae828909afafc0ca722db7b"
         }
       ]
     },
