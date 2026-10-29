@@ -571,7 +571,7 @@ class MatrixAcceptance(unittest.TestCase):
         cid = RestartCommand.cid
         before['containers']['opencanary']['id'] = cid
         current = copy.deepcopy(before)
-        current.update(ok=False, problems=['opencanary: not running and healthy'])
+        current.update(ok=False, problems=[], recovery_target={'service':'opencanary','id':cid,'status':'TARGET_STARTING'})
         current['containers']['opencanary']['health'] = 'starting'
         config = {'dynamic_mac':{'opencanary':True}}
         base = {'execution_configuration':config,'routes':{},'evidence_permissions':{},'quarantine':{},
@@ -587,7 +587,7 @@ class MatrixAcceptance(unittest.TestCase):
              patch.object(qualification,'implementation',return_value={}), \
              patch.object(qualification,'acquire_preservation',return_value={}), \
              patch.object(qualification.subprocess,'run',return_value=subprocess.CompletedProcess([],0,cid+'\n','')) as restart, \
-             patch.object(qualification,'collect',return_value=current), \
+             patch.object(qualification,'collect',return_value=current) as collect, \
              patch.object(qualification.time,'sleep',side_effect=KeyboardInterrupt), \
              patch.object(qualification,'probe') as probe, \
              patch.object(qualification,'postflight',side_effect=lambda row,*args:row.update(postflight={'status':'FAILED','error':'still starting'})) as post:
@@ -597,6 +597,8 @@ class MatrixAcceptance(unittest.TestCase):
             self.assertEqual(json.loads((folder/'recovery-observations.json').read_text())[0]['health'],'starting')
         self.assertEqual(row['status'],'ABORTED'); self.assertTrue(row['interrupted'])
         self.assertIn('health recovery',row['error'])
+        collect.assert_called_once_with(qualification.RUNTIME,qualification.SOURCE,probe_readiness=False,
+                                        recovery_target={'service':'opencanary','id':cid})
         probe.assert_not_called(); restart.assert_called_once(); post.assert_called_once()
 
     def test_interrupted_matrix_persists_row_and_never_restarts_next_service(self):

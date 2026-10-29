@@ -801,13 +801,16 @@ def restart_row(name, anchor, base, folder, events, index):
             row['recovery_observations'] = []
             next_update = time.monotonic()
             while time.monotonic() < until:
-                current = collect(RUNTIME, SOURCE, probe_readiness=False)
+                current = collect(RUNTIME, SOURCE, probe_readiness=False,
+                                  recovery_target={'service': name, 'id': cid})
                 problems = current.get('problems', [])
                 target = current.get('containers', {}).get(name, {})
                 row['recovery_observations'].append({'timestamp': current.get('timestamp'),
                     'ok': current.get('ok'), 'problems': problems, 'health': target.get('health'),
                     'started_at': target.get('started_at'), 'id': target.get('id')})
-                if any(p != name + ': not running and healthy' for p in problems):
+                profile = current.get('recovery_target', {})
+                if (problems or profile.get('service') != name or profile.get('id') != cid or
+                        profile.get('status') not in ('TARGET_STARTING', 'HEALTHY')):
                     raise ValueError('Safety failure during recovery: ' + str(problems))
                 # Endpoint disappearance is transient, so only compare once the target is healthy.
                 # Unrelated starts/images/health and containment/capture are checked every poll.
