@@ -14,7 +14,7 @@ x-common: &common
 services:
   cowrie:
     <<: *common
-    image: ${COWRIE_IMAGE:-cowrie/cowrie:3.0.15@sha256:fc57120d88c2bfb5817f63f6c132ce5c2969b641c2f1ac67887652b6f294148d}
+    image: ${COWRIE_IMAGE:-cowrie/cowrie:3.1.3@sha256:69e3317c6ecf8811d18faecb8a2fcedee0af1f0f864b50de07b688c7409f515c}
     container_name: honeypot-cowrie
     user: "999:2000"
     mem_limit: 768m
@@ -96,7 +96,7 @@ services:
       retries: 3
   loki:
     <<: *common
-    image: ${LOKI_IMAGE:-grafana/loki:3.6.7@sha256:3c8fd3570dd9219951a60d3f919c7f31923d10baee578b77bc26c4a0b32d092d}
+    image: ${LOKI_IMAGE:-grafana/loki:3.7.9@sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28}
     container_name: honeypot-loki
     user: "10001:2000"
     mem_limit: 2g
