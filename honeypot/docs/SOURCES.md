@@ -15,7 +15,7 @@ not copied upstream source. Images/packages retain their own upstream licenses.
 - [Compose schema](https://github.com/compose-spec/compose-spec/blob/main/schema/compose-spec.json)
 
 Version tags checked for registry existence: cowrie/cowrie:3.0.15,
-grafana/loki:3.6.7, grafana/grafana:12.4.1, grafana/alloy:v1.14.1,
+grafana/loki:3.6.7, grafana/grafana:12.4.13, grafana/alloy:v1.14.1,
 python:3.12.13-slim-bookworm. OpenCanary PyPI version 0.9.10 was confirmed.
 Registry manifest digests were resolved and pinned in .env.example, Compose defaults
 and Dockerfile defaults; docs/IMAGE_REFERENCES.json records these references.

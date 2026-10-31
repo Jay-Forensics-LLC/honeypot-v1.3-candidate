@@ -49,10 +49,26 @@
       "digest": "sha256:41bbc1b5e04416f81891806076db2a2ff60a5d4da5f78d36a88b033a8c199185",
       "reference": "grafana/grafana:12.4.13@sha256:41bbc1b5e04416f81891806076db2a2ff60a5d4da5f78d36a88b033a8c199185",
       "source": "https://hub.docker.com/v2/repositories/grafana/grafana/tags/12.4.13",
-      "checked_at": null,
-      "verification_status": "Declared pin only; registry verification pending. The top-level checked_at does not apply to this updated record.",
-      "last_updated": null,
-      "platforms": []
+      "checked_at": "2026-10-31T06:55:20Z",
+      "verification_status": "Registry manifest and platform digests verified against Docker Hub.",
+      "last_updated": "2026-10-13T10:11:25.957605Z",
+      "platforms": [
+        {
+          "architecture": "amd64",
+          "os": "linux",
+          "digest": "sha256:f9452baa61968e54fafaaab493a2f97724b66def07a61659897566c6f085b80f"
+        },
+        {
+          "architecture": "arm64",
+          "os": "linux",
+          "digest": "sha256:04ddb75abcf1584ac60149bf75a40b4d0a8dbe40bbdcf0b5c10a1ad6c0562634"
+        },
+        {
+          "architecture": "arm",
+          "os": "linux",
+          "digest": "sha256:3e88438b6f16db1a197bd5fd6b227ddb7c0dfa8e14dd81ce612d249a87b61258"
+        }
+      ]
     },
     {
       "image": "grafana/alloy:v1.14.1",
