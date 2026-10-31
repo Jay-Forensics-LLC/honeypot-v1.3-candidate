@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Target lifecycle operations. Defaults never publish externally or alter permanent rules."""
 import argparse
+import configparser
 import datetime
 import ipaddress
 import json
@@ -21,6 +22,7 @@ from guard_policy import DNS, require_guard, inspect_dns
 from daemon_check import require_local_daemon
 
 SERVICES=['cowrie','opencanary','suricata','loki','alloy','grafana','incidentd']
+EVIDENCE_GID=2000
 NETWORK_POLICY = {
     'cowrie': ('honeypot-cowrie-net', '172.29.40.0/24', 'br-hp-cowrie'),
     'canary': ('honeypot-canary-net', '172.29.41.0/24', 'br-hp-canary'),
@@ -96,6 +98,26 @@ def secrets_generate():
     if os.geteuid()==0: os.chown(p,0,2000)
     print('Created secrets/grafana_admin_password; read locally as root. Not printed or logged.')
 
+def bootstrap_cowrie_tty():
+    parser=configparser.ConfigParser(interpolation=None)
+    with (ROOT/'configs/cowrie/cowrie.cfg').open() as stream: parser.read_file(stream)
+    state=Path(parser.get('honeypot','state_path')); tty=Path(parser.get('honeypot','ttylog_path'))
+    if (state.is_absolute() or tty.is_absolute() or '..' in state.parts or '..' in tty.parts or
+            not tty.is_relative_to(state) or tty==state):
+        raise SystemExit('Cowrie TTY path must be a relative child of its configured state path')
+    flags=os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW
+    fd=os.open(ROOT/'state/cowrie',flags)
+    try:
+        for part in tty.relative_to(state).parts:
+            created=False
+            try: os.mkdir(part,0o2750,dir_fd=fd); created=True
+            except FileExistsError: pass
+            child=os.open(part,flags,dir_fd=fd)
+            os.close(fd); fd=child
+            if created: os.fchown(fd,999,EVIDENCE_GID); os.fchmod(fd,0o2750)
+    finally: os.close(fd)
+
+
 def bootstrap():
     require_root()
     env=ROOT/'.env'
@@ -112,7 +134,8 @@ def bootstrap():
     paths[runtime_path('ARTIFACT_PATH','artifacts')/'cowrie']=(999,0o2750)
     for p,(uid,mode) in paths.items():
         if p.is_symlink(): raise SystemExit('Runtime directories may not be symlinks; use absolute .env paths: '+str(p))
-        p.mkdir(parents=True,exist_ok=True);os.chown(p,uid,2000);os.chmod(p,mode)
+        p.mkdir(parents=True,exist_ok=True);os.chown(p,uid,EVIDENCE_GID);os.chmod(p,mode)
+    bootstrap_cowrie_tty()
     boundary=ROOT/'state/trusted/boundary.jsonl'
     if not boundary.exists(): boundary.touch(mode=0o640)
     os.chown(boundary,0,2000);os.chmod(boundary,0o640)

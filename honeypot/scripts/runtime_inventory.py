@@ -109,7 +109,8 @@ def security_resource_problems(name, spec, container):
     return problems
 
 
-def _validate_runtime(rendered, containers, networks, root, stopped=frozenset(), allow_created=False):
+def _validate_runtime(rendered, containers, networks, root, stopped=frozenset(), allow_created=False,
+                      starting=frozenset()):
     """Share configuration checks while retaining strict live health gates."""
     problems = []
     if set(containers) != SERVICES or set(rendered.get('services', {})) != SERVICES:
@@ -132,7 +133,9 @@ def _validate_runtime(rendered, containers, networks, root, stopped=frozenset(),
                                                 'IPPrefixLen', 'GlobalIPv6PrefixLen')):
                     problems.append(name + ': stopped container has active network identity')
         elif not state.get('Running') or state.get('Health', {}).get('Status') != 'healthy':
-            problems.append(name + ': not running and healthy')
+            if not (name in starting and state.get('Running') is True and
+                    state.get('Health', {}).get('Status') == 'starting'):
+                problems.append(name + ': not running and healthy')
         if any(c['State'].get(k) for k in ('Paused','Restarting','Dead','OOMKilled')):
             problems.append(name + ': abnormal runtime state')
         if host.get('Privileged') or not host.get('ReadonlyRootfs') or 'ALL' not in (host.get('CapDrop') or []):
@@ -378,7 +381,56 @@ def verify_static_configuration(rendered, root, source_root):
     return deployed
 
 
-def collect(root, source_root, probe_readiness=True, *, approval_sha256=None):
+def recovery_observation(row, root, source_root, cfg, rendered, actual_rendered, containers, nets, approval,
+                         reviewed_compose, execution, target, run):
+    """Observe one exact restarting target without executing any container process."""
+    if (type(target) is not dict or set(target) != {'service', 'id'} or target['service'] not in SERVICES or
+            not re.fullmatch(r'[0-9a-f]{64}', str(target['id'])) or
+            containers[target['service']]['Id'] != target['id']):
+        raise ValueError('Recovery requires one explicit current owned service/full container ID')
+    name = target['service']
+    row['qualification'] = 'UNQUALIFIED_RECOVERY_METADATA_ONLY; no diagnostic container process executed'
+    row['problems'] += execution + _validate_runtime(actual_rendered, containers, nets, root, starting={name})
+    row['containers'] = {n: {'id': c['Id'], 'image_id': c['Image'], 'created': c['Created'], 'started_at': c['State']['StartedAt'],
+                            'health': c['State']['Health']['Status'], 'restart_count': c['RestartCount'],
+                            'networks': c['NetworkSettings']['Networks'], 'ports': c['NetworkSettings']['Ports'],
+                            'mounts': c['Mounts'], 'tmpfs': c['HostConfig'].get('Tmpfs') or {},
+                            'environment_hash': fingerprint(c['Config'].get('Env', []))} for n, c in containers.items()}
+    row.update(networks=nets, boot_id=Path('/proc/sys/kernel/random/boot_id').read_text().strip(),
+               wan_enabled=False, config_hash=fingerprint(cfg), rendered_config_hash=fingerprint(rendered),
+               compose_hash=hashlib.sha256(reviewed_compose).hexdigest())
+    def policy(value):
+        if isinstance(value, dict): return {k: policy(v) for k, v in value.items() if k not in ('handle', 'counter', 'metainfo')}
+        if isinstance(value, list): return [policy(x) for x in value if not isinstance(x, dict) or not set(x) <= {'counter', 'metainfo'}]
+        return value
+    try:
+        nft = json.loads(run(['nft', '-j', 'list', 'table', 'inet', 'hp_guard']).stdout)
+        row['guard'] = evaluate(nft, cfg)
+        row['guard_fingerprint'] = fingerprint(canonical(policy(nft)))
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as exc:
+        row['guard'] = {'ok': False, 'observed': {'policy': 'UNKNOWN'}, 'problems': [str(exc)]}
+        row['guard_fingerprint'] = None
+    if not row['guard']['ok']: row['problems'].append('hp_guard policy failed validation')
+    row['capture'] = inspect_capture(root, run)
+    if not row['capture']['ok']: row['problems'].append('PCAP identity/interface verification failed')
+    row['mounted_config_hashes'] = verify_static_configuration(rendered, root, Path(source_root))
+    compose_input.require_single_input(root, cfg)
+    if (command(source_root, ['git', 'rev-parse', 'HEAD']).stdout.strip() != row['candidate_source_commit'] or
+            command(source_root, ['git', 'status', '--porcelain', '--untracked-files=all']).stdout or
+            image_approval.read_regular(root / 'docker-compose.yml', 1024**2) != reviewed_compose or
+            image_approval.read_regular(Path(source_root) / 'docker-compose.yml', 1024**2) != reviewed_compose):
+        raise ValueError('Candidate source or Compose changed during recovery observation')
+    image_approval.load(source_root, {n: spec['image'] for n, spec in rendered['services'].items()}, approval['sha256'])
+    healthy = all(c['State'].get('Running') is True and c['State'].get('Health', {}).get('Status') == 'healthy'
+                  for c in containers.values())
+    row['recovery_target'] = {**target, 'health': containers[name]['State']['Health']['Status'],
+                              'status': 'BLOCKED' if row['problems'] else ('HEALTHY' if healthy else 'TARGET_STARTING')}
+    row['http_readiness'] = 'NOT TESTED: recovery metadata observation; container exec prohibited'
+    row['ok'] = healthy and not row['problems']
+    return row
+
+
+def collect(root, source_root, probe_readiness=True, *, approval_sha256=None, recovery_target=None):
     root = Path(root).resolve()
     run = lambda argv, **kw: command(root, argv, **kw)
     row = {'timestamp': utc(), 'runtime_root': str(root), 'ok': False, 'problems': [],
@@ -412,7 +464,8 @@ def collect(root, source_root, probe_readiness=True, *, approval_sha256=None):
         image_approval.check_containers(approval, containers)
         images=compose_input.approved_image_configs(approval,run)
         execution=compose_input.execution_problems(rendered,containers,images)
-        if execution:raise ValueError('Runtime execution configuration: '+'; '.join(execution))
+        if execution and recovery_target is None:
+            raise ValueError('Runtime execution configuration: '+'; '.join(execution))
         row['image_approval_sha256'] = approval['sha256']
         # Both retained tag-named containers and new ID-named containers must
         # match the external approval. Normalize only after that exact check.
@@ -420,6 +473,9 @@ def collect(root, source_root, probe_readiness=True, *, approval_sha256=None):
         actual_rendered = copy.deepcopy(rendered)
         for name, container in containers.items():
             actual_rendered['services'][name]['image'] = container['Config']['Image']
+        if recovery_target is not None:
+            return recovery_observation(row, root, source_root, cfg, rendered, actual_rendered, containers, nets,
+                                        approval, reviewed_compose, execution, recovery_target, run)
         row['problems'] += validate_runtime(actual_rendered, containers, nets, root)
         row['stopped_decoy_configuration'] = stopped_decoy_configuration(actual_rendered, containers, nets, root)
         if row['problems'] and row['stopped_decoy_configuration']['status']!='CONFIGURATION_CHECKS_PASSED':
