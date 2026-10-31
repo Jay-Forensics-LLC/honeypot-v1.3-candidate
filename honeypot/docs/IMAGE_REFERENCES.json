@@ -1,70 +1,74 @@
 {
-  "checked_at": "2026-09-27T20:41:18.548330+00:00",
+  "checked_at": "2026-10-27T02:18:08+00:00",
   "images": [
     {
-      "image": "cowrie/cowrie:3.0.15",
-      "digest": "sha256:fc57120d88c2bfb5817f63f6c132ce5c2969b641c2f1ac67887652b6f294148d",
-      "reference": "cowrie/cowrie:3.0.15@sha256:fc57120d88c2bfb5817f63f6c132ce5c2969b641c2f1ac67887652b6f294148d",
-      "source": "https://hub.docker.com/v2/repositories/cowrie/cowrie/tags/3.0.15",
-      "last_updated": "2026-09-21T03:15:30.627085Z",
+      "image": "cowrie/cowrie:3.1.3",
+      "digest": "sha256:69e3317c6ecf8811d18faecb8a2fcedee0af1f0f864b50de07b688c7409f515c",
+      "reference": "cowrie/cowrie:3.1.3@sha256:69e3317c6ecf8811d18faecb8a2fcedee0af1f0f864b50de07b688c7409f515c",
+      "source": "https://hub.docker.com/v2/repositories/cowrie/cowrie/tags/3.1.3",
+      "last_updated": "2026-10-19T03:12:11.777294Z",
+      "verified_at": "2026-10-27",
       "platforms": [
         {
           "architecture": "amd64",
           "os": "linux",
-          "digest": "sha256:461f1070bd118bb1e4052429b6b180a3b9933b03a776f10a0b7cd74fec2b567f"
+          "digest": "sha256:f9b2c61ae7115169c030816c2dc087a59fcd79e78de2439d272040e8aa89c4cf"
         },
         {
           "architecture": "arm64",
           "os": "linux",
-          "digest": "sha256:e14466eba607705ece7f64f067572ea6927e29d35eb25c2898120686ecc5c116"
+          "digest": "sha256:f0e75d2660bb581b2543291e46fb786598375cf783f9a8d698f7925a66c22413"
         }
       ]
     },
     {
-      "image": "grafana/loki:3.7.8",
-      "digest": "sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193",
-      "reference": "grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193",
-      "source": "https://hub.docker.com/v2/repositories/grafana/loki/tags/3.7.8",
-      "last_updated": "2026-09-17T15:45:46.597217Z",
+      "image": "grafana/loki:3.7.9",
+      "digest": "sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28",
+      "reference": "grafana/loki:3.7.9@sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28",
+      "source": "https://hub.docker.com/v2/repositories/grafana/loki/tags/3.7.9",
+      "last_updated": "2026-10-20T22:50:07.016609Z",
       "platforms": [
         {
           "architecture": "amd64",
           "os": "linux",
-          "digest": "sha256:81a6802ec4bd1b88c564494f06376889ed022998a188826190d26d2754ac2aae"
+          "digest": "sha256:569e5cab050b7705eb82080335ff9a8bd329650b358bb0d42131e3ced8d9492e"
         },
         {
           "architecture": "arm64",
           "os": "linux",
-          "digest": "sha256:a2753977b07471e0bb271f421677036fb1c84a2fd409e14fa19dfc7cc3b789b5"
+          "digest": "sha256:1a779c5f714e795ac698b125fc265ae97292f792a91535fa29726073d03d5580"
         },
         {
           "architecture": "arm",
           "os": "linux",
-          "digest": "sha256:6f043292552634eaf5285dcaa14b9a72096a8e8f6ae828909afafc0ca722db7b"
+          "digest": "sha256:83a7d398fe286fcdfedda50da1a7bed9a877329c058f4ac68f6796e6d0e958c7"
         }
-      ]
+      ],
+      "checked_at": "2026-10-27T11:40:47.673+00:00"
     },
     {
-      "image": "grafana/grafana:12.4.1",
-      "digest": "sha256:e932bd6ed0e026595b08483cd0141e5103e1ab7ff8604839ff899b8dc54cabcb",
-      "reference": "grafana/grafana:12.4.1@sha256:e932bd6ed0e026595b08483cd0141e5103e1ab7ff8604839ff899b8dc54cabcb",
-      "source": "https://hub.docker.com/v2/repositories/grafana/grafana/tags/12.4.1",
-      "last_updated": "2026-03-09T15:21:01.492641Z",
+      "image": "grafana/grafana:12.4.13",
+      "digest": "sha256:41bbc1b5e04416f81891806076db2a2ff60a5d4da5f78d36a88b033a8c199185",
+      "reference": "grafana/grafana:12.4.13@sha256:41bbc1b5e04416f81891806076db2a2ff60a5d4da5f78d36a88b033a8c199185",
+      "source": "https://hub.docker.com/v2/repositories/grafana/grafana/tags/12.4.13",
+      "checked_at": "2026-10-31T06:55:20Z",
+      "verification_status": "Registry manifest and platform digests verified against Docker Hub.",
+      "last_updated": "2026-10-13T10:11:25.957605Z",
       "platforms": [
         {
           "architecture": "amd64",
           "os": "linux",
-          "digest": "sha256:fab4d86718ecf6aec45961ae01c5f743a955e11fad0adb8f43c5f52a961b5144"
+          "digest": "sha256:f9452baa61968e54fafaaab493a2f97724b66def07a61659897566c6f085b80f"
         },
         {
           "architecture": "arm64",
           "os": "linux",
-          "digest": "sha256:904cd1e709d196f6c433466f2effb295768d98f7fffd8edf9a3d8b93827317f9"
+          "digest": "sha256:04ddb75abcf1584ac60149bf75a40b4d0a8dbe40bbdcf0b5c10a1ad6c0562634"
         },
         {
           "architecture": "arm",
           "os": "linux",
-          "digest": "sha256:13df0984417c8a794dee693010dedb3768be44f0b827987959a67e3e65eee8cf"
+          "digest": "sha256:3e88438b6f16db1a197bd5fd6b227ddb7c0dfa8e14dd81ce612d249a87b61258"
         }
       ]
     },
