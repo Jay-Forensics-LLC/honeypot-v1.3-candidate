@@ -47,26 +47,28 @@
       "checked_at": "2026-10-27T11:40:47.673+00:00"
     },
     {
-      "image": "grafana/grafana:12.4.1",
-      "digest": "sha256:e932bd6ed0e026595b08483cd0141e5103e1ab7ff8604839ff899b8dc54cabcb",
-      "reference": "grafana/grafana:12.4.1@sha256:e932bd6ed0e026595b08483cd0141e5103e1ab7ff8604839ff899b8dc54cabcb",
-      "source": "https://hub.docker.com/v2/repositories/grafana/grafana/tags/12.4.1",
-      "last_updated": "2026-03-09T15:21:01.492641Z",
+      "image": "grafana/grafana:12.4.13",
+      "digest": "sha256:41bbc1b5e04416f81891806076db2a2ff60a5d4da5f78d36a88b033a8c199185",
+      "reference": "grafana/grafana:12.4.13@sha256:41bbc1b5e04416f81891806076db2a2ff60a5d4da5f78d36a88b033a8c199185",
+      "source": "https://hub.docker.com/v2/repositories/grafana/grafana/tags/12.4.13",
+      "checked_at": "2026-10-31T06:55:20Z",
+      "verification_status": "Registry manifest and platform digests verified against Docker Hub.",
+      "last_updated": "2026-10-13T10:11:25.957605Z",
       "platforms": [
         {
           "architecture": "amd64",
           "os": "linux",
-          "digest": "sha256:fab4d86718ecf6aec45961ae01c5f743a955e11fad0adb8f43c5f52a961b5144"
+          "digest": "sha256:f9452baa61968e54fafaaab493a2f97724b66def07a61659897566c6f085b80f"
         },
         {
           "architecture": "arm64",
           "os": "linux",
-          "digest": "sha256:904cd1e709d196f6c433466f2effb295768d98f7fffd8edf9a3d8b93827317f9"
+          "digest": "sha256:04ddb75abcf1584ac60149bf75a40b4d0a8dbe40bbdcf0b5c10a1ad6c0562634"
         },
         {
           "architecture": "arm",
           "os": "linux",
-          "digest": "sha256:13df0984417c8a794dee693010dedb3768be44f0b827987959a67e3e65eee8cf"
+          "digest": "sha256:3e88438b6f16db1a197bd5fd6b227ddb7c0dfa8e14dd81ce612d249a87b61258"
         }
       ]
     },
