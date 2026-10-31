@@ -1,6 +1,14 @@
 # HoneyTrace
 
-## Current supervised beta acceptance — October 14, 2026 UTC
+## Current disposition — October 26, 2026
+
+Use [current phase status](../docs/CURRENT_PHASE_STATUS.md) for HoneyWatch through
+PR #38, superseded branches, CI totals/skips, review outcomes and remaining Phase 7
+gates. The dated evidence and scoring below are historical; they do not describe
+current source or freshly acquired runtime state. B17 and current-build live
+acceptance remain open; Phase 8 execution and public beta remain unauthorized.
+
+## Historical supervised beta acceptance — October 14, 2026 UTC
 
 The first beta scope is frozen to operator-supervised, localhost-only use; new
 features are deferred. The single [acceptance checklist](docs/BETA_ACCEPTANCE.md)
