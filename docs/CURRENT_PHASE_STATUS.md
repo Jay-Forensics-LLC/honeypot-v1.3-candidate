@@ -1,8 +1,83 @@
-# HoneyTrace current phase status — 2026-10-26 reconciliation
+# HoneyTrace current phase status — 2026-10-31
 
-**Phase 7 acceptance: PENDING / BLOCKED. Supervised loopback beta and public beta:
-BLOCKED. Phase 8 execution: NOT AUTHORIZED. Phase 10: PLANNED — PENDING — DO NOT
-IMPLEMENT. WAN exposure and automatic decoy boot remain unauthorized.**
+**Phase 7: CLOSED — OWNER-ACCEPTED WITH EXCEPTIONS — ISOLATED LAB ONLY**, limited
+to candidate `40d31fce8322feee41ac766717a9369bfc762373`, tree
+`8563b7670d6a0c45d82b8d64399b2dab3cb47fac`.
+
+**Independent acceptance: NOT OBTAINED. Current HoneyWatch images: NOT
+LIVE-QUALIFIED. Supervised loopback beta and public beta: BLOCKED. Phase 8:
+NOT AUTHORIZED. Phase 10: PLANNED — PENDING — DO NOT IMPLEMENT. WAN exposure
+and automatic decoy boot remain unauthorized; daemon-reload remains HOLD.**
+
+## Closeout scope and evidence source
+
+The owner reports that the restricted gate ledger records the narrower October 31
+closeout under an owner-authorized acceptance revision. It does not establish
+acceptance under the original criteria or independent technical qualification.
+This documentation update has not independently reviewed the private evidence or
+inspected the VM. The source identities and image comparisons below were checked
+against GitHub separately.
+
+The reported single B18 attempt passed all seven rows on the pinned lab candidate.
+The reported direct audit matched seven row hashes and reparsed eight packet
+proofs; Loki recovered within the existing 150-second limit after six observed
+HTTP 503 readiness responses. R7 remains a separate terminal, failed attempt.
+
+At the last reported poststop observation, **2026-10-31 07:25:39 UTC**, both
+decoys were stopped, guard/capture/timer were inactive, and all 23 R7 plus three
+B18 ring files hash-matched and were immutable. This is a dated owner-reported
+observation, not a fresh runtime check.
+
+Restricted provenance remains in the owner's `GATE-LEDGER.md`,
+`B18-PRIVATE-AUDIT-20261031.json` and `B18-POSTSTOP-RING-COMPARISON.json`.
+Those artifacts and raw evidence are not published by this reconciliation.
+
+| Criteria | Exceptions and retained limits |
+| --- | --- |
+| B10 / B11 | The owner reports a passing post-B18 comparison for 46 preexisting incidents and 13 log prefixes. Two historical originals remain unavailable, and the damaged-screen laptop remains inaccessible and unchecked. Independent preservation review and final acceptance have not been obtained; the revised owner decision closes only the limited lab milestone. |
+| B15 | The six-command CLI check is recorded, but a fresh human usability walkthrough was not performed. |
+| B07 / B12–B14 | Current guard supervision, safe stop and bounded logging recovery were reported passing. Guard-loss failstop, due log rotation, sustained continuity, a concurrent clock-uncertainty bound, and full storage-loss/capacity response remain unproved or unaccepted. |
+| B16 / B17 | A candidate-matched ZIP reportedly passed static and extracted offline checks on the Ubuntu guest. Independent release-package review and fresh service installation from that ZIP are not evidenced; the B18 runtime used a separate clean checkout of the same commit. |
+
+These exceptions remain limitations for later operational or release decisions.
+They are not passing test results. The limited Phase 7 closeout does not authorize
+Phase 8, beta release, a new deployment, or broader exposure.
+
+## Current source and image qualification boundary
+
+The source collaboration branch `HoneyWatch` was observed at
+[`efac52cce39cd8adcf86a00cd4fe2cb7ab66f607`](https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/commit/efac52cce39cd8adcf86a00cd4fe2cb7ab66f607),
+tree `7b55726940792ce39e5a22129d7d037d217c8376`, including the subsequent
+Loki, Grafana, Alloy, readiness and documentation merges.
+
+| Image | Lab candidate `40d31fc` | HoneyWatch source `efac52c` |
+| --- | --- | --- |
+| Loki | 3.7.8 | 3.7.9 |
+| Grafana | 12.4.1 | 12.4.13 |
+| Alloy | 1.14.1 | 1.21.2 |
+
+Full immutable references are in the
+[lab candidate image pins](https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/blob/40d31fce8322feee41ac766717a9369bfc762373/honeypot/.env.example)
+and [reviewed HoneyWatch image pins](https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/blob/efac52cce39cd8adcf86a00cd4fe2cb7ab66f607/honeypot/.env.example).
+The six application and test files changed by
+[PR #51](https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/pull/51)
+have identical Git blob identities in the lab candidate and reviewed HoneyWatch
+tree. Its [offline coverage run](https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/actions/runs/41181830296)
+completed successfully for PR head `95a9b0f00d374ec14e3f4f964fe170a47fa2bd69`.
+That source equivalence and offline CI do not qualify the different image set.
+
+No runtime image change is inferred from these source merges. Qualification of
+the newer images is separate, target-specific work; it does not reopen the
+recorded limited closeout on `40d31fc`. Preserve that candidate and its evidence.
+The [beta acceptance checklist](../honeypot/docs/BETA_ACCEPTANCE.md) remains the
+separate release contract.
+
+## Historical October 26 reconciliation
+
+The remaining sections retain the October 26 source, CI, review and deployment
+record. Their pending gate dispositions describe that earlier observation and
+the original qualification requirements; the current limited closeout and its
+exceptions are stated above. They are not a fresh October 31 runtime assessment.
 
 ## Integrated source and continuation point
 
@@ -133,7 +208,7 @@ No dedicated security review or blanket independent approval of the current
 HoneyWatch head is established by these records. This documentation change's own
 review remains separate.
 
-## Deployment observations and remaining Phase 7 gates
+## Historical October 26 deployment observations and gate dispositions
 
 #38's PR body reports passing stopped configuration, supervised startup recovery
 and seven container health checks, plus `make test`, `make verify` and
@@ -144,7 +219,7 @@ current HoneyWatch head is deployed nor replace current-build live acceptance.
 Do not turn the older “no source is deployed” statement into a current blanket
 claim either. Current deployed source identity remains unverified here.
 
-| Gate | Current disposition / required evidence |
+| Gate | Disposition / required evidence recorded October 26 |
 | --- | --- |
 | Mandatory B17 | **NOT ACCEPTED.** Fresh installation of the accepted package on dedicated Ubuntu 24.04 LTS x86_64 / CPython 3.12 / Compose v2, with native configuration and installation checks. Ubuntu 26.04/Python 3.14 diagnostics and hosted CI do not substitute. |
 | Native facts / dependency and image approval | Collector/verifier source is integrated. `COMPLETE_BASELINE_ONLY` / `CONSISTENT_BASELINE_ONLY` do not approve a package closure, authenticate guest claims, qualify clocks or accept images. Independently reviewed immutable image outputs and external approval digest remain required; unlocked transitive pip/APT inputs do not establish reproducible custom images. |

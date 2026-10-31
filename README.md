@@ -1,18 +1,21 @@
 # HoneyTrace source candidate
 
-The latest reviewed application source is in [honeypot/](honeypot/README.md).
-HoneyWatch includes the signed Phase 7 reconciliation and merged corrections
-through PR #38; the exact source checkpoint is recorded in current status. See
-[source provenance](docs/SOURCE_SYNC.md) and
+The application source is in [honeypot/](honeypot/README.md).
+The [current phase status](docs/CURRENT_PHASE_STATUS.md) records HoneyWatch at
+`efac52cce39cd8adcf86a00cd4fe2cb7ab66f607` and the separate October 31 lab closeout.
+See [source provenance](docs/SOURCE_SYNC.md) and
 [beta acceptance](honeypot/docs/BETA_ACCEPTANCE.md).
 
-**UNVERIFIED SOURCE CANDIDATE. Beta release remains BLOCKED.**
-The [current phase status](docs/CURRENT_PHASE_STATUS.md) reconciles source through PR #38
-(as of October 26), CI/review outcomes, dated runtime observations and remaining
-acceptance work.
-Independent Stage 7 closeout is PENDING; daemon-reload remains HOLD. Publishing
-source does not qualify the live deployment, retained evidence, packet flow,
-continuity, fresh installation or release acceptance. WAN remains unauthorized.
+**Phase 7: CLOSED — OWNER-ACCEPTED WITH EXCEPTIONS — ISOLATED LAB ONLY** for
+candidate `40d31fce8322feee41ac766717a9369bfc762373`, as reported from the owner's
+private gate ledger. Independent acceptance remains unestablished.
+
+**Current HoneyWatch image set: NOT LIVE-QUALIFIED. Beta release remains BLOCKED.**
+The candidate's reported seven-row B18 PASS does not qualify the newer Loki,
+Grafana and Alloy image pins on HoneyWatch. Source merges do not establish that
+the running VM changed images. The closeout, evidence limits and image comparison
+are recorded in current status. Phase 8, WAN exposure and automatic decoy boot
+remain unauthorized; daemon-reload remains HOLD.
 
 Do not deploy over a live staging tree or start Compose from another checkout
 on the staging daemon. Runtime changes require their own reviewed scope.

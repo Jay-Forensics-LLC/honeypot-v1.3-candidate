@@ -4,16 +4,18 @@
 [beta quickstart](docs/BETA_QUICKSTART.md) and
 [acceptance checklist](docs/BETA_ACCEPTANCE.md) for scope and remaining gates.
 The frozen polish2 source is preserved separately. See
-[current phase status](../docs/CURRENT_PHASE_STATUS.md) for HoneyWatch through
-PR #38, CI/review outcomes and remaining gates. Deployed source identity is not
-established by source publication or the scoped startup/health reports.
+[current phase status](../docs/CURRENT_PHASE_STATUS.md) for the owner-reported
+**Phase 7 closeout with exceptions — isolated lab only** on `40d31fc`, and the
+separate HoneyWatch source checkpoint `efac52c`. Independent acceptance remains
+unestablished. HoneyWatch's newer image set is not live-qualified by that
+candidate's B18 PASS; source publication does not establish deployed identity.
 
 **Scope frozen:** the first beta targets operator-supervised, localhost-only use.
 New features are deferred. The single [acceptance checklist](docs/BETA_ACCEPTANCE.md)
 records PASS, FAIL and NOT TESTED gates with evidence and source revisions.
-Docker recovery, fresh live acceptance and clean-install/package validation are
-the priorities. Daemon-reload remains on hold until its specific review gaps are
-resolved and the revised action receives separate approval.
+For beta acceptance, Docker recovery, fresh live acceptance and clean-install/package
+validation remain outstanding work. Daemon-reload remains on hold until its
+specific review gaps are resolved and the revised action receives separate approval.
 
 ## HoneyTrace prototype demo
 
