@@ -6,12 +6,12 @@ import { verifyApiKeyAndAuthorize } from './verifyApiKeyAndAuthorize.ts';
  * Scope: cases:read
  */
 
-Deno.serve(async (req) => {
+Deno.serve(async (req, connectionInfo) => {
   const startTime = Date.now();
 
   try {
     // Verify API key and authorize
-    const authResult = await verifyApiKeyAndAuthorize(req, 'cases:read');
+    const authResult = await verifyApiKeyAndAuthorize(req, 'cases:read', connectionInfo);
     if (!authResult.authorized) {
       return Response.json({ 
         type: 'https://sentinel.forensics/errors/unauthorized',
@@ -22,6 +22,11 @@ Deno.serve(async (req) => {
     }
 
     const { apiKey } = authResult;
+    if (typeof apiKey.organization_id !== 'string' || !apiKey.organization_id.trim()
+      || (apiKey.case_id !== null && apiKey.case_id !== undefined
+        && (typeof apiKey.case_id !== 'string' || !apiKey.case_id.trim()))) {
+      return Response.json({ error: 'Invalid API key organization or case scope' }, { status: 403 });
+    }
     const base44 = createClientFromRequest(req);
 
     // Get cases for organization

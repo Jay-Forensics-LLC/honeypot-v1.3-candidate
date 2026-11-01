@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { getTrustedClientIp, isClientIpAllowed } from './helpers/apiKeyIp.ts';
 
 /**
  * CRITICAL: API Key Authentication & Authorization Middleware
@@ -7,9 +8,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
  * Returns: { authorized: boolean, apiKey, error }
  */
 
-export async function verifyApiKeyAndAuthorize(req, requiredScope) {
+export async function verifyApiKeyAndAuthorize(req, requiredScope, connectionInfo = undefined) {
   const startTime = Date.now();
   const requestId = crypto.randomUUID();
+  const clientIp = getTrustedClientIp(req, connectionInfo);
+  const logRequestUsage = (...args) => logUsage(...args, clientIp);
   let apiKey = null;
   let authResult = 'invalid_key';
   let rateLimitAction = 'allowed';
@@ -23,7 +26,7 @@ export async function verifyApiKeyAndAuthorize(req, requiredScope) {
       authResult = 'invalid_key';
       statusCode = 401;
       errorMessage = 'Missing or invalid Authorization header';
-      await logUsage(null, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, null);
+      await logRequestUsage(null, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, null);
       return { authorized: false, error: 'Unauthorized' };
     }
 
@@ -47,7 +50,7 @@ export async function verifyApiKeyAndAuthorize(req, requiredScope) {
       authResult = 'invalid_key';
       statusCode = 401;
       errorMessage = 'Invalid API key';
-      await logUsage(null, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
+      await logRequestUsage(null, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
       return { authorized: false, error: 'Invalid API key' };
     }
 
@@ -58,7 +61,7 @@ export async function verifyApiKeyAndAuthorize(req, requiredScope) {
       authResult = 'revoked';
       statusCode = 401;
       errorMessage = 'API key has been revoked';
-      await logUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
+      await logRequestUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
       return { authorized: false, error: 'API key revoked' };
     }
 
@@ -66,7 +69,7 @@ export async function verifyApiKeyAndAuthorize(req, requiredScope) {
       authResult = 'disabled';
       statusCode = 401;
       errorMessage = 'API key is disabled';
-      await logUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
+      await logRequestUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
       return { authorized: false, error: 'API key disabled' };
     }
 
@@ -75,21 +78,17 @@ export async function verifyApiKeyAndAuthorize(req, requiredScope) {
       authResult = 'expired';
       statusCode = 401;
       errorMessage = 'API key has expired';
-      await logUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
+      await logRequestUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
       return { authorized: false, error: 'API key expired' };
     }
 
     // Check IP allowlist
-    if (apiKey.ip_allowlist && apiKey.ip_allowlist.length > 0) {
-      const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-      const allowed = apiKey.ip_allowlist.some(ip => clientIp.startsWith(ip));
-      if (!allowed) {
-        authResult = 'ip_denied';
-        statusCode = 403;
-        errorMessage = 'IP not in allowlist';
-        await logUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
-        return { authorized: false, error: 'IP not allowed' };
-      }
+    if (!isClientIpAllowed(clientIp, apiKey.ip_allowlist)) {
+      authResult = 'ip_denied';
+      statusCode = 403;
+      errorMessage = 'IP not in allowlist';
+      await logRequestUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
+      return { authorized: false, error: 'IP not allowed' };
     }
 
     // Check scope
@@ -97,7 +96,7 @@ export async function verifyApiKeyAndAuthorize(req, requiredScope) {
       authResult = 'scope_denied';
       statusCode = 403;
       errorMessage = `Missing required scope: ${requiredScope}`;
-      await logUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
+      await logRequestUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
       return { authorized: false, error: 'Insufficient scope' };
     }
 
@@ -108,13 +107,13 @@ export async function verifyApiKeyAndAuthorize(req, requiredScope) {
       rateLimitAction = 'throttled';
       statusCode = 429;
       errorMessage = 'Rate limit exceeded';
-      await logUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
+      await logRequestUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
       return { authorized: false, error: 'Rate limit exceeded' };
     }
 
     // Success
     authResult = 'ok';
-    await logUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, null, requiredScope);
+    await logRequestUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, null, requiredScope);
 
     // Update last_used_at
     await base44.asServiceRole.entities.ApiKey.update(apiKey.id, {
@@ -127,7 +126,7 @@ export async function verifyApiKeyAndAuthorize(req, requiredScope) {
     console.error('API key verification failed:', error);
     statusCode = 500;
     errorMessage = error.message;
-    await logUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
+    await logRequestUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
     return { authorized: false, error: 'Internal error' };
   }
 }
@@ -174,7 +173,7 @@ async function checkRateLimit(apiKey, base44) {
   }
 }
 
-async function logUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, latencyMs, errorMessage, scopeChecked) {
+async function logUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, latencyMs, errorMessage, scopeChecked, clientIp) {
   try {
     const base44 = createClientFromRequest(req);
     const url = new URL(req.url);
@@ -193,7 +192,7 @@ async function logUsage(apiKey, req, requestId, authResult, rateLimitAction, sta
       rate_limit_action: rateLimitAction,
       scope_checked: scopeChecked || null,
       auth_result: authResult,
-      client_ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
+      client_ip: clientIp || 'unknown',
       user_agent: req.headers.get('user-agent') || null,
       error_message: errorMessage || null
     });
