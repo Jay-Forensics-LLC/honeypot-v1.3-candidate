@@ -16,3 +16,18 @@ test("API-key usage filters preserve GET query values and reject invalid IDs", (
   );
   assert.equal(parseApiKeyUsageFilters(new URLSearchParams(), { apiKeyId: {} }), null);
 });
+
+test("API-key usage filters reject incomplete, non-positive, and unsafe limits", () => {
+  for (const limit of [-1, 0, "not-a-number", "25junk", "1.5", 1.5, {}, [], Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal(parseApiKeyUsageFilters(new URLSearchParams(), { limit }), null);
+  }
+
+  assert.deepEqual(
+    parseApiKeyUsageFilters(new URLSearchParams("limit=25"), {}),
+    { limit: 25 }
+  );
+  assert.deepEqual(
+    parseApiKeyUsageFilters(new URLSearchParams(), { limit: Number.MAX_SAFE_INTEGER }),
+    { limit: Number.MAX_SAFE_INTEGER }
+  );
+});

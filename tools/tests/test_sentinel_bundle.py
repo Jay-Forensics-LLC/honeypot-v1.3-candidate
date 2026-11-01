@@ -118,5 +118,51 @@ class SentinelSnapshot(unittest.TestCase):
             check(self.root)
 
 
+class SentinelReviewRegressions(unittest.TestCase):
+    def setUp(self):
+        self.root = Path(__file__).resolve().parents[2]
+        self.source = self.root / 'sentinel-forensics'
+
+    def test_enforce_rbac_compatibility_imports_resolve(self):
+        callers = ('deleteEvidence.ts', 'correlateIncidents.ts', 'buildUserBehaviorBaseline.ts',
+                   'securityOrchestrationEngine.ts', 'detectBehaviorAnomalies.ts')
+        for name in callers:
+            caller = self.source / 'functions' / name
+            self.assertIn("from './enforceRBAC.js'", caller.read_text())
+            self.assertTrue((caller.parent / 'enforceRBAC.js').is_file())
+        self.assertIn("export { enforceRBAC } from './enforceRBAC.ts';",
+                      (self.source / 'functions/enforceRBAC.js').read_text())
+
+    def test_feature_flag_compatibility_module_is_present(self):
+        module = self.source / 'src/components/config/featureFlags.js'
+        source = module.read_text()
+        self.assertIn('export const FEATURE_FLAGS', source)
+        self.assertIn('export const DEMO_USER', source)
+        self.assertIn('export function getDemoMessage', source)
+        consumers = (
+            ('src/components/demo/DemoModeProvider.jsx', '../config/featureFlags'),
+            ('src/components/demo/DemoAuthWrapper.jsx', '../config/featureFlags'),
+            ('src/pages/Documentation.jsx', '../components/config/featureFlags'),
+            ('src/pages/Evidence.jsx', '../components/config/featureFlags'),
+            ('src/pages/Subscription.jsx', '../components/config/featureFlags')
+        )
+        for path, import_path in consumers:
+            consumer = self.source / path
+            self.assertIn(f"from '{import_path}'", consumer.read_text())
+            self.assertTrue((consumer.parent / f'{import_path}.js').is_file())
+        eslint = (self.source / 'eslint.config.js').read_text()
+        self.assertIn('"src/components/**/*.md.jsx"', eslint)
+        self.assertTrue((self.source / 'src/components/docs/PHASE_SCAFFOLDING.md').is_file())
+        self.assertFalse((self.source / 'src/components/docs/PHASE_SCAFFOLDING.md.jsx').exists())
+
+    def test_notice_counts_match_the_manifest(self):
+        manifest = json.loads((self.root / 'docs/sentinel-source.json').read_text())
+        replacements = sum(patch.get('operation', 'replace') == 'replace' for patch in manifest['patches'])
+        additions = sum(patch.get('operation') == 'add' for patch in manifest['patches'])
+        notice = (self.root / 'THIRD_PARTY_NOTICES.md').read_text()
+        self.assertIn(f'{replacements} recorded replacements and {additions} local additions', notice)
+        self.assertIn(f'{manifest["files"]:,}-file bundle', notice)
+
+
 if __name__ == '__main__':
     unittest.main()
