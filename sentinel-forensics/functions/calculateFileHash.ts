@@ -9,13 +9,36 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { file_url } = await req.json();
+        const { evidence_id } = await req.json();
         
-        if (!file_url) {
-            return Response.json({ error: 'File URL required' }, { status: 400 });
+        if (!evidence_id) {
+            return Response.json({ error: 'Evidence ID required' }, { status: 400 });
         }
 
-        const fileResponse = await fetch(file_url);
+        const evidence = await base44.asServiceRole.entities.EvidenceV2.get(evidence_id);
+        if (!evidence?.file_url || !evidence.case_id) {
+            return Response.json({ error: 'Evidence file not found' }, { status: 404 });
+        }
+
+        const caseRecord = await base44.entities.Case.get(evidence.case_id);
+        if (!caseRecord) {
+            return Response.json({ error: 'Evidence file not found' }, { status: 404 });
+        }
+
+        const hasAccess =
+            caseRecord.created_by === user.email ||
+            caseRecord.assigned_investigator === user.email ||
+            caseRecord.team_members?.includes(user.email) ||
+            user.role === 'admin';
+        if (!hasAccess) {
+            return Response.json({ error: 'Access denied to this evidence' }, { status: 403 });
+        }
+
+        const signedUrlResponse = await base44.integrations.Core.CreateFileSignedUrl({
+            file_uri: evidence.file_url,
+            expires_in: 300
+        });
+        const fileResponse = await fetch(signedUrlResponse.signed_url);
         if (!fileResponse.ok) {
             return Response.json({ error: 'Failed to fetch file' }, { status: 400 });
         }
