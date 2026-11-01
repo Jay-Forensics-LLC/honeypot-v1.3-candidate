@@ -20,8 +20,10 @@ export default function CaseReadinessIndicator({ caseData, evidenceCount = 0 }) 
     if (caseData.case_purpose) score += 25;
     else issues.push('Case purpose not set');
 
-    if (score >= 75) return { level: 'ready', color: 'green', icon: CheckCircle2, label: 'Context + integrity + audit trail present' };
-    if (score >= 50) return { level: 'partial', color: 'yellow', icon: AlertTriangle, label: 'Evidence collected, limited context' };
+    if (score >= 75 && evidenceCount > 0 && caseData.evidence_context_declared) {
+      return { level: 'ready', color: 'green', icon: CheckCircle2, label: 'Context documented; evidence collected' };
+    }
+    if (score >= 50) return { level: 'partial', color: 'yellow', icon: AlertTriangle, label: 'Readiness checks incomplete' };
     return { level: 'minimal', color: 'red', icon: Shield, label: 'Minimal context only' };
   };
 
