@@ -8,7 +8,7 @@ const SENSITIVE_KEYS = [
   'stripe_secret', 'webhook_secret', 'private_key',
   'email', 'phone', 'ssn', 'credit_card', 'cvv',
   'address', 'ip_address', 'session_id'
-];
+].map(key => key.toLowerCase());
 
 export function sanitizeForLog(obj) {
   if (!obj || typeof obj !== 'object') return obj;
@@ -18,7 +18,7 @@ export function sanitizeForLog(obj) {
   for (const [key, value] of Object.entries(obj)) {
     const keyLower = key.toLowerCase();
     
-    if (SENSITIVE_KEYS.some(s => keyLower.includes(s))) {
+    if (SENSITIVE_KEYS.some(sensitiveKey => keyLower.includes(sensitiveKey))) {
       sanitized[key] = '[REDACTED]';
     } else if (typeof value === 'object' && value !== null) {
       sanitized[key] = sanitizeForLog(value);
