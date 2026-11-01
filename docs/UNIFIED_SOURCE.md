@@ -56,8 +56,10 @@ Sentinel source. Default completed-case storage is the ignored
 [The import manifest](sentinel-source.json) records the upstream, exact revision,
 tree, inventory totals and license digest. `tools/validate_sentinel_bundle.py`
 reconstructs the Git tree from the bundled file bytes and Git file modes without
-requiring a nested Git checkout. The import includes the complete committed tree, with recorded publication patches;
-upstream Git metadata/history and untracked files are not copied.
+requiring a nested Git checkout. The import includes the complete committed tree,
+with 12 recorded replacements and four local additions; upstream Git
+metadata/history and untracked files are not copied. The current bundle has 1,420
+files: the 1,416 pinned upstream files plus the four recorded additions.
 
 The original license, source notices, upstream documentation and retained test
 fixtures stay with the imported source. See
@@ -83,5 +85,6 @@ Sentinel's mocked code-audit input. That one demo literal is replaced by an
 explicit placeholder, with a modification notice. The source manifest records
 both effective and upstream tree identities and each changed file. A second
 recorded patch closes test-owned descriptors on setup/diagnostic failure after PR
-review; production reconstruction behavior is unchanged. Snapshot
-validation verifies both trees; all 1,416 source files and the license remain.
+review; production reconstruction behavior is unchanged. Later local source
+changes are listed individually in the manifest. Snapshot validation verifies the
+upstream and effective trees; the 1,416 upstream files and license remain.

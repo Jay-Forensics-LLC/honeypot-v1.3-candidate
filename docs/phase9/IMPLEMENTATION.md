@@ -107,9 +107,9 @@ budgets. No genuine case, live sensor, network service or Sentinel process is
 used by these bridge tests. Passing these checks is structural interoperability
 evidence, not independent qualification of Sentinel or a release decision.
 
-Bundled source identity is recorded in `docs/sentinel-source.json` and checked
-against the upstream Git tree by `tools/validate_sentinel_bundle.py`. This is
-source provenance, not inherited runtime qualification. Upstream's native
+Bundled source identity is recorded in `docs/sentinel-source.json`; the validator
+checks the pinned upstream tree and each recorded local replacement or addition.
+This is source provenance, not inherited runtime qualification. Upstream's native
 `qualify.py` expects its own Git root; inside this bundle its unchanged guard
 reports `workspace_mismatch`. Normal offline analysis and the unified workflow
 are checked separately in the [forensic receipt](../FORENSIC_ACCEPTANCE.md).

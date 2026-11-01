@@ -2,18 +2,19 @@
   "schema_version": 1,
   "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
   "commit": "187bec14835fc9497b05594ca467a49259553d64",
-  "git_tree": "167dd3e72382e3d385ae2fe735b22f216f80cea0",
+  "git_tree": "56b207090d2d45bbef3946c1afd9d9454d5758df",
   "prefix": "sentinel-forensics",
-  "files": 1416,
-  "bytes": 11449209,
+  "files": 1420,
+  "bytes": 11452887,
   "license": "AGPL-3.0",
   "license_sha256": "7f8f48e4266aa8fd3033dfaa4bb7f6e83a60c6e099f82d4959b81de90e67cd8f",
-  "import_method": "Complete committed upstream tree with two recorded publication patches; Git metadata/history and untracked files excluded.",
+  "import_method": "Complete committed upstream tree with 12 recorded replacements and four local additions; Git metadata/history and untracked files excluded.",
   "upstream_git_tree": "45e7025dd351732dfa0d321362891ff353f8b940",
   "upstream_bytes": 11448833,
   "patches": [
     {
       "path": "functions/runCodebaseAudit.ts",
+      "operation": "replace",
       "upstream_blob": "399ccc3d16d869828bb99f11001b402735d097ec",
       "upstream_sha256": "5900463418863db90035791a294c439ac3ddbdce71b14e0fda9264e226735c7e",
       "sha256": "7f53dcb35ac0917eee35fb333e54702ccb632782a50689192a7cc0a1167d25db",
@@ -21,10 +22,115 @@
     },
     {
       "path": "tools/evidence_lab/tests/test_reconstruct.py",
+      "operation": "replace",
       "upstream_blob": "c821da2c3533a9238eeb41018b0bfd2a6d41fee8",
       "upstream_sha256": "206fab435cc0302a3a493bb81a8eb915533292fb84291fee656a5df7a507d7ef",
       "sha256": "c50bde8168844d53cc57790db88017cc69e7c341b725387b7468f2af54a415fb",
       "reason": "Close test-owned descriptors on setup or diagnostic failure after PR code-quality review; production reconstruction behavior is unchanged."
+    },
+    {
+      "path": "functions/apiCasesRead.ts",
+      "operation": "replace",
+      "upstream_blob": "cc336ed7ad91bcc2d26222339cfb70584264864d",
+      "upstream_sha256": "b98a09780435c52fa9f8220cebc988f43cce82af6e90cc62745f39a24734b45e",
+      "sha256": "4bc71ef2e648d4ea1a8e8653744b1bdecd5fc834b843c0cdf00ee13c3424b4b9",
+      "reason": "Restrict API case reads to the authenticated case scope."
+    },
+    {
+      "path": "functions/calculateFileHash.ts",
+      "operation": "replace",
+      "upstream_blob": "baef279e72994b9c576cb578fef69a3e4fa29b84",
+      "upstream_sha256": "d4f9ddae3fa5d46f55d817d63f39a392ce067221d7a66b6dbe3a85e66ab1c95d",
+      "sha256": "c457dafb22322b8ba96fce72d5cca43aa0efa0dc99ec31ffcc70ccdba86b49cd",
+      "reason": "Resolve evidence by ID and enforce case authorization before retrieving a short-lived signed URL."
+    },
+    {
+      "path": "functions/helpers/orgContext.ts",
+      "operation": "replace",
+      "upstream_blob": "fdf13c175cd4c944d32bb60a3198becb42c1c8b8",
+      "upstream_sha256": "fb5755dc705b9ce9100d2fadda6d3ee038f8de059559a8d397f636e3473213b3",
+      "sha256": "55494e2aa2737815c5626cdab0c0b9e704248aa474e8e7e43b9a0965996b9a33",
+      "reason": "Prevent additional filters from overriding the authenticated organization."
+    },
+    {
+      "path": "functions/helpers/sanitizeLog.ts",
+      "operation": "replace",
+      "upstream_blob": "50851f52f3bb9acc6897e0a261545e5562797549",
+      "upstream_sha256": "5517de3c328ae0080bc9fff05ce6274f54dbad6aaa06207a0b2226d5a91dd75b",
+      "sha256": "512f2a4c73f207d3dcad9cc2245ab64dc26b19ce4e09afc63c0996f407270568",
+      "reason": "Normalize sensitive field names before redaction."
+    },
+    {
+      "path": "functions/helpers/usage.ts",
+      "operation": "add",
+      "sha256": "25f9685bdd5957f96ce406a78323a488f2666ab3d4f18d2561dc32c2481fc0b8",
+      "reason": "Add allowlisted, finite positive usage-increment validation."
+    },
+    {
+      "path": "functions/incrementUsage.ts",
+      "operation": "replace",
+      "upstream_blob": "ad1408b84d948cfc2ba287c49ffb3a1c37194a89",
+      "upstream_sha256": "1456fb844b46ed34bc226b7662a4b5969e85949b775041586af8d8752d46fe61",
+      "sha256": "58dc2fdf1815ad6af251cded359ccea90207b93f9e95c4f1d79919dee9c6fe49",
+      "reason": "Reject unsupported usage metrics and invalid increments."
+    },
+    {
+      "path": "functions/tests/incrementUsage_test.ts",
+      "operation": "add",
+      "sha256": "2708211a54b392c52c7591582b660f356e79b911ae3408da9ef190e46ba38033",
+      "reason": "Add regression coverage for accepted and rejected usage increments."
+    },
+    {
+      "path": "functions/tests/orgContext.test.mjs",
+      "operation": "add",
+      "sha256": "d7db174f286f20c17f80070706b407f4f6303281768b7f7fec4a2342ffc09c4d",
+      "reason": "Add regression coverage for authenticated organization filter precedence."
+    },
+    {
+      "path": "functions/tests/sanitizeLog_test.ts",
+      "operation": "add",
+      "sha256": "a90ef16eff0ddf01ca40c9a3acadcdf193ad8d41a1b916949788cbcdae0ff888",
+      "reason": "Add regression coverage for camel-case secret redaction."
+    },
+    {
+      "path": "src/components/cases/CaseReadinessIndicator.jsx",
+      "operation": "replace",
+      "upstream_blob": "b0605bef2c33638bbab605318c5ac5f922c10600",
+      "upstream_sha256": "6f503df31dc15c6b28ee6cc2f647793377020874260829f184b585aad17d9def",
+      "sha256": "1a08aa0777c7d7425a557730de52bfc46260731548a527ce75bceb9e342d47e1",
+      "reason": "Require evidence context and collected evidence for ready status."
+    },
+    {
+      "path": "src/components/hooks/useEnhancedQuery.jsx",
+      "operation": "replace",
+      "upstream_blob": "67bab39def761edd55e05e53aba01b1389c6cd9b",
+      "upstream_sha256": "972ad9b32fbb15957b3f2a6f11dfaa3874587b4dcf4a9ca33345e2784b57b475",
+      "sha256": "2aeb4480a7d1ccc9be32b0ce03b9f8b17b42d9b9757aad72dd71826301d069bc",
+      "reason": "Preserve the composed mutation success callback instead of overriding it."
+    },
+    {
+      "path": "src/components/hooks/useOrgQuery.jsx",
+      "operation": "replace",
+      "upstream_blob": "f3edb08b78191e686aed3edae35b71922217cf20",
+      "upstream_sha256": "be7c48808fd7b71d8c5cc5274971eb33581f217af9f0583d79534e3465457acf",
+      "sha256": "a4a180aba9d6ebedce7094a2f33054826f07fe5124ce8fc70a3b5a37174b19f2",
+      "reason": "Propagate organization query failures instead of presenting them as empty results."
+    },
+    {
+      "path": "src/components/ui/progress.jsx",
+      "operation": "replace",
+      "upstream_blob": "cab97c91bb57e7d114c175c05b958c031637b11b",
+      "upstream_sha256": "1ad2808d51c365f04f23a4e985b03274dcc30735d74db68e1f78332a6533859c",
+      "sha256": "6c786193cf08b97d00020877fc5085020bda5bc5ffef51d98c05d984c69df8b4",
+      "reason": "Forward the progress value to the underlying primitive."
+    },
+    {
+      "path": "src/lib/app-params.js",
+      "operation": "replace",
+      "upstream_blob": "9db83131a04db70fca26aeff6dbc20c66f9c0a42",
+      "upstream_sha256": "0932f9c15cdbb89365ea14d07ee2b5ed9dd0cdf17057f428504768e1343b232e",
+      "sha256": "da87d24ecc5eaecbce6d45a70963149f4ba56a1de35fcfb53da24f061d4a5c1f",
+      "reason": "Use the configured backend origin rather than a URL parameter override."
     }
   ]
 }

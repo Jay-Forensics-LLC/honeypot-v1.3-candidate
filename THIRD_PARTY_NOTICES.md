@@ -10,7 +10,7 @@ under `sentinel-forensics/`.
 - Upstream Git tree: `45e7025dd351732dfa0d321362891ff353f8b940`.
 - Bundled license: **GNU Affero General Public License, version 3**;
   the full text is preserved at [sentinel-forensics/LICENSE](sentinel-forensics/LICENSE).
-- Import method: complete committed tree with recorded publication patches, without upstream Git metadata/history
+- Import method: complete committed tree with 12 recorded replacements and four local additions, without upstream Git metadata/history
   or untracked files. See [the source manifest](docs/sentinel-source.json).
 
 Keep the component's license and existing source notices with copies of the
@@ -33,4 +33,5 @@ explicit placeholder, with a modification notice. The source manifest records
 both effective and upstream tree identities and each changed file. A second
 recorded patch closes test-owned descriptors on setup/diagnostic failure after PR
 review; production reconstruction behavior is unchanged. Snapshot
-validation verifies both trees; all 1,416 source files and the license remain.
+validation verifies both trees; the 1,416 upstream files and license remain,
+with local additions and modifications listed in the source manifest.
