@@ -49,6 +49,7 @@ export function useEnhancedMutation(mutationFn, options = {}) {
   } = options;
 
   return useMutation({
+    ...reactQueryOptions,
     mutationFn: enhancedMutation({
       mutationFn,
       invalidatePatterns,
@@ -65,7 +66,6 @@ export function useEnhancedMutation(mutationFn, options = {}) {
       if (reactQueryOptions.onSuccess) {
         reactQueryOptions.onSuccess(data, variables, context);
       }
-    },
-    ...reactQueryOptions
+    }
   });
 }
