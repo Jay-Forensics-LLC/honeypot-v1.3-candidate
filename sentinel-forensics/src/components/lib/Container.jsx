@@ -130,7 +130,7 @@ export const container = new ServiceContainer();
 export function setupContainer() {
   // Lazy load services to avoid circular dependencies
   container.registerSingleton('logger', async () => {
-    const { logger } = await import('../utils/Logger');
+    const { logger } = await import('../utils/logger');
     return logger;
   });
 
@@ -150,7 +150,7 @@ export function setupContainer() {
   });
 
   container.registerSingleton('circuitBreaker', async () => {
-    const { CircuitBreakerRegistry } = await import('./CircuitBreaker');
+    const { CircuitBreakerRegistry } = await import('./circuitBreaker');
     return CircuitBreakerRegistry;
   });
 

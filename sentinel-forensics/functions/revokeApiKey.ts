@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { findApiKeyInOrganization } from './helpers/apiKeyScope.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -9,13 +10,22 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
+    if (!user.organization_id) {
+      return Response.json({ error: 'Organization context required' }, { status: 403 });
+    }
+
     const { apiKeyId } = await req.json();
 
     if (!apiKeyId) {
       return Response.json({ error: 'Missing apiKeyId' }, { status: 400 });
     }
 
-    const updated = await base44.asServiceRole.entities.ApiKey.update(apiKeyId, {
+    const apiKey = await findApiKeyInOrganization(base44, apiKeyId, user.organization_id);
+    if (!apiKey) {
+      return Response.json({ error: 'API key not found' }, { status: 404 });
+    }
+
+    const updated = await base44.asServiceRole.entities.ApiKey.update(apiKey.id, {
       status: 'revoked'
     });
 

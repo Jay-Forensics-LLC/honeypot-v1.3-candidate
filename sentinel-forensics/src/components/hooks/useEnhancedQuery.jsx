@@ -50,12 +50,12 @@ export function useEnhancedMutation(mutationFn, options = {}) {
 
   return useMutation({
     ...reactQueryOptions,
-    mutationFn: enhancedMutation({
+    mutationFn: (...args) => enhancedMutation({
       mutationFn,
       invalidatePatterns,
       enableCircuitBreaker,
       breakerName
-    }),
+    })(...args),
     onSuccess: (data, variables, context) => {
       // Invalidate React Query caches
       invalidateQueries.forEach(queryKey => {

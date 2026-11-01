@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { logger } from '../utils/Logger';
+import { logger } from '../utils/logger';
 
 /**
  * OPTIMIZED IMAGE COMPONENT

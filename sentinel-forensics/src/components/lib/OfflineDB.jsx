@@ -1,5 +1,5 @@
 import Dexie from 'dexie';
-import { logger } from '../utils/Logger';
+import { logger } from '../utils/logger';
 
 /**
  * OFFLINE DATABASE LAYER

@@ -1,9 +1,9 @@
-import { CircuitBreaker } from './CircuitBreaker';
+import { CircuitBreaker } from './circuitBreaker';
 import { requestCache } from './RequestCache';
 import { requestDeduplicator } from './RequestDeduplicator';
 import { retryHandler } from './RetryHandler';
 import { apiLimiter } from './RateLimiter';
-import { logger } from '../utils/Logger';
+import { logger } from '../utils/logger';
 
 /**
  * ENHANCED API CLIENT
@@ -87,7 +87,7 @@ export async function enhancedQuery({
 /**
  * Enhanced mutation wrapper
  */
-export async function enhancedMutation({
+export function enhancedMutation({
   mutationFn,
   invalidatePatterns = [],
   enableCircuitBreaker = true,

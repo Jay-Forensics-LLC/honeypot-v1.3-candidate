@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { prefetch } from '../lib/APIClient';
 import { base44 } from '@/api/base44Client';
 import { useUser } from '../hooks/useUser';
-import { logger } from '../utils/Logger';
+import { logger } from '../utils/logger';
 
 /**
  * DATA PRELOADER

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { offlineDB } from '../lib/OfflineDB';
 import { offlineQueue } from '../lib/OfflineQueue';
-import { logger } from '../utils/Logger';
+import { logger } from '../utils/logger';
 
 /**
  * OFFLINE SYNC HOOK

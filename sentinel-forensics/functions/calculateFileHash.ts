@@ -1,4 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+import { fetchBoundedResponse, ResponseTooLargeError } from './helpers/boundedFetch.ts';
+
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
+const FETCH_TIMEOUT_MS = 30000;
 
 Deno.serve(async (req) => {
     try {
@@ -38,27 +42,35 @@ Deno.serve(async (req) => {
             file_uri: evidence.file_url,
             expires_in: 300
         });
-        const fileResponse = await fetch(signedUrlResponse.signed_url);
+        const { response: fileResponse, bytes: fileBuffer } = await fetchBoundedResponse(
+            signedUrlResponse.signed_url,
+            { maxBytes: MAX_FILE_BYTES, timeoutMs: FETCH_TIMEOUT_MS }
+        );
         if (!fileResponse.ok) {
             return Response.json({ error: 'Failed to fetch file' }, { status: 400 });
         }
 
-        const arrayBuffer = await fileResponse.arrayBuffer();
-        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', fileBuffer);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-        const md5Buffer = await crypto.subtle.digest('SHA-1', arrayBuffer);
+        const md5Buffer = await crypto.subtle.digest('SHA-1', fileBuffer);
         const md5Array = Array.from(new Uint8Array(md5Buffer));
         const md5Hex = md5Array.map(b => b.toString(16).padStart(2, '0')).join('');
 
         return Response.json({
             sha256: hashHex,
             sha1: md5Hex,
-            file_size: arrayBuffer.byteLength,
+            file_size: fileBuffer.byteLength,
             timestamp: new Date().toISOString()
         });
     } catch (error) {
+        if (error instanceof ResponseTooLargeError) {
+            return Response.json({ error: 'Evidence file exceeds the 50 MiB hashing limit' }, { status: 413 });
+        }
+        if (error.name === 'AbortError') {
+            return Response.json({ error: 'Evidence file fetch timed out' }, { status: 504 });
+        }
         return Response.json({ error: error.message }, { status: 500 });
     }
 });

@@ -29,8 +29,8 @@ export function useOrgQuery(
       }
       
       const orgScopedFilters = {
-        organization_id: user.organization_id,
-        ...filters
+        ...filters,
+        organization_id: user.organization_id
       };
       
       try {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useUser } from '../hooks/useUser';
-import { createPageUrl } from '../utils';
+import { createPageUrl } from '@/utils';
 import LoadingFallback from '../demo/LoadingFallback';
 
 /**

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { logger } from '../utils/Logger';
+import { logger } from '../utils/logger';
 
 /**
  * COMPONENT PERFORMANCE MONITOR
