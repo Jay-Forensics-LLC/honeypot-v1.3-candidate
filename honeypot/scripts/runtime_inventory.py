@@ -497,18 +497,28 @@ def collect(root, source_root, probe_readiness=True, *, approval_sha256=None, re
         row['deployed_source_hashes'] = hashes
         row['candidate_source_hashes'] = expected
         if hashes != expected: row['problems'].append('Deployed incident pipeline differs from this checkout')
-        code='''import json,urllib.request
+        code='''import json,urllib.request,urllib.error
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs): return None
 opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect())
 result={}
 for name,url in [('loki','http://loki:3100/ready'),('alloy','http://alloy:12345/-/ready'),('grafana','http://grafana:3000/api/health')]:
-    with opener.open(url,timeout=5) as response: result[name]=response.status==200
+    try:
+        with opener.open(url,timeout=5) as response: result[name]=response.status
+    except urllib.error.HTTPError as exc:
+        result[name]=exc.code
 print(json.dumps(result))
 '''
         if probe_readiness and not row['problems']:
-            row['http_readiness']=json.loads(run(['docker','exec',containers['incidentd']['Id'],'python','-B','-c',code]).stdout)
-            if not all(row['http_readiness'].get(n) is True for n in ('loki','alloy','grafana')):
+            # Keep endpoint-specific status codes and probe all three services,
+            # including after a Loki 503. Command text cannot identify a failure.
+            statuses=json.loads(run(['docker','exec',containers['incidentd']['Id'],'python','-B','-c',code]).stdout)
+            if (not isinstance(statuses,dict) or set(statuses)!={'loki','alloy','grafana'} or
+                    any(type(status) is not int or not 100<=status<=599 for status in statuses.values())):
+                raise ValueError('Malformed internal HTTP readiness status')
+            row['http_readiness_status']=statuses
+            row['http_readiness']={name:status==200 for name,status in statuses.items()}
+            if not all(row['http_readiness'].values()):
                 row['problems'].append('Internal HTTP readiness failed')
         else:
             row['http_readiness']='NOT TESTED: inspection only or failed safety gate'

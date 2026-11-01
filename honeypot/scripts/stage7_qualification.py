@@ -385,15 +385,16 @@ def observe():
 def pending_loki_http_readiness(exc):
     """Permit one specific transient 503 to use the existing recovery window."""
     runtime = getattr(exc, 'runtime_observation', None)
-    if not isinstance(runtime, dict):
+    resources = getattr(exc, 'capture_observation', None)
+    if (not isinstance(runtime, dict) or not isinstance(resources, dict) or
+            resources.get('ok') is not True):
         return False
-    problems = runtime.get('problems')
-    if (not isinstance(problems, list) or len(problems) != 2 or
-            "'docker', 'exec'" not in problems[0] or
-            'http://loki:3100/ready' not in problems[0] or
-            problems[1].rstrip().splitlines()[-1] not in (
-                'urllib.error.HTTPError: HTTP Error 503',
-                'urllib.error.HTTPError: HTTP Error 503: Service Unavailable') or
+    statuses = runtime.get('http_readiness_status')
+    if (runtime.get('problems') != ['Internal HTTP readiness failed'] or
+            not isinstance(statuses, dict) or
+            statuses != {'loki': 503, 'alloy': 200, 'grafana': 200} or
+            any(type(status) is not int for status in statuses.values()) or
+            runtime.get('http_readiness') != {'loki': False, 'alloy': True, 'grafana': True} or
             (runtime.get('guard') or {}).get('ok') is not True or
             (runtime.get('capture') or {}).get('ok') is not True):
         return False
@@ -927,6 +928,7 @@ def restart_row(name, anchor, base, folder, events, index):
     except Exception as exc:
         row['error'] = type(exc).__name__ + ': ' + str(exc)
         row['failed_runtime_observation'] = getattr(exc, 'runtime_observation', None)
+        row['failed_capture_observation'] = getattr(exc, 'capture_observation', None)
         row['probe_failure'] = getattr(exc, 'probe_failure', None)
     finally:
         postflight(row, recovered)
