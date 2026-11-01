@@ -1,5 +1,6 @@
 """Explicit offline capture jobs through an operator-configured Sentinel checkout."""
 import datetime as dt
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -12,17 +13,91 @@ import sys
 import threading
 import time
 
-from .io import parse_json, read_regular
+from .io import InputTooLarge, parse_json, read_regular
 from .model import Phase10Error
 
 MAX_CAPTURE_BYTES = 64 * 1024**2
 MAX_WORKSPACE_BYTES = 256 * 1024**2
 MAX_LOG_BYTES = 1024**2
+MAX_ATTACHMENT_BYTES = 4 * 1024**2
+MAX_CONTEXT_BYTES = 256 * 1024
 JOB_TIMEOUT_SECONDS = 120
 _DIRECTORY = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
 _MAGICS = (b'\xd4\xc3\xb2\xa1', b'\xa1\xb2\xc3\xd4', b'\x4d\x3c\xb2\xa1',
            b'\xa1\xb2\x3c\x4d', b'\x0a\x0d\x0d\x0a')
 _PUBLIC = ('id', 'status', 'stage', 'error_code', 'case_id', 'created_at', 'updated_at')
+_SOURCES = frozenset(('capture.pcap', 'session.jsonl'))
+_ATTACHMENTS = frozenset(('transcript.json', 'session-provenance.json'))
+
+
+class _WorkspaceFull(Phase10Error):
+    def __init__(self):
+        super().__init__('Private job workspace is full; preserve or move completed cases first')
+
+
+def _context(value):
+    """Take a bounded JSON snapshot so callers cannot mutate queued metadata."""
+    if value is None:
+        return {}
+    if type(value) is not dict:
+        raise Phase10Error('Analysis context must be a bounded JSON object')
+    pending = [(value, 0)]
+    count = 0
+    while pending:
+        item, depth = pending.pop()
+        count += 1
+        if depth > 32 or count > MAX_CONTEXT_BYTES:
+            raise Phase10Error('Analysis context exceeds its supported bounds')
+        if type(item) is dict:
+            if any(type(key) is not str for key in item):
+                raise Phase10Error('Analysis context requires JSON object keys')
+            pending.extend((child, depth + 1) for child in item.values())
+        elif type(item) is list:
+            pending.extend((child, depth + 1) for child in item)
+        elif type(item) not in (str, int, float, bool, type(None)):
+            raise Phase10Error('Analysis context requires JSON values')
+    try:
+        raw = json.dumps(value, allow_nan=False, ensure_ascii=True,
+                         separators=(',', ':')).encode()
+        if len(raw) > MAX_CONTEXT_BYTES:
+            raise InputTooLarge(MAX_CONTEXT_BYTES, len(raw))
+        return json.loads(raw)
+    except (TypeError, ValueError, RecursionError) as exc:
+        if isinstance(exc, Phase10Error):
+            raise
+        raise Phase10Error('Analysis context must be a bounded JSON object') from exc
+
+
+def _prepared(value, context):
+    if (type(value) is not dict or set(value) != {'sources', 'attachments', 'context'} or
+            not isinstance(value['sources'], (list, tuple)) or not 1 <= len(value['sources']) <= 2 or
+            type(value['attachments']) is not dict or type(value['context']) is not dict):
+        raise Phase10Error('Unsupported prepared analysis inputs')
+    sources, seen, source_bytes = [], set(), 0
+    for row in value['sources']:
+        if (not isinstance(row, (list, tuple)) or len(row) != 2 or
+                type(row[0]) is not str or row[0] not in _SOURCES or row[0] in seen or
+                type(row[1]) is not bytes or not row[1]):
+            raise Phase10Error('Unsupported prepared analysis source')
+        name, raw = row
+        source_bytes += len(raw)
+        if source_bytes > MAX_CAPTURE_BYTES:
+            raise InputTooLarge(MAX_CAPTURE_BYTES, source_bytes)
+        if name == 'capture.pcap' and (len(raw) < 12 or raw[:4] not in _MAGICS):
+            raise Phase10Error('Choose a PCAP or PCAPNG capture file')
+        sources.append((name, raw))
+        seen.add(name)
+    attachments, attachment_bytes = [], 0
+    for name, raw in value['attachments'].items():
+        if type(name) is not str or name not in _ATTACHMENTS or type(raw) is not bytes:
+            raise Phase10Error('Unsupported private analysis attachment')
+        attachment_bytes += len(raw)
+        if attachment_bytes > MAX_ATTACHMENT_BYTES:
+            raise InputTooLarge(MAX_ATTACHMENT_BYTES, attachment_bytes)
+        attachments.append((name, raw))
+    merged = _context(context)
+    merged.update(_context(value['context']))
+    return {'sources': sources, 'attachments': attachments, 'context': _context(merged)}
 
 
 def _utc():
@@ -109,10 +184,12 @@ def _stop(process):
 class JobManager:
     """One session job at a time; private completed bundles survive dashboard exit."""
 
-    def __init__(self, companion_root, workspace_path, import_callback, logger=None):
+    def __init__(self, companion_root, workspace_path, import_callback, logger=None,
+                 completion_callback=None):
         self.companion_root = Path(companion_root).absolute() if companion_root else None
         self.workspace_path = Path(workspace_path).absolute()
         self.import_callback = import_callback
+        self.completion_callback = completion_callback
         self.logger = logger
         self._lock = threading.Lock()
         self._jobs = []
@@ -142,7 +219,8 @@ class JobManager:
                         row['stage'] not in ('starting', 'ingestion', 'analysis', 'verifying',
                                              'complete', 'failed', 'cancelled') or
                         row['error_code'] not in (None, 'analysis_failed', 'analysis_timeout',
-                                                  'workspace_quota', 'import_failed', 'analysis_interrupted') or
+                                                  'workspace_quota', 'import_failed', 'analysis_interrupted',
+                                                  'preparation_failed', 'capture_too_large', 'custody_failed') or
                         row['case_id'] is not None and (not isinstance(row['case_id'], str) or
                             len(row['case_id']) != 64 or any(c not in '0123456789abcdef' for c in row['case_id'])) or
                         any(not isinstance(row[key], str) or len(row[key]) > 64
@@ -213,52 +291,110 @@ class JobManager:
         return {'available': self.available(), 'jobs': jobs,
                 'history_status': 'unavailable' if self._history_error else 'available'}
 
-    def start(self, input_path):
+    def _require_available(self):
         if os.geteuid() == 0 or not self.available():
             raise Phase10Error('Configure an unprivileged Sentinel companion before analyzing captures')
+
+    def _require_slot(self):
+        if self._closed:
+            raise Phase10Error('The analysis session is closed')
+        if self._history_error:
+            raise Phase10Error('Private analysis history is unavailable; check the job workspace')
+        if any(job['status'] == 'running' for job in self._jobs):
+            raise Phase10Error('A capture is already being analyzed; wait or cancel it first')
+
+    def start(self, input_path, context=None):
+        self._require_available()
         if (not isinstance(input_path, str) or not 1 <= len(input_path) <= 4096 or
                 not Path(input_path).is_absolute() or any(ord(c) < 32 for c in input_path)):
             raise Phase10Error('Choose an absolute local capture path')
         with self._lock:
-            if self._closed:
-                raise Phase10Error('The analysis session is closed')
-            if self._history_error:
-                raise Phase10Error('Private analysis history is unavailable; check the job workspace')
-            if any(job['status'] == 'running' for job in self._jobs):
-                raise Phase10Error('A capture is already being analyzed; wait or cancel it first')
+            self._require_slot()
             raw = read_regular(input_path, MAX_CAPTURE_BYTES)
-            if len(raw) < 12 or raw[:4] not in _MAGICS:
-                raise Phase10Error('Choose a PCAP or PCAPNG capture file')
-            root = _directory(self.workspace_path, create=True)
-            try:
-                if _usage(root) + len(raw) > MAX_WORKSPACE_BYTES:
-                    raise Phase10Error('Private job workspace is full; preserve or move completed cases first')
-                identifier = secrets.token_hex(16)
-                os.mkdir(identifier, 0o700, dir_fd=root)
-                folder = self.workspace_path / identifier
-                fd = os.open(folder / 'capture.pcap', os.O_WRONLY | os.O_CREAT | os.O_EXCL |
-                             os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
-                with os.fdopen(fd, 'wb') as stream:
+            prepared = _prepared({'sources': [('capture.pcap', raw)],
+                                  'attachments': {}, 'context': {}}, context)
+            return self._enqueue(prepared=prepared)
+
+    def start_bytes(self, raw, context=None):
+        self._require_available()
+        with self._lock:
+            self._require_slot()
+            prepared = _prepared({'sources': [('capture.pcap', raw)],
+                                  'attachments': {}, 'context': {}}, context)
+            return self._enqueue(prepared=prepared)
+
+    def start_prepared(self, prepare_callable, context=None):
+        """Schedule trusted bounded preparation in the same single analysis slot."""
+        self._require_available()
+        if not callable(prepare_callable):
+            raise Phase10Error('A trusted analysis preparer is required')
+        with self._lock:
+            self._require_slot()
+            return self._enqueue(prepare=prepare_callable, context=_context(context))
+
+    @staticmethod
+    def _metadata(job):
+        return {'job_id': job['id'], 'created_at': job['created_at'],
+                'context': job['context'], 'artifacts': job['artifacts']}
+
+    def _persist_prepared(self, job, prepared):
+        artifacts = [{'path': str(job['folder'] / name), 'name': name,
+                      'sha256': hashlib.sha256(raw).hexdigest(), 'bytes': len(raw)}
+                     for name, raw in prepared['sources'] + prepared['attachments']]
+        metadata = {'job_id': job['id'], 'created_at': job['created_at'],
+                    'context': prepared['context'], 'artifacts': artifacts}
+        record = json.dumps(metadata, allow_nan=False, ensure_ascii=True,
+                            separators=(',', ':')).encode()
+        writes = prepared['sources'] + prepared['attachments'] + [('inputs.json', record)]
+        root = _directory(self.workspace_path)
+        directory = None
+        try:
+            # Reserve the bounded public ledger as well as the private inputs.
+            if _usage(root) + sum(len(raw) for _, raw in writes) + 64 * 1024 > MAX_WORKSPACE_BYTES:
+                raise _WorkspaceFull()
+            directory = os.open(job['id'], _DIRECTORY, dir_fd=root)
+            for name, raw in writes:
+                descriptor = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+                                     os.O_NOFOLLOW | os.O_CLOEXEC, 0o600, dir_fd=directory)
+                with os.fdopen(descriptor, 'wb') as stream:
                     stream.write(raw)
                     stream.flush()
                     os.fsync(stream.fileno())
-            finally:
-                os.close(root)
-            now = _utc()
-            job = {'id': identifier, 'status': 'running', 'stage': 'starting',
-                   'error_code': None, 'case_id': None, 'created_at': now, 'updated_at': now,
-                   'folder': folder, 'cancel': threading.Event(), 'started': time.monotonic()}
-            job['thread'] = threading.Thread(target=self._run, args=(job,), daemon=True,
-                                             name='honeytrace-offline-analysis')
-            self._jobs.append(job)
-            self._jobs = self._jobs[-20:]
-            self._save_history()
-            if self._reconciled:
-                self._log('job.history_reconciled', count=self._reconciled, level='WARNING')
-                self._reconciled = 0
-            self._log('job.started', job_id=identifier, stage='starting')
-            job['thread'].start()
-            return self._public(job)
+            os.fsync(directory)
+        finally:
+            if directory is not None:
+                os.close(directory)
+            os.close(root)
+        job.update(context=prepared['context'], sources=[name for name, _ in prepared['sources']],
+                   artifacts=artifacts)
+
+    def _enqueue(self, prepared=None, prepare=None, context=None):
+        root = _directory(self.workspace_path, create=True)
+        identifier, now = secrets.token_hex(16), _utc()
+        job = {'id': identifier, 'status': 'running', 'stage': 'starting',
+               'error_code': None, 'case_id': None, 'created_at': now, 'updated_at': now,
+               'folder': self.workspace_path / identifier, 'cancel': threading.Event(),
+               'started': time.monotonic(), 'prepare': prepare, 'context': context or {},
+               'sources': [], 'artifacts': []}
+        try:
+            if _usage(root) + 64 * 1024 > MAX_WORKSPACE_BYTES:
+                raise _WorkspaceFull()
+            os.mkdir(identifier, 0o700, dir_fd=root)
+        finally:
+            os.close(root)
+        if prepared is not None:
+            self._persist_prepared(job, prepared)
+        job['thread'] = threading.Thread(target=self._run, args=(job,), daemon=True,
+                                         name='honeytrace-offline-analysis')
+        self._jobs.append(job)
+        self._jobs = self._jobs[-20:]
+        self._save_history()
+        if self._reconciled:
+            self._log('job.history_reconciled', count=self._reconciled, level='WARNING')
+            self._reconciled = 0
+        self._log('job.started', job_id=identifier, stage='starting')
+        job['thread'].start()
+        return self._public(job)
 
     def _update(self, job, **values):
         with self._lock:
@@ -282,14 +418,60 @@ class JobManager:
         except (OSError, Phase10Error, AttributeError):
             pass
 
+    @staticmethod
+    def _interruption(job):
+        if job['cancel'].is_set():
+            return 'cancelled'
+        if time.monotonic() - job['started'] > JOB_TIMEOUT_SECONDS:
+            return 'analysis_timeout'
+        return None
+
+    def _finish_interrupted(self, job):
+        failure = self._interruption(job)
+        if failure:
+            self._update(job, status='cancelled' if failure == 'cancelled' else 'failed',
+                         stage='cancelled' if failure == 'cancelled' else 'failed',
+                         error_code=None if failure == 'cancelled' else failure)
+        return bool(failure)
+
     def _run(self, job):
         process = None
         failure = None
         folder = job['folder']
         try:
+            if self._finish_interrupted(job):
+                return
+            prepare = job.pop('prepare', None)
+            if prepare is not None:
+                try:
+                    supplied = prepare()
+                    if self._finish_interrupted(job):
+                        return
+                    prepared = _prepared(supplied, job['context'])
+                    if self._finish_interrupted(job):
+                        return
+                    self._persist_prepared(job, prepared)
+                    # Drop potentially large in-memory source snapshots before analysis.
+                    del supplied, prepared
+                except InputTooLarge as exc:
+                    if not self._finish_interrupted(job):
+                        self._update(job, status='failed', stage='failed',
+                                     error_code='capture_too_large' if exc.max_bytes == MAX_CAPTURE_BYTES
+                                     else 'preparation_failed')
+                    return
+                except _WorkspaceFull:
+                    if not self._finish_interrupted(job):
+                        self._update(job, status='failed', stage='failed', error_code='workspace_quota')
+                    return
+                except Exception:
+                    if not self._finish_interrupted(job):
+                        self._update(job, status='failed', stage='failed', error_code='preparation_failed')
+                    return
+            if self._finish_interrupted(job):
+                return
             command = [sys.executable, '-I', '-B', str(Path(__file__).with_name('companion_worker.py')),
                        str(self.companion_root / 'tools/evidence_lab/analyze.py'),
-                       str(folder / 'capture.pcap'), str(folder / 'case')]
+                       *(str(folder / name) for name in job['sources']), str(folder / 'case')]
             with (folder / 'analysis.log').open('xb') as log:
                 os.chmod(folder / 'analysis.log', 0o600)
                 process = subprocess.Popen(command, cwd=folder, stdin=subprocess.DEVNULL,
@@ -299,14 +481,11 @@ class JobManager:
                                                 'LANG': 'C.UTF-8', 'PYTHONDONTWRITEBYTECODE': '1'})
                 selector = selectors.DefaultSelector()
                 selector.register(process.stdout, selectors.EVENT_READ)
-                started, logged = time.monotonic(), 0
+                logged = 0
                 try:
                     while process.poll() is None:
-                        if job['cancel'].is_set():
-                            failure = 'cancelled'
-                            break
-                        if time.monotonic() - started > JOB_TIMEOUT_SECONDS:
-                            failure = 'analysis_timeout'
+                        failure = self._interruption(job)
+                        if failure:
                             break
                         root = _directory(self.workspace_path)
                         try:
@@ -334,6 +513,7 @@ class JobManager:
                         _stop(process)
                     process.stdout.close()
                     process.wait(timeout=3)
+            failure = failure or self._interruption(job)
             if failure == 'cancelled' or job['cancel'].is_set():
                 self._update(job, status='cancelled', stage='cancelled')
                 return
@@ -353,16 +533,21 @@ class JobManager:
             except Exception:
                 self._update(job, status='failed', stage='failed', error_code='import_failed')
                 return
+            # The projection is committed even if private custody finalization fails.
+            # Retain that case identity and all source snapshots for operator recovery.
+            self._update(job, case_id=case_id)
+            if self.completion_callback is not None:
+                try:
+                    self.completion_callback(case_id, folder / 'case',
+                                             json.loads(json.dumps(self._metadata(job), allow_nan=False)))
+                except Exception:
+                    self._update(job, status='failed', stage='failed', error_code='custody_failed')
+                    return
             self._update(job, status='complete', stage='complete', case_id=case_id)
         except Exception:
             if process is not None:
                 _stop(process)
             self._update(job, status='failed', stage='failed', error_code='analysis_failed')
-        finally:
-            try:
-                (folder / 'capture.pcap').unlink()
-            except OSError:
-                pass
 
     def cancel(self, job_id):
         with self._lock:

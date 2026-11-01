@@ -12,6 +12,14 @@ and reviewable decoy identity profiles. See the
 This source work supersedes the earlier Phase 10 planning hold for implementation;
 it does not change the recorded runtime/deployment status below.
 
+Milestone 5 source work adds the guided local installation and saved honeypot
+interaction → case workflow, retained transcript/input provenance, grounded lead
+review, custody/artifact access, and named finished Packet Squirrel import with
+the existing 64 MiB limit. See the [installation guide](INSTALL.md) and
+[Milestone 5 handoff](MILESTONE5_HANDOFF.md) for source scope and its validation
+record. Local example and saved-evidence checks do not qualify running sensors
+or alter the separate beta/deployment contract below.
+
 ## Recorded runtime closeout — 2026-10-31
 
 **Phase 7: CLOSED — OWNER-ACCEPTED WITH EXCEPTIONS — ISOLATED LAB ONLY**, limited

@@ -5,16 +5,24 @@ analysis, verified cases and diagnostics. The complete tracked Sentinel-Forensic
 source is bundled in [sentinel-forensics/](sentinel-forensics/README.md), so a
 second checkout is not needed for capture analysis.
 
-From this downloaded repository's root, run:
+Use Linux with Python 3.11 or newer, including its standard-library SQLite module.
+From this downloaded repository's root, run as your normal user:
 
 ```sh
 bash tools/launch-dashboard.sh --port 8765
 ```
 
 Open the private session link printed in the terminal. In **Settings**, enable
-offline imports and **Sentinel Forensics**, then open **Forensic cases** to analyze
-a local PCAP/PCAPNG or import a completed case. Packet Squirrel captures use the
-same capture workflow.
+offline imports and **Sentinel Forensics** and save settings. Open **Honeypot**,
+choose **Try a synthetic interaction**, then **Open case** to follow a saved example
+through local analysis, transcript, timeline, review leads and custody. The
+[installation guide](docs/INSTALL.md) covers that first case, existing saved
+honeypot data, updates and recovery. No pip/npm packages, Docker or cloud account
+are needed for this local workflow.
+
+For a finished Packet Squirrel PCAP/PCAPNG, open **Forensic cases → Packet
+Squirrel / capture** and drop the file. Captures up to 64 MiB are accepted; a
+larger file stays rejected with a clear size message and the original unchanged.
 
 The [dashboard guide](docs/DASHBOARD.md) covers import, provenance review and
 export. The [forensic workflow guide](docs/FORENSIC_WORKFLOWS.md) covers jobs,

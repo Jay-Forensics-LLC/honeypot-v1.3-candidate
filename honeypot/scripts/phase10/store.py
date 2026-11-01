@@ -335,3 +335,18 @@ class Store:
                 return rows
         except FileNotFoundError:
             return []
+
+    def _read_verified_original(self, import_id):
+        """Internal derivative readers receive only this verified import's bytes."""
+        manifest = self.read_import(import_id)['manifest']
+        digest = manifest['raw_source_hash'].removeprefix('sha256:')
+        with self._open() as root:
+            directory = _child(root, 'objects')
+            try:
+                raw = _read(directory, digest + '.bin')
+            finally:
+                os.close(directory)
+        if (len(raw) != manifest['original']['bytes'] or
+                hashlib.sha256(raw).hexdigest() != digest):
+            raise Phase10Error('Stored original digest mismatch')
+        return raw

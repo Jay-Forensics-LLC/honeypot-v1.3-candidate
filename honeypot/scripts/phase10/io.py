@@ -9,6 +9,15 @@ import xml.etree.ElementTree as ET
 from .model import MAX_BYTES, MAX_RECORDS, Phase10Error
 
 
+class InputTooLarge(Phase10Error):
+    """A size rejection carries bounds, never a private input path."""
+
+    def __init__(self, max_bytes, actual_bytes):
+        self.max_bytes = max_bytes
+        self.actual_bytes = actual_bytes
+        super().__init__('Input exceeds the supported byte limit')
+
+
 def read_regular(path, max_bytes=MAX_BYTES):
     if type(max_bytes) is not int or not 1 <= max_bytes <= 64 * 1024**2:
         raise Phase10Error('Invalid input byte limit')
@@ -25,8 +34,10 @@ def read_regular(path, max_bytes=MAX_BYTES):
             directory = child
         descriptor = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=directory)
         before = os.fstat(descriptor)
-        if not stat.S_ISREG(before.st_mode) or before.st_size > max_bytes:
+        if not stat.S_ISREG(before.st_mode):
             raise Phase10Error('Input is not a bounded regular file')
+        if before.st_size > max_bytes:
+            raise InputTooLarge(max_bytes, before.st_size)
         chunks, remaining = [], before.st_size
         while remaining:
             chunk = os.read(descriptor, min(65536, remaining))

@@ -5,6 +5,7 @@ import re
 
 from .model import Phase10Error
 from .sentinel import CONTRACT
+from .case_leads import AUTHORSHIP_STATEMENT, EXPORT_OMISSIONS, case_lead_details
 
 _CODE = re.compile(r'[A-Za-z0-9_.:-]{1,128}')
 _HASH = re.compile(r'[a-f0-9]{64}')
@@ -91,10 +92,11 @@ def list_cases(store):
         row['imported_at'].replace('Z', '+00:00')), row['case_id']), reverse=True)
 
 
-def case_detail(store, case_id, filters=None):
+def case_detail(store, case_id, filters=None, decision_path=None):
     """Filter one bounded case; exact time comparisons never use floats."""
     selected, since, until = _filters({} if filters is None else filters)
     summary, rows = _case(store, case_id)
+    lead_details, case_review = case_lead_details(store, summary, rows, decision_path)
     observations = {row['details']['provenance']['occurrence_id']: row
                     for row in rows if _entity(row) == 'observation'}
     timeline, protocols, source_ids = [], set(), set()
@@ -135,13 +137,19 @@ def case_detail(store, case_id, filters=None):
             'sources': [row for row in rows if _entity(row) == 'source'],
             'coverage': [row for row in rows if _entity(row) == 'coverage'],
             'findings': [row for row in rows if _entity(row) == 'finding'],
+            'lead_details': lead_details, 'case_review': case_review,
             'timeline': {'items': timeline[offset:offset + limit], 'total': len(timeline),
                          'offset': offset, 'limit': limit},
             'filters': {'protocols': sorted(protocols), 'source_ids': sorted(source_ids),
                         'applied': selected}}
 
 
-def case_export(store, case_id):
+def case_export(store, case_id, decision_path=None):
     """Export minimized normalized records; private originals stay in the store."""
     summary, rows = _case(store, case_id)
-    return {'schema_version': 1, 'case': summary, 'findings': rows}
+    lead_details, case_review = case_lead_details(store, summary, rows, decision_path)
+    return {'schema_version': 1, 'case': summary, 'findings': rows,
+            'lead_details': lead_details, 'case_review': case_review,
+            'export_scope': {'authorship_statement': AUTHORSHIP_STATEMENT,
+                             'omissions': list(EXPORT_OMISSIONS),
+                             'review_state': 'Derivative operator decisions; original findings are unchanged.'}}

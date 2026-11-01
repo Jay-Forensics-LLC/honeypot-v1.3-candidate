@@ -1,5 +1,6 @@
 """Synthetic companion processes exercise job boundaries without capture services."""
 import json
+import hashlib
 import os
 from pathlib import Path
 import struct
@@ -12,7 +13,8 @@ from unittest.mock import patch
 from unittest.mock import Mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from phase10.jobs import JobManager, _usage, _directory
+from phase10.jobs import JobManager, MAX_CAPTURE_BYTES, _usage, _directory
+from phase10.io import InputTooLarge, read_regular
 from phase10.model import Phase10Error
 
 
@@ -97,7 +99,11 @@ out.mkdir(mode=0o700)
         self.assertEqual(result['case_id'], 'a' * 64)
         self.assertEqual(self.capture.read_bytes(), before)
         self.assertEqual(len(self.imports), 1)
-        self.assertFalse((self.imports[0].parent / 'capture.pcap').exists())
+        retained = self.imports[0].parent / 'capture.pcap'
+        self.assertEqual(retained.read_bytes(), before)
+        record = json.loads((retained.parent / 'inputs.json').read_text())
+        self.assertEqual(record['artifacts'][0]['sha256'], hashlib.sha256(before).hexdigest())
+        self.assertEqual(record['artifacts'][0]['bytes'], len(before))
         self.assertNotIn(str(self.root), json.dumps(self.manager.snapshot()))
         for path in self.manager.workspace_path.rglob('*'):
             self.assertEqual(path.stat().st_mode & 0o077, 0)
@@ -238,6 +244,193 @@ assert resource.getrlimit(resource.RLIMIT_NOFILE)[0] <= 64
         release.set()
         self.assertEqual(self.finish()['status'], 'complete')
         self.assertEqual(len(self.imports), 1)
+
+    def test_capture_over_64_mib_is_rejected_before_artifacts_or_subprocess(self):
+        self.assertEqual(MAX_CAPTURE_BYTES, 64 * 1024**2)
+        with self.capture.open('r+b') as stream:
+            stream.truncate(MAX_CAPTURE_BYTES + 1)
+        with patch('phase10.jobs.subprocess.Popen') as process:
+            with self.assertRaises(InputTooLarge) as rejected:
+                self.manager.start(str(self.capture))
+            process.assert_not_called()
+        self.assertEqual(rejected.exception.max_bytes, MAX_CAPTURE_BYTES)
+        self.assertEqual(rejected.exception.actual_bytes, MAX_CAPTURE_BYTES + 1)
+        self.assertNotIn(str(self.capture), str(rejected.exception))
+        self.assertEqual(self.capture.stat().st_size, MAX_CAPTURE_BYTES + 1)
+        self.assertFalse(self.manager.workspace_path.exists())
+        self.assertEqual(self.manager.snapshot()['jobs'], [])
+
+    def test_descriptor_reader_accepts_exact_capture_size_boundary(self):
+        with self.capture.open('r+b') as stream:
+            stream.truncate(MAX_CAPTURE_BYTES)
+        raw = read_regular(self.capture, MAX_CAPTURE_BYTES)
+        self.assertEqual(len(raw), MAX_CAPTURE_BYTES)
+        self.assertEqual(raw[:4], struct.pack('<I', 0xa1b2c3d4))
+
+    def test_capture_upload_validates_magic_and_size_before_creating_job(self):
+        raw = self.capture.read_bytes()
+        for invalid in (bytearray(raw), b'not a capture'):
+            with self.assertRaises(Phase10Error):
+                self.manager.start_bytes(invalid)
+        with patch('phase10.jobs.MAX_CAPTURE_BYTES', len(raw) - 1):
+            with self.assertRaises(InputTooLarge):
+                self.manager.start_bytes(raw)
+        self.assertFalse(self.manager.workspace_path.exists())
+        # PCAPNG follows the same finished-file route and custody ledger.
+        raw = b'\x0a\x0d\x0d\x0a' + b'\x00' * 8
+        job = self.manager.start_bytes(raw, context={'workflow': 'packet-squirrel'})
+        self.assertEqual(self.finish()['status'], 'complete')
+        folder = self.manager.workspace_path / job['id']
+        self.assertEqual((folder / 'capture.pcap').read_bytes(), raw)
+        self.assertEqual(json.loads((folder / 'inputs.json').read_text())['context'],
+                         {'workflow': 'packet-squirrel'})
+
+    def test_prepared_sources_and_attachments_reach_private_custody_after_import(self):
+        capture = self.capture.read_bytes()
+        session = b'{"event_type":"session_start","synthetic":true}\n'
+        transcript = b'{"entries":[{"command":"synthetic only"}]}'
+        provenance = b'{"origin":"synthetic-fixture"}'
+        self.stub('''assert [pathlib.Path(value).name for value in sys.argv[1:sys.argv.index('--output')]] == ['session.jsonl', 'capture.pcap']
+assert pathlib.Path(sys.argv[1]).read_bytes().startswith(b'{')
+''')
+        completions = []
+
+        def completed(case_id, bundle, metadata):
+            self.assertEqual(self.manager.snapshot()['jobs'][0]['stage'], 'verifying')
+            self.assertEqual(self.imports, [bundle])
+            self.assertEqual(case_id, 'a' * 64)
+            self.assertEqual(metadata['job_id'], bundle.parent.name)
+            self.assertEqual(metadata['context'], {'workflow': 'session', 'synthetic': True})
+            for artifact in metadata['artifacts']:
+                raw = Path(artifact['path']).read_bytes()
+                self.assertEqual(Path(artifact['path']).name, artifact['name'])
+                self.assertEqual(len(raw), artifact['bytes'])
+                self.assertEqual(hashlib.sha256(raw).hexdigest(), artifact['sha256'])
+            completions.append(metadata)
+
+        self.manager.completion_callback = completed
+        context = {'workflow': 'session'}
+        job = self.manager.start_prepared(lambda: {
+            'sources': [('session.jsonl', session), ('capture.pcap', capture)],
+            'attachments': {'transcript.json': transcript, 'session-provenance.json': provenance},
+            'context': {'synthetic': True}}, context=context)
+        context['workflow'] = 'mutated after submission'
+        self.assertEqual(self.finish()['status'], 'complete')
+        self.assertEqual(len(completions), 1)
+        folder = self.manager.workspace_path / job['id']
+        self.assertEqual((folder / 'session.jsonl').read_bytes(), session)
+        self.assertEqual((folder / 'capture.pcap').read_bytes(), capture)
+        self.assertEqual((folder / 'transcript.json').read_bytes(), transcript)
+        self.assertEqual((folder / 'session-provenance.json').read_bytes(), provenance)
+        self.assertEqual(json.loads((folder / 'inputs.json').read_text()), completions[0])
+        public = json.dumps(self.manager.snapshot())
+        self.assertNotIn('synthetic only', public)
+        self.assertNotIn(str(folder), public)
+        self.assertNotIn('workflow', public)
+
+    def test_log_only_preparation_and_worker_remain_supported(self):
+        self.stub("assert pathlib.Path(sys.argv[1]).name == 'session.jsonl'\nassert sys.argv.index('--output') == 2\n")
+        self.manager.start_prepared(lambda: {'sources': [('session.jsonl', b'{"synthetic":true}\n')],
+                                            'attachments': {}, 'context': {}})
+        self.assertEqual(self.finish()['status'], 'complete')
+
+    def test_preparation_is_asynchronous_and_cancelled_slot_never_runs_analyzer(self):
+        entered, release = threading.Event(), threading.Event()
+
+        def prepare():
+            entered.set()
+            self.assertTrue(release.wait(3))
+            return {'sources': [('session.jsonl', b'{}\n')], 'attachments': {}, 'context': {}}
+
+        with patch('phase10.jobs.subprocess.Popen') as process:
+            job = self.manager.start_prepared(prepare)
+            self.assertTrue(entered.wait(3))
+            with self.assertRaises(Phase10Error):
+                self.manager.start_bytes(self.capture.read_bytes())
+            self.manager.cancel(job['id'])
+            release.set()
+            self.assertEqual(self.finish()['status'], 'cancelled')
+            process.assert_not_called()
+        self.assertFalse((self.manager.workspace_path / job['id'] / 'inputs.json').exists())
+        self.assertEqual(self.imports, [])
+
+    def test_preparation_consumes_the_existing_deadline(self):
+        entered, release = threading.Event(), threading.Event()
+
+        def prepare():
+            entered.set()
+            self.assertTrue(release.wait(3))
+            return {'sources': [('session.jsonl', b'{}\n')], 'attachments': {}, 'context': {}}
+
+        with patch('phase10.jobs.JOB_TIMEOUT_SECONDS', 0.01), patch('phase10.jobs.subprocess.Popen') as process:
+            self.manager.start_prepared(prepare)
+            self.assertTrue(entered.wait(3))
+            time.sleep(0.03)
+            release.set()
+            self.assertEqual(self.finish()['error_code'], 'analysis_timeout')
+            process.assert_not_called()
+
+    def test_invalid_prepared_inputs_never_write_source_artifacts(self):
+        base = {'sources': [('session.jsonl', b'{}\n')], 'attachments': {}, 'context': {}}
+        variants = [
+            dict(base, sources=[('../capture.pcap', self.capture.read_bytes())]),
+            dict(base, sources=[('session.jsonl', b'{}'), ('session.jsonl', b'{}')]),
+            dict(base, sources=[('session.jsonl', 'not bytes')]),
+            dict(base, attachments={'arbitrary.json': b'{}'}),
+            dict(base, context={'non_json': object()}),
+            dict(base, context={'oversized': 'x' * (256 * 1024)}),
+            dict(base, attachments={'transcript.json': b'x' * (4 * 1024**2 + 1)}),
+        ]
+        with patch('phase10.jobs.subprocess.Popen') as process:
+            for value in variants:
+                with self.subTest(keys=list(value)):
+                    job = self.manager.start_prepared(lambda value=value: value)
+                    self.assertEqual(self.finish()['status'], 'failed')
+                    folder = self.manager.workspace_path / job['id']
+                    self.assertEqual(list(folder.iterdir()), [])
+            process.assert_not_called()
+
+    def test_combined_prepared_source_budget_and_workspace_quota_are_distinct(self):
+        raw = self.capture.read_bytes()
+        with patch('phase10.jobs.MAX_CAPTURE_BYTES', len(raw)), patch('phase10.jobs.subprocess.Popen') as process:
+            job = self.manager.start_prepared(lambda: {
+                'sources': [('capture.pcap', raw), ('session.jsonl', b'{}\n')],
+                'attachments': {}, 'context': {}})
+            self.assertEqual(self.finish()['error_code'], 'capture_too_large')
+            self.assertEqual(list((self.manager.workspace_path / job['id']).iterdir()), [])
+            process.assert_not_called()
+        entered, release = threading.Event(), threading.Event()
+
+        def prepare():
+            entered.set()
+            self.assertTrue(release.wait(3))
+            return {'sources': [('session.jsonl', b'{}\n')], 'attachments': {}, 'context': {}}
+
+        self.manager.start_prepared(prepare)
+        self.assertTrue(entered.wait(3))
+        with patch('phase10.jobs.MAX_WORKSPACE_BYTES', 1):
+            release.set()
+            self.assertEqual(self.finish()['error_code'], 'workspace_quota')
+
+    def test_custody_failure_preserves_case_identity_and_private_recovery_inputs(self):
+        completion = Mock(side_effect=OSError('PRIVATE_CUSTODY_DETAIL'))
+        self.manager.completion_callback = completion
+        job = self.manager.start_bytes(self.capture.read_bytes(), context={'private': 'PRIVATE_CONTEXT'})
+        result = self.finish()
+        self.assertEqual(result['status'], 'failed')
+        self.assertEqual(result['error_code'], 'custody_failed')
+        self.assertEqual(result['case_id'], 'a' * 64)
+        self.assertEqual(completion.call_count, 1)
+        self.assertEqual(len(self.imports), 1)
+        folder = self.manager.workspace_path / job['id']
+        self.assertTrue((folder / 'capture.pcap').is_file())
+        self.assertTrue((folder / 'inputs.json').is_file())
+        reloaded = JobManager(self.companion, self.manager.workspace_path, self.accept,
+                              completion_callback=completion)
+        self.addCleanup(reloaded.close)
+        self.assertEqual(reloaded.snapshot()['jobs'][0], result)
+        self.assertEqual(completion.call_count, 1)
+        self.assertNotIn('PRIVATE_', json.dumps(self.manager.snapshot()))
 
 
 if __name__ == '__main__':

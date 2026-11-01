@@ -33,7 +33,8 @@ bash tools/launch-dashboard.sh --port 8765
 
 The dashboard discovers `sentinel-forensics/` beside the application automatically.
 Open the printed private session link, enable **Sentinel Forensics** in
-**Settings**, then use **Forensic cases → Analyze a capture**. A separate checkout
+**Settings**, then use **Honeypot → Open case** or **Forensic cases → Packet
+Squirrel / capture**. A separate checkout
 can be selected explicitly with `--sentinel-root /absolute/path/to/checkout`.
 See the [workflow guide](FORENSIC_WORKFLOWS.md) for the complete user journey.
 
@@ -57,9 +58,9 @@ Sentinel source. Default completed-case storage is the ignored
 tree, inventory totals and license digest. `tools/validate_sentinel_bundle.py`
 reconstructs the Git tree from the bundled file bytes and Git file modes without
 requiring a nested Git checkout. The import includes the complete committed tree,
-with 34 recorded replacements and 18 local additions; upstream Git
-metadata/history and untracked files are not copied. The current bundle has 1,434
-files: the 1,416 pinned upstream files plus the 18 recorded additions.
+with the local replacements and additions recorded individually in the manifest;
+upstream Git metadata/history and untracked files are not copied. Its current
+inventory totals and effective tree include the preserved review-branch fixes.
 
 The original license, source notices, upstream documentation and retained test
 fixtures stay with the imported source. See

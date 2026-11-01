@@ -89,6 +89,7 @@ def _main():
     dashboard.add_argument('--store',type=Path)
     dashboard.add_argument('--sentinel-root',type=Path)
     dashboard.add_argument('--log-root',type=Path,help='Private operator workspace for suite diagnostics')
+    dashboard.add_argument('--telemetry-root',type=Path,help='Read saved sensor observations from this honeypot directory')
     for name in ('status','health','stop','readiness'): sub.add_parser(name)
     boot=sub.add_parser('boot-start');boot.add_argument('--image-approval-sha256')
     doctor=sub.add_parser('doctor',help='Read local Docker daemon and existing project ownership; no recovery actions')
@@ -112,6 +113,8 @@ def _main():
     if a.command=='dashboard':
         from dashboard import serve
         options = {'log_root': a.log_root} if a.log_root is not None else {}
+        if a.telemetry_root is not None:
+            options['telemetry_root'] = a.telemetry_root
         return serve(ROOT,a.port,a.policy,a.store,a.sentinel_root,**options)
     if a.command=='integrations':
         from phase10.cli import dispatch

@@ -1,5 +1,15 @@
 # HoneyTrace — private v1.3.0-beta.1 source candidate
 
+For the local **HoneyTrace Forensic Dashboard**, follow the
+[installation and first-case guide](../docs/INSTALL.md). From the outer repository
+root, run `bash tools/launch-dashboard.sh --port 8765` as your normal user on
+Linux with Python 3.11+ and its SQLite module. Enable offline imports and
+**Sentinel Forensics**, then use **Honeypot → Try a synthetic interaction → Open
+case**. This saved-evidence workflow needs no Docker, pip/npm packages or live
+sensor setup.
+The deployment candidate and historical installation instructions below apply to
+running decoy services; local case analysis has its own source validation.
+
 **UNVERIFIED SOURCE CANDIDATE; beta release blocked.** See the
 [beta quickstart](docs/BETA_QUICKSTART.md) and
 [acceptance checklist](docs/BETA_ACCEPTANCE.md) for scope and remaining gates.

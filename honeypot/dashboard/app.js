@@ -20,8 +20,10 @@
     };
     const genericModules = new Set(['spiderfoot', 'recon-ng', 'bbot', 'nmap', 'nuclei', 'cloudfox', 'bloodhound', 'awareness']);
     const MAX_FILE = 8 * 1024 * 1024;
+    const MAX_CAPTURE = 64 * 1024 * 1024;
     const ui = {token: '', data: null, page: 'overview', refreshing: false, filters: {query: '', plugin: '', assessment: ''}};
-    const caseView = {selected: '', filters: null, request: 0, poll: null};
+    const caseView = {selected: '', tab: 'overview', filters: null, request: 0, poll: null};
+    const captureView = {file: null, tooBig: false, error: '', equipment_id: '', workflow: 'packet_squirrel'};
     const equipmentView = {query: '', category: '', status: '', equipment_class: ''};
     const securityView = {importIds: [], query: '', asset_id: null, status: 'all', offset: 0, limit: 50};
     const triageStatuses = {unreviewed: 'Unreviewed', in_review: 'In review', resolved: 'Resolved', accepted_risk: 'Accepted risk', false_positive: 'False positive'};
@@ -38,7 +40,10 @@
     const jobErrors = {companion_unavailable: 'The bundled analyzer is unavailable. Check the source installation or choose a trusted checkout override.',
         invalid_capture: 'Choose a regular PCAP or PCAPNG file on this machine.', job_busy: 'Another analysis is already running.',
         workspace_quota: 'The private analysis workspace is full.', analysis_failed: 'The analyzer could not complete this capture.',
-        analysis_timeout: 'Analysis reached its time limit. Try a smaller capture.', analysis_interrupted: 'The dashboard stopped before this analysis finished. Start a new job to try again.', import_failed: 'The output could not be verified and imported. Check the case limits and Sentinel module settings.'};
+        analysis_timeout: 'Analysis reached its time limit. Try a smaller capture.', analysis_interrupted: 'The dashboard stopped before this analysis finished. Start a new job to try again.', import_failed: 'The output could not be verified and imported. Check the case limits and Sentinel module settings.',
+        preparation_failed: 'The saved interaction could not be prepared. Refresh recent interactions and try again.',
+        custody_failed: 'Case preparation could not finish its custody record. Check private workspace access before trying again.',
+        capture_too_large: 'This capture exceeds the 64 MiB local limit. Keep the original; split or stream processing is a later step.'};
 
     function E(tag, props = {}, ...children) {
         const element = document.createElement(tag);
@@ -114,13 +119,24 @@
         } catch (_) {
             throw new Error('The local workspace is not reachable. Check that the dashboard is running, then try again.');
         }
+        return readApiResponse(response);
+    }
+
+    async function readApiResponse(response) {
         let result;
         try { result = await response.json(); } catch (_) { throw new Error('The workspace returned an unreadable response. Try refreshing.'); }
         if (response.status === 401) {
             disconnect('Your session link is missing or expired. Open the latest link printed by the dashboard.');
             throw new Error('Reconnect with your current session link.');
         }
-        if (!response.ok) throw new Error(result.error || 'That operation could not be completed. Check the input and try again.');
+        if (!response.ok) {
+            const detail = typeof result.error === 'object' && result.error ? result.error : result;
+            const error = new Error(typeof result.error === 'string' ? result.error : detail.message || 'That operation could not be completed. Check the input and try again.');
+            error.code = result.code || detail.code;
+            error.limit_bytes = result.limit_bytes ?? detail.limit_bytes;
+            error.status = response.status;
+            throw error;
+        }
         return result;
     }
 
@@ -212,20 +228,21 @@
 
     function renderOverview(page) {
         const data = ui.data;
-        page.append(pageHeader('HoneyTrace Forensic Dashboard', 'Your security suite: connect observations, understand findings and preserve what matters.',
-            button('Import evidence', () => openImport(), 'primary', 'upload')));
+        page.append(pageHeader('From interaction to case.', 'Review a saved honeypot interaction, inspect the evidence and share a clear custody record. All on this machine.',
+            button('Recent interactions', () => navigate('honeypot'), 'primary', 'shield')));
         const core = E('section', {class: 'core-card'}, E('div', {class: 'core-card-copy'},
-            badge('FREE HONEYPOT CORE', 'accent'), E('h2', {}, 'Start with visibility.\nBuild understanding.'),
-            E('p', {}, 'Decoy services, network observations and preserved evidence. Your free foundation for a more complete security picture.'),
-            E('div', {class: 'actions'}, button('View honeypot', () => navigate('honeypot'), 'secondary', 'arrow'),
+            badge('LOCAL EVIDENCE WORKFLOW', 'accent'), E('h2', {}, 'See the interaction.\nOpen the case.'),
+            E('p', {}, 'Start with Cowrie or OpenCanary saved observations. Open a case to read commands, inspect packet support and preserve its custody record.'),
+            E('div', {class: 'actions'}, button('Open Honeypot', () => navigate('honeypot'), 'primary', 'arrow'),
                 E('span', {class: 'core-caption'}, 'Observe · Reconcile · Preserve'))), E('div', {class: 'core-art', 'aria-hidden': 'true'}, E('span', {}, 'HT'), E('span', {class: 'core-art-slash'}, '//'), icon('shield')));
         const started = [!!data.policy?.enabled, (data.metrics?.imports || 0) > 0, (data.metrics?.findings || 0) > 0];
         const steps = E('div', {class: 'steps'},
-            step(1, 'Choose your tools', 'Enable only the offline modules you need.', started[0], () => navigate('settings')),
-            step(2, 'Bring in evidence', 'Import a report or a completed case.', started[1], () => openImport()),
-            step(3, 'Review & preserve', 'Explore findings and their source references.', started[2], () => navigate('evidence')));
+            step(1, 'Choose an interaction', 'Review recent Cowrie and OpenCanary observations.', false, () => navigate('honeypot')),
+            step(2, 'Open a forensic case', 'Read the timeline and inspect what supports each lead.', started[1], () => navigate('cases')),
+            step(3, 'Read the custody record', 'See retained files, hashes, import details and unknowns.', started[2], () => navigate('cases')));
         page.append(E('div', {class: 'hero-grid'}, core, card('A simple way to get started', 'Your next step is always within reach.', steps,
             button('Guide', () => openHelp(), 'ghost small', 'help'))));
+        page.append(packetSquirrelCard());
         page.append(E('div', {class: 'stats-grid'},
             stat('Evidence imports', data.store_status === 'disabled' ? null : data.metrics?.imports, data.store_status === 'disabled' ? 'Hidden while offline modules are disabled' : 'Source files with retained provenance', 'folder'),
             stat('Normalized findings', data.store_status === 'disabled' ? null : data.metrics?.findings, data.store_status === 'disabled' ? 'Re-enable modules to view preserved findings' : 'Observations ready for your review', 'search'),
@@ -355,6 +372,7 @@
 
     function openCase(id) {
         caseView.selected = id;
+        caseView.tab = 'overview';
         caseView.filters = caseFilters();
         navigate('cases');
     }
@@ -376,9 +394,9 @@
 
     function renderCases(page) {
         const revision = caseView.request;
-        page.append(pageHeader('Evidence, with context.', 'Open a case, follow its timeline and see exactly what the analysis covers.',
+        page.append(pageHeader('Forensic cases', 'Read an interaction, inspect its supporting evidence and follow the custody record.',
             button('Import completed case', openSentinel, 'secondary', 'folder'),
-            button('Analyze a capture', openCapture, 'primary', 'pulse')));
+            button('Packet Squirrel / capture', () => openCapture('packet_squirrel'), 'primary', 'upload')));
         if (!enabled('sentinel')) page.append(notice('Enable Sentinel Forensics in Settings to import, analyze and view cases. Preserved cases stay on this machine.', 'info',
             button('Open settings', () => navigate('settings'), 'ghost small', 'settings')));
         const jobs = E('div', {id: 'case-jobs'});
@@ -413,7 +431,7 @@
                                 workflowStep('02', 'Follow the timeline', 'Search observations and narrow them by source, protocol or time.', 'clock'),
                                 workflowStep('03', 'Review coverage', 'See decoded protocols, limitations and source hashes before drawing conclusions.', 'search')),
                             notice('Case identifiers are pseudonyms scoped to each case. Matching labels across different cases do not establish identity.'),
-                            E('div', {class: 'actions'}, button('Analyze a capture', openCapture, 'primary', 'pulse'), button('Import completed case', openSentinel, 'secondary', 'folder')))));
+                            E('div', {class: 'actions'}, button('Recent interactions', () => navigate('honeypot'), 'primary', 'shield'), button('Drop a capture', () => openCapture('packet_squirrel'), 'secondary', 'upload'), button('Import completed case', openSentinel, 'secondary', 'folder')))));
                     } else if (initial || !detail.dataset.caseId || detail.dataset.caseId !== caseView.selected) {
                         detail.dataset.caseId = caseView.selected;
                         loadCaseDetail(detail, caseView.selected, current);
@@ -442,7 +460,7 @@
         if (!jobs.length && state.history_status !== 'unavailable') {host.replaceChildren(); return;}
         const rows = jobs.slice(0, 5).map(job => {
             const running = job.status === 'running';
-            const label = running ? ({starting: 'Preparing capture', ingestion: 'Reading capture', analysis: 'Analyzing observations', verifying: 'Verifying and importing'}[job.stage] || 'Analysis in progress') : human(job.status);
+            const label = running ? ({starting: 'Preparing evidence', preparation: 'Preparing saved interaction', preparing: 'Preparing saved interaction', ingestion: 'Reading capture', analysis: 'Analyzing observations', verifying: 'Verifying and importing'}[job.stage] || 'Analysis in progress') : human(job.status);
             const action = running ? button('Cancel', async event => {
                 const control = event.currentTarget;
                 control.disabled = true;
@@ -454,7 +472,7 @@
                     job.status === 'complete' ? 'Case verified and ready to review.' : job.status === 'cancelled' ? 'Analysis stopped. The original capture is unchanged.' : jobErrors[job.error_code] || 'Analysis could not finish. Try another capture or check the bundled analyzer.')),
                 badge(running ? 'Running' : human(job.status), job.status === 'complete' ? 'success' : job.status === 'failed' ? 'warning' : 'neutral'), action);
         });
-        host.replaceChildren(card('Capture analysis', 'Progress reflects the analyzer’s current stage.', E('div', {class: 'analysis-jobs', role: 'status'},
+        host.replaceChildren(card('Case preparation', 'Local progress · You can continue using the workspace.', E('div', {class: 'analysis-jobs', role: 'status'},
             state.history_status === 'unavailable' ? notice('Saved analysis history is unavailable. Check the private workspace before starting another job.', 'warning') : null, rows)));
         if (focusedJob) [...host.querySelectorAll('[data-job-id]')].find(row => row.dataset.jobId === focusedJob)?.querySelector('button')?.focus({preventScroll: true});
     }
@@ -531,17 +549,195 @@
                     button('Next', () => updateTimeline(result.offset + result.limit), 'secondary small', null, {disabled: result.offset + rows.length >= result.total})));
         }
         filterForm.addEventListener('submit', event => {event.preventDefault(); updateTimeline();});
-        host.replaceChildren(header, stats, card('Case timeline', 'Review the order of observations, then inspect their source references.', E('div', {}, filterForm, timeline)),
-            renderCoverage(data.coverage || []), renderCaseSources(data.sources || [], summary));
-        if ((data.findings || []).length) host.append(card('Review leads', 'Potential patterns to examine in context; these do not establish compromise.', E('div', {class: 'list'}, data.findings.map(row =>
-            E('div', {class: 'list-row'}, E('div', {class: 'row-main'}, E('strong', {}, human(row.details?.metrics?.rule)),
-                E('span', {class: 'muted'}, `${human(row.details?.metrics?.confidence_label)} confidence · ${human(row.details?.metrics?.source_severity)}`)),
-            button('Review lead', () => openFinding(row), 'ghost small', 'arrow'))))));
-        host.append(notice('A verified checksum establishes consistency with the supplied case, not authenticity. Pseudonyms are case scoped; observations and review leads require interpretation.'));
+        const tabs = E('div', {class: 'case-tabs', role: 'tablist', 'aria-label': 'Case sections'});
+        const panels = E('div', {class: 'case-tab-panels'});
+        const content = {
+            overview: E('section', {}, renderSessionEvidence(data.session_evidence), renderCoverage(data.coverage || []), renderCaseSources(data.sources || [], summary)),
+            timeline: E('section', {}, card('Case timeline', 'Review the order of observations, then inspect their source references.', E('div', {}, filterForm, timeline))),
+            leads: E('section', {}, renderCaseLeads(data)),
+            custody: E('section', {}, E('div', {class: 'loading-screen'}, E('span', {class: 'spinner'}), E('p', {}, 'Reading the custody record…')))
+        };
+        let custodyLoaded = false;
+        const selectTab = (name, focus = false) => {
+            caseView.tab = name;
+            for (const control of $$('[role="tab"]', tabs)) {
+                const selected = control.dataset.caseTab === name;
+                control.setAttribute('aria-selected', String(selected)); control.tabIndex = selected ? 0 : -1;
+                if (selected && focus) control.focus();
+            }
+            for (const [key, panel] of Object.entries(content)) panel.hidden = key !== name;
+            if (name === 'custody' && !custodyLoaded) {custodyLoaded = true; loadCaseCustody(content.custody, summary.case_id, current);}
+        };
+        for (const [name, label] of Object.entries({overview: 'Overview', timeline: 'Timeline', leads: `Leads (${(data.findings || []).length})`, custody: 'Custody'})) {
+            const control = button(label, () => selectTab(name), 'case-tab', null, {id: `case-tab-${name}`, role: 'tab', 'data-case-tab': name, 'aria-controls': `case-panel-${name}`});
+            control.addEventListener('keydown', event => {
+                const names = Object.keys(content), index = names.indexOf(name);
+                const next = event.key === 'ArrowRight' ? names[(index + 1) % names.length] : event.key === 'ArrowLeft' ? names[(index + names.length - 1) % names.length] : event.key === 'Home' ? names[0] : event.key === 'End' ? names.at(-1) : null;
+                if (next) {event.preventDefault(); selectTab(next, true);}
+            });
+            tabs.append(control);
+            Object.assign(content[name], {id: `case-panel-${name}`});
+            content[name].setAttribute('role', 'tabpanel'); content[name].setAttribute('aria-labelledby', control.id);
+            panels.append(content[name]);
+        }
+        host.replaceChildren(header, stats, tabs, panels,
+            notice('Checksums establish consistency with supplied references. They do not prove authorship, authenticity, capture origin or the correctness of an interpretation.'));
+        selectTab(Object.hasOwn(content, caseView.tab) ? caseView.tab : 'overview');
         drawTimeline(data.timeline);
     }
 
     function caseMetric(label, value) { return E('div', {}, E('span', {}, label), E('strong', {}, count(value))); }
+
+    function renderSessionEvidence(evidence) {
+        if (!evidence) return null;
+        const summary = evidence.summary || {}, capture = evidence.capture || {}, transcript = evidence.transcript || {};
+        const commands = transcript.commands || [];
+        const synthetic = summary.synthetic === true || summary.kind === 'synthetic' || evidence.provenance?.synthetic === true;
+        return card('The saved interaction', 'A bounded record from the honeypot, with its known limits.', E('div', {class: 'panel-stack'},
+            synthetic ? notice('Synthetic local example. This is demonstration evidence, not a live observation.', 'warning') : null,
+            E('dl', {class: 'summary-grid'}, keyValue('Sensor source', human(summary.source)), keyValue('Selection', human(summary.kind)),
+                keyValue('First observed · sensor time', formatDate(summary.first_seen)), keyValue('Last observed · sensor time', formatDate(summary.last_seen)),
+                keyValue('Saved events', count(summary.event_count)), keyValue('Observed command inputs', count(summary.command_count))),
+            notice('Sensor timestamps are unverified. Saved observations may be partial. Emulated shell input does not prove execution on a real host.'),
+            E('section', {}, E('h3', {}, 'Command transcript'), commands.length ? E('ol', {class: 'command-transcript'}, commands.map(item => E('li', {},
+                E('p', {class: 'row-meta'}, formatDate(item.timestamp)), E('pre', {class: 'command-text'}, item.command),
+                E('p', {class: 'field-help'}, item.assessment || 'Observed input; real-host execution is unknown.'),
+                E('details', {}, E('summary', {}, 'Log reference'), E('pre', {class: 'code-block'}, JSON.stringify(item.reference || {}, null, 2)))))) : E('p', {class: 'muted'}, summary.source === 'opencanary' ? 'OpenCanary records probe or authentication observations. It does not provide a command transcript.' : 'No command input is retained in this selection.')),
+            E('section', {}, E('h3', {}, 'Associated packet capture'), badge(capture.status === 'matched' ? 'Qualified packet overlap' : human(capture.status || 'unavailable'), capture.status === 'matched' ? 'success' : 'neutral'),
+                E('p', {class: 'field-help'}, capture.status === 'matched' ? 'A retained capture has qualified tuple and time overlap with this selection. This is an association; it does not establish a complete session or actor identity.' : 'No uniquely qualified packet overlap is available. The saved log selection remains evidence; packet support is unknown.'),
+                (capture.limitations || []).map(value => E('p', {class: 'field-help'}, value))),
+            (summary.limitations || []).length ? E('details', {}, E('summary', {}, 'Selection limits'), E('ul', {class: 'case-limitations'}, summary.limitations.map(value => E('li', {}, value)))) : null));
+    }
+
+    function renderCaseLeads(data) {
+        const rows = data.findings || [], details = new Map((data.lead_details || []).map(item => [item.finding_id, item]));
+        if (!rows.length) return card('Review leads', 'Analysis results remain bounded by the retained evidence.', empty('No rule leads in this case', 'Review the interaction and timeline. An absence of leads does not prove an absence of activity.', null, 'search'));
+        return E('div', {class: 'panel-stack'}, notice('A lead is a pattern to review. Read the supporting packets or log records, rule thresholds and possible benign explanations before drawing a conclusion.'),
+            rows.map(row => {
+                const lead = details.get(row.finding_id), original = row.details?.metrics || {}, support = lead?.support || {status: 'unavailable', records: []};
+                const evidence = E('details', {class: 'lead-evidence', open: true}, E('summary', {}, `Supporting evidence · ${count(support.returned_records ?? 0)} of ${count(support.total_matching_records)} records`),
+                    support.status === 'unavailable' ? notice(`Supporting records are unavailable (${human(support.reason || 'not_recorded')}). The original lead is retained; this view cannot establish its support.`, 'warning') : null,
+                    support.truncated ? notice('This is a bounded sample. Some matching records are omitted from this view.', 'warning') : null,
+                    E('div', {class: 'support-records'}, (support.records || []).map(record => {
+                        const metrics = record.details?.metrics || {}, provenance = record.details?.provenance || {};
+                        return E('article', {class: 'support-record'}, E('div', {class: 'section-heading'}, E('strong', {}, `${display(provenance.occurrence_id)} · ${human(metrics.kind)}`),
+                            button('Provenance', () => openFinding(record), 'ghost small', 'folder')),
+                            E('p', {class: 'row-meta'}, `Source ${display(provenance.source_id)} · Record ${display(provenance.ordinal)} · ${exactTime(eventTime(record))}`),
+                            E('pre', {class: 'code-block'}, JSON.stringify(metrics, null, 2)),
+                            E('p', {class: 'hash-value'}, `Source SHA-256: ${display(provenance.source_sha256)}`),
+                            E('p', {class: 'hash-value'}, `Record SHA-256: ${display(provenance.record_sha256)}`));
+                    })));
+                const rule = E('div', {class: 'panel-stack'}, E('section', {class: 'original-assessment'}, E('p', {class: 'eyebrow'}, 'ORIGINAL ANALYZER ASSESSMENT'),
+                    E('p', {}, lead?.explanation || 'No supported explanation is recorded for this rule.'),
+                    E('p', {class: 'field-help'}, `${human(original.confidence_label)} confidence · ${human(original.source_severity)} severity · Rule ${display(lead?.rule_version || original.rule_version)}`),
+                    button('Original finding', () => openFinding(row), 'ghost small', 'folder')),
+                    lead?.evaluation ? E('section', {}, E('h3', {}, 'Why this rule triggered'), E('dl', {class: 'summary-grid'},
+                        Object.entries(lead.pattern_metrics || {}).map(([key, value]) => keyValue(human(key), value)),
+                        keyValue('Minimum sample size', lead.evaluation.minimum_sample_size),
+                        Object.entries(lead.evaluation.thresholds || {}).map(([key, value]) => keyValue(human(key), value)))) : null,
+                    evidence,
+                    lead?.alternatives?.length ? E('section', {}, E('h3', {}, 'Possible benign explanations'), E('ul', {class: 'case-limitations'}, lead.alternatives.map(value => E('li', {}, value)))) : null,
+                    lead?.limitations?.length ? E('section', {}, E('h3', {}, 'What this does not establish'), E('ul', {class: 'case-limitations'}, lead.limitations.map(value => E('li', {}, value)))) : null,
+                    caseLeadReview(data.case.case_id, row.finding_id, lead?.review, data.case_review?.decisions_available === true));
+                const result = card(human(lead?.rule || original.rule), 'Rule output and your review are recorded separately.', rule);
+                result.dataset.findingId = row.finding_id;
+                return result;
+            }));
+    }
+
+    function caseLeadReview(caseId, findingId, saved, available) {
+        let review = saved || {status: 'unreviewed', note: ''};
+        const status = E('div', {class: 'actions', 'data-review-state': findingId});
+        const errorHost = E('div', {role: 'status'});
+        const statusInput = E('select', {'aria-label': 'Operator review status'}, Object.entries({unreviewed: 'Unreviewed', in_review: 'In review', reviewed: 'Reviewed', false_positive: 'False positive'}).map(([value, label]) => E('option', {value}, label)));
+        const note = E('textarea', {rows: 2, maxlength: 512, 'aria-label': 'Operator review note', placeholder: 'Optional note about your interpretation…', value: review.note});
+        const host = E('section', {class: 'operator-review'}, E('p', {class: 'eyebrow'}, 'YOUR REVIEW · DERIVATIVE RECORD'), status,
+            E('p', {class: 'field-help'}, 'Your decision records an interpretation. It does not change the original assessment or its evidence.'),
+            !available ? notice('Review storage is unavailable. The original case remains readable.', 'warning') : null,
+            E('details', {}, E('summary', {}, 'Review options and note'), field('Review status', statusInput), field('Review note', note),
+                button('Save review', () => save(statusInput.value, note.value), 'secondary small', 'check', {disabled: !available})), errorHost);
+        async function save(nextStatus, nextNote = '') {
+            setBusy(host, true); errorHost.replaceChildren();
+            try {
+                const result = await api('/api/case-review', {case_id: caseId, finding_id: findingId, status: nextStatus, note: nextNote});
+                review = result.decision || result.review || result;
+                draw(); announce(`Operator review saved: ${human(review.status)}`);
+            } catch (error) {errorHost.replaceChildren(notice(error.message, 'error'));}
+            finally {setBusy(host, false);}
+        }
+        function draw() {
+            statusInput.value = review.status; note.value = review.note || '';
+            status.replaceChildren(badge(human(review.status), review.status === 'false_positive' ? 'warning' : 'neutral'),
+                review.updated_at ? E('span', {class: 'field-help'}, `Saved ${formatDate(review.updated_at)} · Revision ${display(review.revision)}`) : E('span', {class: 'field-help'}, 'No operator decision recorded.'),
+                button(review.status === 'false_positive' ? 'Reset review' : 'Mark false positive', () => save(review.status === 'false_positive' ? 'unreviewed' : 'false_positive'), 'secondary small', 'check', {disabled: !available, 'data-false-positive': findingId}));
+        }
+        draw();
+        return host;
+    }
+
+    async function loadCaseCustody(host, caseId, current) {
+        try {
+            const result = await api('/api/case-custody', {case_id: caseId});
+            if (!current() || caseView.selected !== caseId) return;
+            renderCaseCustody(host, caseId, result.custody || {status: 'unavailable'});
+        } catch (error) {if (current()) host.replaceChildren(notice(error.message, 'warning', button('Try again', () => loadCaseCustody(host, caseId, current), 'secondary small', 'refresh')));}
+    }
+
+    function renderCaseCustody(host, caseId, custody) {
+        const available = custody.status === 'available', importer = custody.importer || {}, machine = custody.machine || {}, analyzer = custody.analyzer || {};
+        const sensor = custody.sensor, session = custody.session || {};
+        const unknown = value => display(value, 'Unknown · not recorded');
+        const workflow = ({honeypot_session: 'Saved honeypot interaction', packet_squirrel: 'Stopped Packet Squirrel capture', capture: 'Finished capture file', completed_case_import: 'Completed case import'})[custody.workflow] || human(custody.workflow);
+        const association = ({operator_selected: 'Selected by the operator', unique_active_tracking: 'One active inventory entry matches this source', operator_selected_synthetic_example: 'Selected for this synthetic example'})[sensor?.association] || human(sensor?.association);
+        host.replaceChildren(card('Custody record', 'Who imported the evidence, what was retained and how its integrity can be checked.', E('div', {class: 'panel-stack'},
+            E('div', {class: 'actions'}, badge(available ? 'Custody recorded' : human(custody.status || 'not_recorded'), available ? 'success' : 'warning'),
+                button('Download custody report (.txt)', () => exportCustody(caseId), 'primary', 'download', {id: 'custody-export'})),
+            !available ? notice(custody.status === 'not_recorded' ? 'No custody receipt is recorded for this case. Acquisition details are unknown and have not been reconstructed.' : 'The custody record is unavailable. Do not infer missing acquisition or authorship details.', 'warning') : null,
+            E('p', {class: 'custody-explanation'}, custody.authorship_statement || 'Checksums establish consistency with the supplied references. They do not prove authorship, authenticity, capture origin, or the correctness of an interpretation.'),
+            E('section', {}, E('h3', {}, 'Acquisition and import'), E('dl', {class: 'summary-grid'},
+                keyValue('Workflow', workflow), keyValue('Case imported', custody.imported_at ? formatDate(custody.imported_at) : 'Unknown · not recorded'),
+                keyValue('Custody receipt recorded', custody.recorded_at ? formatDate(custody.recorded_at) : 'Unknown · not recorded'),
+                keyValue('First observed · sensor time', session.first_seen ? formatDate(session.first_seen) : 'Unknown · not recorded'), keyValue('Last observed · sensor time', session.last_seen ? formatDate(session.last_seen) : 'Unknown · not recorded'),
+                keyValue('Local importer account', unknown(importer.name)), keyValue('Local account UID', unknown(importer.uid)), keyValue('Importer identity verification', importer.identity_status === 'local_os_account_not_verified_person' ? 'Local OS account · person unverified' : human(importer.identity_status)),
+                keyValue('Import host', unknown(machine.hostname)), keyValue('Operating system', [machine.system, machine.release].filter(Boolean).join(' ') || 'Unknown · not recorded')),
+                E('p', {class: 'field-help'}, 'Import time records when HoneyTrace received this evidence. Sensor times describe observations and may be unverified. A local account name does not verify a person’s identity.')),
+            E('section', {}, E('h3', {}, 'Associated equipment snapshot'), sensor ? E('div', {}, E('dl', {class: 'summary-grid'},
+                keyValue('Inventory name', unknown(sensor.name)), keyValue('Equipment ID', unknown(sensor.equipment_id)), keyValue('Class', unknown(sensor.equipment_class)), keyValue('Association', association),
+                keyValue('Snapshot recorded', sensor.snapshot_at ? formatDate(sensor.snapshot_at) : 'Unknown · not recorded'), keyValue('Last recorded heartbeat', sensor.last_heartbeat_at ? formatDate(sensor.last_heartbeat_at) : 'Unknown · not recorded'),
+                keyValue('Last status report', sensor.reported_at ? formatDate(sensor.reported_at) : 'Unknown · not recorded'), keyValue('Reported status', human(sensor.reported_status)),
+                keyValue('Status at case creation', human(sensor.status_at_case_creation)), keyValue('Status at capture time', human(sensor.historical_status || 'unknown'))),
+                E('p', {class: 'field-help'}, 'This is the inventory snapshot saved with the case. It does not probe current hardware or establish that the equipment was healthy at capture time.')) : E('p', {class: 'muted'}, 'Unknown · no inventoried equipment was associated with this case.')),
+            E('section', {}, E('h3', {}, 'Retained evidence files'), E('p', {class: 'field-help'}, 'These downloads contain private local evidence. Review their contents before sharing.'),
+                (custody.artifacts || []).length ? E('div', {class: 'custody-artifacts'}, custody.artifacts.map(item => E('article', {class: 'custody-artifact'},
+                    E('div', {class: 'section-heading'}, E('div', {}, E('strong', {}, item.name || human(item.kind)), E('p', {class: 'row-meta'}, `${item.bytes === undefined ? 'Size unknown' : `${count(item.bytes)} bytes`} · ${(item.retained ?? item.available) === true ? 'Retained locally' : 'Not retained'}`)),
+                        button('Download file', () => downloadArtifact(caseId, item), 'secondary small', 'download', {disabled: (item.retained ?? item.available) !== true, 'data-artifact-id': item.artifact_id || item.id})),
+                    E('dl', {class: 'metadata-list'}, keyValue('SHA-256', unknown(item.sha256), true), keyValue('Verification', typeof item.verification === 'object' ? JSON.stringify(item.verification) : unknown(item.verification)))))) : E('p', {class: 'muted'}, 'No retained artifacts are recorded.')),
+            E('section', {}, E('h3', {}, 'Verification references'), E('dl', {class: 'metadata-list'},
+                keyValue('Custody record SHA-256', unknown(custody.custody_sha256), true), keyValue('Checksum ledger SHA-256', unknown(custody.checksum_ledger_sha256), true), keyValue('Exchange SHA-256', unknown(custody.exchange_sha256), true),
+                keyValue('Verification', typeof custody.verification === 'object' ? JSON.stringify(custody.verification) : unknown(custody.verification)))),
+            E('details', {}, E('summary', {}, 'Analyzer and runtime versions'), E('dl', {class: 'metadata-list'}, keyValue('Analyzer', unknown(analyzer.name || (analyzer.parser_version ? 'Sentinel Forensics' : null))), keyValue('Version', unknown(analyzer.version || analyzer.parser_version)),
+                keyValue('Analyzer execution', analyzer.analyzed_locally === true ? 'Analyzer ran on this importer machine' : analyzer.analyzed_locally === false ? 'Analyzer machine unknown (completed external bundle)' : 'Unknown · not recorded'),
+                analyzer.code_sha256 && typeof analyzer.code_sha256 === 'object' ? Object.entries(analyzer.code_sha256).map(([name, hash]) => keyValue(`Code SHA-256 · ${name}`, hash, true)) : keyValue('Analyzer code SHA-256', unknown(analyzer.code_sha256), true),
+                keyValue('Python', unknown(analyzer.python)), keyValue('SQLite', unknown(analyzer.sqlite)))),
+            E('section', {}, E('h3', {}, 'Omissions and unknowns'), (custody.omissions || []).length ? E('ul', {class: 'case-limitations'}, custody.omissions.map(item => E('li', {}, typeof item === 'string' ? item : JSON.stringify(item)))) : E('p', {class: 'muted'}, available ? 'No additional omissions are recorded. This does not establish complete acquisition.' : 'Acquisition details, source identity and historical sensor status are unknown.')))));
+    }
+
+    async function exportCustody(caseId) {
+        try {
+            const result = await api('/api/case-custody-export', {case_id: caseId});
+            download(result.filename || `honeytrace-custody-${caseId.slice(0, 8)}.txt`, result.text, 'text/plain;charset=utf-8');
+            toast('Custody report downloaded. Review the recorded omissions before sharing.');
+        } catch (error) {toast(error.message, 'error');}
+    }
+
+    async function downloadArtifact(caseId, artifact) {
+        try {
+            const response = await fetch('/api/case-artifact', {method: 'POST', cache: 'no-store', credentials: 'omit', headers: {Authorization: `Bearer ${ui.token}`, 'Content-Type': 'application/json'}, body: JSON.stringify({case_id: caseId, artifact_id: artifact.artifact_id || artifact.id})});
+            if (!response.ok) {await readApiResponse(response); return;}
+            const blob = await response.blob();
+            download((artifact.name || 'case-artifact').split(/[\\/]/).at(-1), blob, 'application/octet-stream');
+        } catch (error) {toast(error.message, 'error');}
+    }
 
     function renderCoverage(rows) {
         const coverage = rows[0]?.details || {}, metrics = coverage.metrics || {}, counts = coverage.counts || {};
@@ -570,29 +766,94 @@
         catch (error) {toast(error.message, 'error');}
     }
 
-    async function openCapture() {
-        const {dialog, body} = modal('Analyze a capture', 'Turn a local capture into a verified, searchable forensic case.');
-        body.append(E('p', {class: 'muted'}, 'Checking the bundled analyzer…'));
+    function packetSquirrelCard() {
+        return card('Packet Squirrel → forensic case', 'A short local workflow for a capture you already collected.',
+            E('div', {class: 'capture-workflow'}, E('ol', {class: 'capture-steps'},
+                E('li', {}, E('strong', {}, 'Plug in'), E('span', {}, 'Use your authorized Packet Squirrel setup.')),
+                E('li', {}, E('strong', {}, 'Stop capture'), E('span', {}, 'Finish and copy the capture file to this machine.')),
+                E('li', {}, E('strong', {}, 'Drop file here'), E('span', {}, 'Choose the PCAP or PCAPNG, up to 64 MiB.'))),
+                E('div', {class: 'actions'}, button('Drop Packet Squirrel capture', () => openCapture('packet_squirrel'), 'primary', 'upload'),
+                    button('Other capture', () => openCapture('capture'), 'ghost', 'folder'))), badge('Local · original unchanged'));
+    }
+
+    function inventorySelect(entries, id, chosen = '') {
+        return E('select', {id, value: chosen}, E('option', {value: ''}, 'Unknown / no equipment selected'),
+            entries.map(entry => E('option', {value: entry.id}, `${entry.name}${entry.equipment_class ? ` · ${entry.equipment_class}` : ''}${entry.active ? '' : ' · inactive in inventory'}`)));
+    }
+
+    async function openCapture(workflow = 'packet_squirrel') {
+        if (typeof workflow !== 'string') workflow = 'packet_squirrel';
+        captureView.workflow = workflow;
+        const packetSquirrel = workflow === 'packet_squirrel';
+        const {dialog, body} = modal(packetSquirrel ? 'Packet Squirrel capture' : 'Analyze a capture', 'Choose a finished capture. HoneyTrace preserves a private copy and prepares the case locally.');
+        body.append(E('p', {class: 'muted'}, 'Checking local analysis and equipment…'));
         try {
-            const result = await api('/api/cases');
+            const results = await Promise.allSettled([api('/api/cases'), api('/api/equipment')]);
             if (!dialog.open || !body.isConnected) return;
-            const available = result.jobs?.available;
-            const input = E('input', {id: 'capture-path', type: 'text', required: true, spellcheck: false, placeholder: '/absolute/path/to/capture.pcap'});
+            if (results[0].status !== 'fulfilled') throw results[0].reason;
+            const available = results[0].value.jobs?.available;
+            const equipment = results[1].status === 'fulfilled' ? results[1].value.equipment || [] : [];
+            const selection = inventorySelect(equipment, 'capture-equipment', captureView.equipment_id);
+            const input = E('input', {id: 'capture-file', type: 'file', accept: '.pcap,.pcapng,application/vnd.tcpdump.pcap,application/octet-stream', 'aria-describedby': 'capture-limit'});
+            const filename = E('p', {id: 'capture-filename', class: 'filename'}, captureView.file ? `${captureView.file.name} · ${fileSize(captureView.file.size)}` : 'No file selected');
+            const alert = E('div', {id: 'capture-error', role: 'alert', 'aria-live': 'assertive'});
+            const zone = E('label', {class: 'dropzone capture-dropzone', htmlFor: input.id}, icon('upload'), E('strong', {}, 'Drop your capture here'), E('span', {class: 'muted'}, 'or choose a file on this machine'), input, filename);
+            const legacy = E('input', {id: 'capture-use-path', type: 'checkbox'});
+            const path = E('input', {id: 'capture-path', type: 'text', spellcheck: false, placeholder: '/absolute/path/to/capture.pcap'});
+            const submit = E('button', {type: 'submit', class: 'button primary', disabled: !available || !enabled('sentinel')}, icon('pulse'), 'Prepare case');
             const form = E('form', {class: 'panel-stack'}, chooseModuleNotice('sentinel'),
-                !available ? notice('The bundled analyzer is unavailable. Check that your HoneyTrace source installation includes sentinel-forensics, or restart with a trusted checkout override.', 'info') : null,
-                !available ? E('pre', {class: 'code-block'}, 'bash tools/launch-dashboard.sh --sentinel-root /absolute/path/to/sentinel-forensics') : null,
-                field('Local capture path', input, 'Choose a PCAP or PCAPNG on the machine running this dashboard. Packet Squirrel captures use the same workflow.'),
-                E('p', {class: 'field-help'}, 'The bundled Sentinel analyzer uses a private copy, keeps the original unchanged and runs in the background. Progress shows each stage. Completed output must pass case verification before it appears here.'),
-                E('details', {class: 'help-panel'}, E('summary', {}, 'Supported size and analysis scope'), E('p', {class: 'muted'}, 'The current workflow accepts captures up to 64 MiB and runs for up to two minutes. Imported exchanges remain bounded to 8 MiB and 10,000 records. Larger captures can be analyzed separately; large-case browsing is a later increment. No live capture or active scanning is started.')),
-                E('div', {class: 'modal-footer'}, button('Cancel', () => dialog.close(), 'secondary'),
-                    E('button', {type: 'submit', class: 'button primary', disabled: !available || !enabled('sentinel')}, icon('pulse'), 'Start analysis')));
-            form.addEventListener('submit', async event => {
-                event.preventDefault(); setBusy(form, true);
-                try {await api('/api/jobs', {input_path: input.value.trim()}); dialog.close(); navigate('cases'); toast('Capture analysis started. You can follow its progress in Forensic cases.');}
-                catch (error) {toast(error.message, 'error');}
-                finally {setBusy(form, false);}
+                !available ? notice('The bundled analyzer is unavailable. Check the local source installation before starting analysis.', 'warning') : null,
+                packetSquirrel ? E('ol', {class: 'capture-steps compact'}, E('li', {}, E('strong', {}, '1 · Plug in')), E('li', {}, E('strong', {}, '2 · Stop capture')), E('li', {}, E('strong', {}, '3 · Drop file here'))) : null,
+                E('p', {id: 'capture-limit', class: 'field-help'}, 'PCAP or PCAPNG · maximum 64 MiB (67,108,864 bytes). No live capture starts here.'), zone, alert,
+                field('Associate inventoried equipment (optional)', selection, 'Choose the actual sensor or capture device. File names do not establish hardware origin. Leaving this blank records the equipment as unknown.'),
+                results[1].status !== 'fulfilled' ? notice('The equipment inventory could not be read. You can continue with equipment recorded as unknown.', 'warning') : null,
+                E('details', {class: 'help-panel'}, E('summary', {}, 'Use a server-side path instead'), E('label', {class: 'checkbox-row'}, legacy, E('span', {}, 'Use a path on the machine running HoneyTrace')), field('Local capture path', path)),
+                E('p', {class: 'field-help'}, 'The original stays unchanged. Analysis runs in the background; the completed case includes its custody record. Split or stream processing for larger captures is a later step. Keep the full original.'),
+                E('div', {class: 'modal-footer'}, button('Cancel', () => dialog.close(), 'secondary'), submit));
+            function drawError() {
+                alert.replaceChildren();
+                if (captureView.tooBig) alert.append(E('div', {class: 'notice error capture-too-big', 'data-error-code': 'capture_too_large'}, icon('info'), E('div', {}, E('strong', {}, 'Capture too large · 64 MiB maximum'),
+                    E('p', {}, captureView.file ? `${captureView.file.name} is ${fileSize(captureView.file.size)}. This file has not been uploaded.` : 'This file exceeds the local capture limit.'),
+                    E('p', {}, 'Keep the original unchanged. Choose a smaller capture; split or stream processing is a later step.'))));
+                else if (captureView.error) alert.append(notice(captureView.error, 'error'));
+                submit.disabled = !available || !enabled('sentinel') || (!legacy.checked && (!captureView.file || captureView.tooBig));
+            }
+            function choose(file) {
+                captureView.file = file || null; captureView.tooBig = !!file && file.size > MAX_CAPTURE; captureView.error = '';
+                filename.textContent = file ? `${file.name} · ${fileSize(file.size)}` : 'No file selected';
+                drawError();
+            }
+            input.addEventListener('change', () => choose(input.files[0]));
+            zone.addEventListener('dragover', event => {event.preventDefault(); zone.classList.add('drag-over');});
+            zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+            zone.addEventListener('drop', event => {
+                event.preventDefault(); zone.classList.remove('drag-over');
+                if (event.dataTransfer.files.length !== 1) {captureView.error = 'Choose one finished capture at a time.'; drawError(); return;}
+                choose(event.dataTransfer.files[0]);
             });
-            body.replaceChildren(form);
+            legacy.addEventListener('change', drawError);
+            selection.addEventListener('change', () => {captureView.equipment_id = selection.value;});
+            form.addEventListener('submit', async event => {
+                event.preventDefault(); captureView.error = '';
+                if (!legacy.checked && (!captureView.file || captureView.file.size > MAX_CAPTURE)) {captureView.tooBig = !!captureView.file; drawError(); return;}
+                if (legacy.checked && !path.value.trim()) {captureView.error = 'Enter the absolute path to a finished capture.'; drawError(); path.focus(); return;}
+                setBusy(form, true);
+                try {
+                    if (legacy.checked) await api('/api/jobs', {input_path: path.value.trim(), workflow: captureView.workflow, ...(selection.value ? {equipment_id: selection.value} : {})});
+                    else {
+                        const response = await fetch('/api/capture-upload', {method: 'POST', cache: 'no-store', credentials: 'omit',
+                            headers: {Authorization: `Bearer ${ui.token}`, 'Content-Type': 'application/octet-stream', 'X-Capture-Name': encodeURIComponent(captureView.file.name), 'X-Capture-Workflow': captureView.workflow,
+                                ...(selection.value ? {'X-Equipment-Id': selection.value} : {})}, body: captureView.file});
+                        await readApiResponse(response);
+                    }
+                    captureView.file = null; captureView.tooBig = false; captureView.error = '';
+                    dialog.close(); navigate('cases'); toast('Case preparation started. Follow its local progress in Forensic cases.');
+                } catch (error) {
+                    captureView.tooBig = error.code === 'capture_too_large' || error.status === 413;
+                    captureView.error = jobErrors[error.code] || error.message;
+                } finally {setBusy(form, false); drawError();}
+            });
+            drawError(); body.replaceChildren(form);
         } catch (error) {if (dialog.open && body.isConnected) body.replaceChildren(notice(error.message, 'warning'));}
     }
 
@@ -971,23 +1232,97 @@
 
     function renderHoneypot(page) {
         const posture = ui.data.posture || {};
-        page.append(pageHeader('Your free honeypot core', 'Observe interactions, reconcile signals and preserve evidence in the wider HoneyTrace workspace.', button('View telemetry', () => navigate('telemetry'), 'secondary', 'pulse')));
-        page.append(E('section', {class: 'core-card honeypot-hero'}, E('div', {class: 'core-card-copy'}, badge('FREE CORE', 'accent'), E('h2', {}, 'The foundation of your security picture.'),
-            E('p', {}, 'HoneyTrace brings decoy-service observations and network telemetry into a traceable evidence workflow. Add offline analysis and optional tools when you need them.'),
-            E('div', {class: 'actions'}, button('Review saved observations', () => navigate('telemetry'), 'secondary', 'arrow'), button('Explore integrations', () => navigate('integrations'), 'ghost', 'plug'))),
-            E('div', {class: 'core-art', 'aria-hidden': 'true'}, E('span', {}, 'HT'), E('span', {class: 'core-art-slash'}, '//'), icon('shield'))));
+        page.append(pageHeader('Honeypot interactions', 'Choose a saved Cowrie or OpenCanary interaction. Open a case to read the evidence and its custody record.',
+            button('Forensic cases', () => navigate('cases'), 'secondary', 'folder'), button('Drop a capture', () => openCapture('packet_squirrel'), 'primary', 'upload')));
+        if (!enabled('sentinel')) page.append(notice('To open local cases, enable offline imports and select Sentinel Forensics in Settings. Saved interactions remain visible here.', 'info', button('Set up local cases', () => navigate('settings'), 'secondary small', 'settings')));
+        const sessions = E('div', {id: 'honeypot-sessions'}, E('div', {class: 'loading-screen'}, E('span', {class: 'spinner'}), E('p', {}, 'Reading saved interactions…')));
+        const jobs = E('div', {id: 'honeypot-jobs'});
+        page.append(sessions, jobs, packetSquirrelCard());
+        loadSessionCatalog(sessions, jobs);
         page.append(E('div', {class: 'stats-grid'},
             postureCard('Honeypot observations', posture.honeypot === 'observed' ? 'Observed' : 'Not checked', 'Saved service observations appear in Telemetry.', 'shield'),
             postureCard('Containment posture', posture.guard === 'not_checked' || !posture.guard ? 'Not checked' : human(posture.guard), 'Only a runtime check can establish the current guard state.', 'lock'),
             postureCard('Runtime qualification', posture.beta === 'not_qualified' || !posture.beta ? 'Not qualified' : human(posture.beta), 'This dashboard does not change deployment qualification.', 'info')));
-        page.append(card('One evidence workflow', 'From an observed interaction to an understandable record.', E('div', {class: 'flow-steps'},
-            workflowStep('01', 'Observe', 'Decoy services and sensors record interactions.', 'pulse'),
-            workflowStep('02', 'Reconcile', 'Review related observations and their limitations.', 'search'),
-            workflowStep('03', 'Preserve', 'Keep originals and follow hash-linked provenance.', 'folder'))));
         const identities = E('div', {}, E('p', {class: 'muted'}, 'Reading available profiles…'));
-        page.append(card('Decoy identity', 'Prepare a consistent presentation for your decoy services.', identities));
+        page.append(card('Prepared decoy configuration', 'Create configuration files for operator review. This does not show or change a live identity.', identities));
         loadDecoyProfiles(identities);
         page.append(notice(posture.note || 'Saved observations do not establish current runtime qualification. Service startup and containment remain in the existing operator workflow.'));
+    }
+
+    async function loadSessionCatalog(host, jobsHost) {
+        const revision = caseView.request;
+        const current = () => host.isConnected && ui.page === 'honeypot' && revision === caseView.request && !!ui.token;
+        const results = await Promise.allSettled([api('/api/sessions'), api('/api/equipment'), api('/api/cases')]);
+        if (!current()) return;
+        const equipment = results[1].status === 'fulfilled' ? results[1].value.equipment || [] : [];
+        if (results[0].status !== 'fulfilled') {
+            host.replaceChildren(card('Recent interactions', 'Saved Cowrie and OpenCanary observations.', empty('Interactions could not be read', results[0].reason.message,
+                button('Try again', () => loadSessionCatalog(host, jobsHost), 'secondary', 'refresh'))));
+            return;
+        }
+        let catalog = results[0].value;
+        let demoBusy = false;
+        const draw = () => {
+            const rows = catalog.sessions || [];
+            const demo = button('Try a synthetic interaction', async () => {
+                if (demoBusy) return;
+                demoBusy = true; demo.disabled = true;
+                try {
+                    const example = await api('/api/demo-session', {});
+                    if (!current()) return;
+                    catalog = example;
+                    draw(); announce('Synthetic local example ready. Open its case to explore the workflow.');
+                } catch (error) {if (current()) toast(error.message, 'error');}
+                finally {demoBusy = false; if (demo.isConnected) demo.disabled = false;}
+            }, 'secondary small', 'file');
+            const list = rows.length ? E('div', {class: 'session-list'}, rows.map(row => sessionCard(row, equipment))) : empty('No saved interactions yet',
+                catalog.status === 'unavailable' ? 'The configured saved sensor sources are unavailable. Check local runtime access, or try the clearly synthetic local example.' : 'Cowrie sessions and OpenCanary events appear here when saved telemetry is available. You can explore a clearly synthetic local example.', demo, 'shield');
+            host.replaceChildren(card('Recent interactions', 'Saved observations · sensor times are unverified · these are bounded selections.', E('div', {class: 'panel-stack'},
+                list, rows.length ? E('div', {class: 'actions'}, demo, E('span', {class: 'field-help'}, 'Synthetic examples stay visibly separate from observed activity.')) : null,
+                E('p', {class: 'field-help'}, 'Open case preserves this selected log projection, any qualified retained capture and the equipment snapshot. Similar addresses or commands do not establish a person’s identity.'),
+                results[1].status !== 'fulfilled' ? notice('Equipment inventory is unavailable. Automatic association may be unknown; case preparation will retain the result.', 'warning') : null,
+                (catalog.omissions || []).length ? E('details', {}, E('summary', {}, 'What this list may omit'), E('ul', {class: 'case-limitations'}, catalog.omissions.map(value => E('li', {}, typeof value === 'string' ? value : value.note || human(value.code))))) : null),
+                button('Refresh interactions', () => loadSessionCatalog(host, jobsHost), 'secondary small', 'refresh', {id: 'refresh-sessions'})));
+        };
+        draw();
+        const updateJobs = async result => {
+            if (!current()) return;
+            renderJobs(jobsHost, result.jobs || {available: false, jobs: []}, async () => updateJobs(await api('/api/cases')));
+            if ((result.jobs?.jobs || []).some(job => job.status === 'running')) {
+                clearTimeout(caseView.poll);
+                caseView.poll = setTimeout(async () => {
+                    if (!current()) return;
+                    try {await updateJobs(await api('/api/cases'));} catch (error) {if (current()) jobsHost.replaceChildren(notice(error.message, 'warning'));}
+                }, 1200);
+            }
+        };
+        if (results[2].status === 'fulfilled') await updateJobs(results[2].value);
+    }
+
+    function sessionCard(row, equipment) {
+        const synthetic = row.synthetic === true;
+        const association = E('select', {'aria-label': `Associate equipment with ${row.label || human(row.source)}`, value: '__auto__'},
+            E('option', {value: '__auto__'}, 'Auto-associate a unique active source sensor'), E('option', {value: ''}, 'Unknown / no equipment association'),
+            equipment.map(entry => E('option', {value: entry.id}, `${entry.name}${entry.active ? '' : ' · inactive in inventory'}`)));
+        const errorHost = E('div', {role: 'status'});
+        const open = button('Open case', async () => {
+            open.disabled = true; open.setAttribute('aria-busy', 'true'); errorHost.replaceChildren();
+            try {
+                const result = await api('/api/session-open-case', {selection_id: row.selection_id, ...(association.value === '__auto__' ? {} : {equipment_id: association.value || null})});
+                if (result.case_id || result.job?.case_id) openCase(result.case_id || result.job.case_id);
+                else {navigate('cases'); toast('Preparing the selected interaction as a local case.');}
+            } catch (error) {errorHost.replaceChildren(notice(jobErrors[error.code] || error.message, 'error'));}
+            finally {if (open.isConnected) {open.disabled = !enabled('sentinel'); open.setAttribute('aria-busy', 'false');}}
+        }, 'primary small', 'folder', {disabled: !enabled('sentinel'), 'data-open-session': row.selection_id});
+        return E('article', {class: `session-card${synthetic ? ' synthetic-session' : ''}`, 'data-session-id': row.selection_id},
+            E('div', {class: 'session-heading'}, E('span', {class: 'module-icon'}, icon('shield')), E('div', {class: 'row-main'}, E('strong', {}, row.label || `${human(row.source)} interaction`),
+                E('span', {class: 'row-meta'}, `${human(row.source)} · ${row.kind === 'sensor_session' ? 'Sensor-reported session' : 'Saved event selection'}`)),
+                synthetic ? badge('SYNTHETIC EXAMPLE', 'warning') : badge('Saved observation'), open),
+            E('dl', {class: 'session-facts'}, keyValue('First observed', formatDate(row.first_seen, true)), keyValue('Last observed', formatDate(row.last_seen, true)),
+                keyValue('Saved events', count(row.event_count)), keyValue('Command inputs', count(row.command_count)), keyValue('Observed source', display(row.source_ip, 'Unknown'))),
+            synthetic ? E('p', {class: 'synthetic-label'}, 'Local demonstration only. No live sensor activity is represented.') : null,
+            E('details', {class: 'session-association'}, E('summary', {}, 'Equipment association (optional)'), field('Inventory snapshot to retain', association, 'If one active inventoried sensor matches the saved source, it can be associated automatically. Otherwise the equipment is unknown. You can explicitly choose an inventory entry, including an inactive one.')),
+            errorHost);
     }
 
     async function loadDecoyProfiles(host) {

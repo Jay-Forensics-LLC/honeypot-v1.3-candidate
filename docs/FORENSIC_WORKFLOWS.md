@@ -6,6 +6,30 @@ honeypot remains the suite's foundation. The full Sentinel-Forensics source is
 bundled under `sentinel-forensics/`; dashboard jobs use its offline Evidence Lab
 engine and import its minimized exchange through the HoneyTrace case interface.
 
+## Open a honeypot interaction as a case
+
+Follow the [local installation guide](INSTALL.md) to launch as your normal user.
+Enable offline imports and **Sentinel Forensics** in **Settings**. In
+**Honeypot**, choose **Try a synthetic interaction** for an explicitly synthetic
+first run, or select an available saved Cowrie session or OpenCanary interaction. Choose
+**Open case** to run the bundled analyzer and review its completed case.
+
+Use `--telemetry-root /absolute/path/to/existing/honeypot` at launch when the saved
+honeypot sources live outside this checkout. Source selection is read-only;
+private analysis inputs and results remain in the dashboard workspace.
+
+The case retains a bounded normalized log selection, its provenance, a derived
+JSONL analysis input and any available command transcript. Structured passwords
+are withheld, but free text may remain sensitive. Cowrie command input describes
+an emulated interaction, not proven execution on a real host. OpenCanary
+probe/authentication observations have no command transcript.
+
+Packet support requires a verified preservation receipt and a unique connection
+tuple/time match within a two-second tolerance. Missing candidates, ambiguous
+matches or combined analysis inputs exceeding 64 MiB produce an explicit
+log-only case. This bounded association does not establish completeness or actor
+identity. Sensor time is unverified and saved data may be partial.
+
 ## Analyze a capture
 
 Use Python 3.11 or newer on Linux. No dashboard dependencies, Node build or cloud
@@ -18,8 +42,9 @@ bash tools/launch-dashboard.sh --port 8765
 
 1. Open the private session URL printed in the terminal.
 2. In **Settings**, enable offline imports and **Sentinel Forensics**.
-3. Open **Forensic cases**, choose **Analyze a capture**, and enter the absolute
-   path to a local PCAP or PCAPNG. Packet Squirrel captures use this same path.
+3. Open **Forensic cases → Packet Squirrel / capture** and select or drop a
+   finished local PCAP or PCAPNG, up to 64 MiB. Stop capture on the device before
+   copying the file. You can associate an equipment entry when importing.
 4. Follow the job's stage, then open its verified case. Filter the timeline,
    inspect provenance and coverage, and export the minimized case if needed.
 
@@ -27,7 +52,10 @@ The dashboard discovers the bundled analyzer automatically. If you deliberately
 use another trusted Sentinel checkout, select it with
 `--sentinel-root /absolute/path/to/sentinel-forensics` at launch.
 
-The analyzer reads a private snapshot; the original capture stays unchanged.
+The analyzer reads a retained private snapshot; the original capture stays
+unchanged. A capture larger than 64 MiB remains rejected with a visible size
+message and starts no job. Packet Squirrel input uses the same bounded analyzer;
+this workflow does not acquire data from the device or start hardware capture.
 Stages reflect actual starting, ingestion, analysis and verification work. Short
 jobs may finish between dashboard refreshes. There is no estimated percentage.
 Cancellation stops a running analyzer. Once final verification/import begins,
@@ -54,13 +82,35 @@ Coverage shows counts, protocol distribution, decoding losses and available rule
 evaluations. A review lead is not proof of compromise. Identifiers are minimized
 case-scoped pseudonyms; matching labels across cases do not establish identity.
 
+**Overview** presents the saved interaction and command transcript where
+available. **Leads** explains the rule, its thresholds, supporting observations
+and possible benign explanations. Record your assessment independently of the
+original analyzer finding, including a false positive assessment when supported.
+Changing the review does not rewrite the underlying observation or rule result.
+
+**Custody** shows recorded import/acquisition details, retained artifact hashes
+and available importer, machine, analyzer and equipment information. Download
+the human-readable custody report or a private retained artifact from that tab.
+Unknown fields remain unknown, including details for older cases without a
+custody record. An inventory association is operator supplied; its status is a
+snapshot at case creation and does not prove device identity or earlier health.
+Local account names do not verify a person's identity. Checksums establish
+consistency with their reference values, not authorship or authenticity.
+
 Exports contain minimized normalized records. Original captures, private indexes
-and pseudonym keys are not included. Completed companion bundles remain private
+and pseudonym keys are not included. Private retained-artifact downloads are
+separate and may expose sensitive original content. Inputs, transcripts,
+provenance attachments and completed companion bundles remain private
 in a sibling of the import store: default `honeypot/state/phase10-cases`. This is
 an ignored private runtime directory inside the outer HoneyTrace checkout and
 outside the bundled Sentinel source tree. Preserve or move old bundles when that
 workspace fills; moving a bundle does not remove its separately committed
 HoneyTrace projection.
+
+Private job inputs/context are recorded before analysis for recovery. A failed
+custody finalization is reported separately from successful analysis and import;
+the known case ID and retained job folder remain available for operator review.
+It does not automatically retry or reconstruct an acquisition history.
 
 ## Current working bounds
 

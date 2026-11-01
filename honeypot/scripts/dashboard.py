@@ -19,9 +19,12 @@ from urllib.parse import urlsplit
 from operational_log import SuiteLog, correlation
 from decoy_profiles import describe_profiles, render_profile
 from equipment import EquipmentStore, operational_status
-from phase10.io import parse_json, read_regular
+from phase10.io import InputTooLarge, parse_json, read_regular
 from phase10.cases import case_detail, case_export, list_cases
-from phase10.jobs import JobManager
+from phase10.case_leads import save_case_review
+from phase10.custody import CustodyStore
+from phase10.jobs import JobManager, MAX_CAPTURE_BYTES
+from phase10.session_cases import SessionCatalog
 from phase10.security_review import ReviewWorkspace
 from phase10.model import MAX_BYTES, Phase10Error
 from phase10.policy import Policy
@@ -226,8 +229,10 @@ class DashboardServer(ThreadingHTTPServer):
     daemon_threads = True
     request_queue_size = 8
 
-    def __init__(self, root, port, policy_path, store_path, sentinel_root, log_root=None):
+    def __init__(self, root, port, policy_path, store_path, sentinel_root, log_root=None,
+                 telemetry_root=None):
         self.root = Path(root).absolute()
+        self.telemetry_root = Path(telemetry_root).absolute() if telemetry_root else self.root
         self.assets = Path(__file__).resolve().parents[1] / 'dashboard'
         self.policy_path = Path(policy_path) if policy_path else self.root / 'configs/phase10.json'
         self.store_path = Path(store_path) if store_path else self.root / 'state/phase10'
@@ -235,12 +240,17 @@ class DashboardServer(ThreadingHTTPServer):
                               Path(__file__).resolve().parents[2] / 'sentinel-forensics')
         self.session_token = secrets.token_urlsafe(32)
         self.operation_lock = threading.Lock()
+        self.capture_lock = threading.Lock()
+        self.sessions = SessionCatalog(self.telemetry_root)
+        self.demo_sessions = None
+        self._session_selections = {}
         self.enricher = None
         self.log = SuiteLog(log_root or self.root, 'dashboard')
         self.equipment = EquipmentStore(self.root / 'state/equipment.json')
         self.jobs = JobManager(self.sentinel_root,
                                self.store_path.with_name(self.store_path.name + '-cases'),
-                               self._import_job, logger=self.log.child('jobs'))
+                               self._import_job, logger=self.log.child('jobs'),
+                               completion_callback=self._complete_case)
         super().__init__(('127.0.0.1', port), DashboardHandler)
 
     def _import_job(self, bundle_path):
@@ -249,6 +259,81 @@ class DashboardServer(ThreadingHTTPServer):
             policy.require('sentinel')
             result = import_sentinel(self.store_path, policy, bundle_path)
             return result['manifest']['import_id']
+
+    def custody_store(self):
+        return CustodyStore(self.store_path.with_name(self.store_path.name + '-custody'),
+                            Store(self.store_path, Policy.load(self.policy_path)),
+                            self.jobs.workspace_path)
+
+    def _complete_case(self, case_id, bundle_path, metadata):
+        with self.operation_lock, self.log.bind(), correlation():
+            self.custody_store().record(case_id, bundle_path, metadata)
+            self.log.event('case.custody_recorded', case_id=case_id, job_id=metadata['job_id'])
+
+    def case_decisions(self):
+        return self.store_path.with_name(self.store_path.name + '-case-reviews') / 'decisions.json'
+
+    def session_workspace(self):
+        with self.operation_lock:
+            result = self.sessions.snapshot()
+            now = time.monotonic()
+            self._session_selections = {key: value for key, value in self._session_selections.items()
+                                        if now - value[2] < 300}
+            for catalog, synthetic in ((self.sessions, False), (self.demo_sessions, True)):
+                if catalog is None:
+                    continue
+                snapshot = result if catalog is self.sessions else catalog.snapshot()
+                rows = [dict(row, synthetic=synthetic) for row in snapshot['sessions']]
+                if catalog is self.sessions:
+                    result['sessions'] = rows
+                else:
+                    result['sessions'].extend(rows)
+                for row in rows:
+                    self._session_selections[row['selection_id']] = (catalog, row, now)
+            while len(self._session_selections) > 400:
+                self._session_selections.pop(next(iter(self._session_selections)))
+            if result['sessions']:
+                result['status'] = 'available'
+            return result
+
+    def sensor_snapshot(self, row, source=None, synthetic=False):
+        entries = self.equipment_workspace()['equipment']
+        if 'equipment_id' in row:
+            identity = row['equipment_id']
+            if identity is None:
+                return None
+            if not isinstance(identity, str):
+                raise Phase10Error('Choose an inventoried sensor')
+            matches = [entry for entry in entries if entry['id'] == identity]
+            if len(matches) != 1:
+                raise Phase10Error('Choose an inventoried sensor')
+            association = 'operator_selected'
+        else:
+            matches = [entry for entry in entries if entry['active'] and entry['tracking'] == source]
+            if synthetic or source is None or len(matches) != 1:
+                return None
+            association = 'unique_active_tracking'
+        entry = matches[0]
+        return {'equipment_id': entry['id'], 'name': entry['name'],
+                'equipment_class': entry['equipment_class'], 'tracking': entry['tracking'],
+                'association': association + ('_synthetic_example' if synthetic else ''),
+                'snapshot_at': utc(), 'reported_at': entry['reported_at'],
+                'reported_status': entry['reported_status'],
+                'last_heartbeat_at': entry['reported_at'] if entry['tracking'] == 'heartbeat' else None,
+                'status_at_case_creation': entry['operational']['status'],
+                'historical_status': 'unknown'}
+
+    def capture_context(self, row):
+        workflow = row.get('workflow', 'capture')
+        if workflow not in ('capture', 'packet_squirrel'):
+            raise Phase10Error('Choose a supported capture workflow')
+        return {'workflow': workflow, 'sensor': self.sensor_snapshot(row),
+                'capture_origin': 'operator_asserted', 'synthetic': False}
+
+    def upload_capture(self, raw, row):
+        with self.operation_lock:
+            Policy.load(self.policy_path).require('sentinel')
+            return {'job': self.jobs.start_bytes(raw, context=self.capture_context(row))}
 
     def case_workspace(self):
         policy = Policy.load(self.policy_path)
@@ -267,7 +352,7 @@ class DashboardServer(ThreadingHTTPServer):
                 'entries': recent['entries'], 'truncated': recent.get('truncated', False)}
 
     def equipment_workspace(self):
-        status, health = _health(self.root)
+        status, health = _health(self.telemetry_root)
         jobs = self.jobs.snapshot()
         return {'equipment': [entry | {'operational': operational_status(entry, status, health, jobs)}
                               for entry in self.equipment.list()]}
@@ -302,8 +387,8 @@ class DashboardServer(ThreadingHTTPServer):
             imports = findings = []
             errors.append({'module': 'evidence', 'code': 'store_unavailable',
                            'message': 'Evidence is unavailable. Check the selected private store and try again.'})
-        telemetry_status, health = _health(self.root)
-        sources = [_source_metadata(self.root, name, path) for name, path in SOURCES.items()]
+        telemetry_status, health = _health(self.telemetry_root)
+        sources = [_source_metadata(self.telemetry_root, name, path) for name, path in SOURCES.items()]
         integrations = [{'identifier': name, 'name': LABELS[name], 'category': spec.category,
                          'input_formats': list(spec.input_formats), 'mode': spec.mode,
                          'enabled': policy.enabled and name in policy.plugins}
@@ -333,6 +418,13 @@ class DashboardServer(ThreadingHTTPServer):
         if path == '/api/job-cancel':
             _expect(row, ('job_id',))
             return {'job': self.jobs.cancel(row['job_id'])}
+        if path == '/api/demo-session':
+            _expect(row, ())
+            from phase10.session_demo import create_demo
+            with self.operation_lock:
+                self.demo_sessions = create_demo(self.root / 'state/demo-session')
+                self.log.event('case.demo_prepared', operation='synthetic')
+            return self.session_workspace()
         with self.operation_lock:
             if path == '/api/policy':
                 policy = Policy.from_dict(row)
@@ -376,21 +468,63 @@ class DashboardServer(ThreadingHTTPServer):
                 self.log.event('review.completed', operation=path.rsplit('/', 1)[-1],
                                status='saved' if path == '/api/security-triage' else 'read')
                 return result
+            if path == '/api/session-open-case':
+                _expect(row, ('selection_id',), ('equipment_id',))
+                policy.require('sentinel')
+                selected = self._session_selections.get(row['selection_id']) if isinstance(row['selection_id'], str) else None
+                if selected is None or time.monotonic() - selected[2] >= 300:
+                    raise Phase10Error('Refresh recent interactions and choose a session')
+                catalog, summary, _ = selected
+                synthetic = summary['synthetic']
+                context = {'workflow': 'honeypot_session', 'synthetic': synthetic,
+                           'sensor': self.sensor_snapshot(row, summary['source'], synthetic)}
+
+                def prepare():
+                    plan = catalog.prepare(row['selection_id'])
+                    sources = [('session.jsonl', plan.log_bytes)]
+                    if plan.capture_bytes is not None:
+                        sources.append(('capture.pcap', plan.capture_bytes))
+                    return {'sources': sources,
+                            'attachments': {'transcript.json': plan.transcript_bytes,
+                                            'session-provenance.json': plan.provenance_bytes},
+                            'context': {'session': {**plan.summary, 'synthetic': synthetic},
+                                        'capture': plan.capture}}
+
+                return 202, {'job': self.jobs.start_prepared(prepare, context=context)}
+            if path in ('/api/case-custody', '/api/case-custody-export'):
+                _expect(row, ('case_id',))
+                policy.require('sentinel')
+                custody = self.custody_store()
+                report = custody.report(row['case_id'])
+                return (report if path.endswith('-export') else
+                        {'custody': custody.detail(row['case_id']), 'report': report['text']})
+            if path == '/api/case-review':
+                policy.require('sentinel')
+                decision = save_case_review(Store(self.store_path, policy), self.case_decisions(), row)
+                self.log.event('case.reviewed', case_id=row['case_id'], status=row['status'])
+                return decision
             if path in ('/api/case', '/api/case-export'):
                 policy.require('sentinel')
                 _expect(row, ('case_id',), ('query', 'protocol', 'source_id', 'since', 'until',
                                             'include_unresolved', 'offset', 'limit')
                         if path == '/api/case' else ())
                 store = Store(self.store_path, policy)
+                custody = self.custody_store()
                 if path == '/api/case-export':
-                    return case_export(store, row['case_id'])
-                return case_detail(store, row['case_id'],
-                                   {key: value for key, value in row.items() if key != 'case_id'})
+                    return {**case_export(store, row['case_id'], self.case_decisions()),
+                            'custody': custody.detail(row['case_id'])}
+                return {**case_detail(store, row['case_id'],
+                                     {key: value for key, value in row.items() if key != 'case_id'},
+                                     self.case_decisions()),
+                        'custody': custody.detail(row['case_id']),
+                        'session_evidence': custody.session_evidence(row['case_id'])}
             if path == '/api/jobs':
-                _expect(row, ('input_path',))
+                _expect(row, ('input_path',), ('workflow', 'equipment_id'))
                 policy.require('sentinel')
                 try:
-                    return {'job': self.jobs.start(row['input_path'])}
+                    return {'job': self.jobs.start(row['input_path'], context=self.capture_context(row))}
+                except InputTooLarge:
+                    raise
                 except Phase10Error as exc:
                     return 409, {'code': 'analysis_unavailable', 'error': str(exc)}
             if path == '/api/import':
@@ -411,6 +545,9 @@ class DashboardServer(ThreadingHTTPServer):
                 if not isinstance(row['bundle_path'], str) or not 1 <= len(row['bundle_path']) <= 4096:
                     raise Phase10Error('Choose a local case folder')
                 result = import_sentinel(self.store_path, policy, row['bundle_path'])
+                self.custody_store().record(result['manifest']['import_id'], row['bundle_path'],
+                                            {'job_id': None, 'created_at': utc(), 'artifacts': [],
+                                             'context': {'workflow': 'completed_case_import'}})
                 return {'status': 'imported', 'manifest': _summary(result['manifest']),
                         'verification': result['verification']}
             if path == '/api/imazing':
@@ -469,13 +606,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.send_response_only(code, message)
         self.send_header('Date', self.date_time_string())
 
-    def _send(self, status, data, content_type='application/json; charset=utf-8'):
+    def _send(self, status, data, content_type='application/json; charset=utf-8', download_name=None):
         self._response_status = status
         if isinstance(data, (dict, list)):
             data = json.dumps(data, ensure_ascii=True, allow_nan=False).encode()
         self.send_response(status)
         self.send_header('Content-Type', content_type)
         self.send_header('Content-Length', str(len(data)))
+        if download_name is not None:
+            self.send_header('Content-Disposition', 'attachment; filename="' + download_name + '"')
         self.send_header('Cache-Control', 'no-store')
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('Referrer-Policy', 'no-referrer')
@@ -545,6 +684,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self._send(200, self.server.snapshot())
             elif path == '/api/cases':
                 self._send(200, self.server.case_workspace())
+            elif path == '/api/sessions':
+                self._send(200, self.server.session_workspace())
             elif path == '/api/diagnostics':
                 self._send(200, self.server.diagnostics())
             elif path == '/api/equipment':
@@ -587,6 +728,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send(404, {'code': 'not_found', 'error': 'This operation is not available.'})
             return
         try:
+            if path == '/api/capture-upload':
+                self._upload_capture()
+                return
             if self.headers.get('Transfer-Encoding') or self.headers.get_content_type() != 'application/json':
                 raise Phase10Error('JSON request required')
             lengths = self.headers.get_all('Content-Length') or []
@@ -612,28 +756,76 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 raise Phase10Error('Finite JSON values required')
 
             row = json.loads(raw, object_pairs_hook=pairs, parse_constant=constant)
+            if path == '/api/case-artifact':
+                _expect(row, ('case_id', 'artifact_id'))
+                with self.server.operation_lock:
+                    Policy.load(self.server.policy_path).require('sentinel')
+                    data, name = self.server.custody_store().artifact(row['case_id'], row['artifact_id'])
+                self._send(200, data, 'application/octet-stream', name)
+                return
             result = self.server.mutate(path, row)
             status, result = result if isinstance(result, tuple) else (200, result)
             self._send(status, result)
+        except InputTooLarge:
+            self._send(413, {'code': 'capture_too_large', 'limit_bytes': MAX_CAPTURE_BYTES,
+                             'error': 'Capture exceeds 64 MiB. Split it locally; streaming is planned for later.'})
         except (Phase10Error, ValueError, TypeError, KeyError, RecursionError):
             self._send(400, {'code': 'invalid_input', 'error': 'This input could not be accepted. Check the format and module settings.'})
         except OSError:
             self._send(503, {'code': 'store_unavailable', 'error': 'The private store or settings are unavailable. Please try again.'})
 
+    def _upload_capture(self):
+        if self.headers.get('Transfer-Encoding') or self.headers.get_content_type() != 'application/octet-stream':
+            raise Phase10Error('A finished capture file is required')
+        lengths = self.headers.get_all('Content-Length') or []
+        if len(lengths) != 1 or not lengths[0].isdigit() or len(lengths[0]) > 16:
+            raise Phase10Error('Capture length required')
+        length = int(lengths[0])
+        if length > MAX_CAPTURE_BYTES:
+            raise InputTooLarge(MAX_CAPTURE_BYTES, length)
+        if not length:
+            raise Phase10Error('Choose a nonempty capture')
+        row = {'workflow': self.headers.get('X-Capture-Workflow', 'capture')}
+        if self.headers.get('X-Equipment-Id') is not None:
+            row['equipment_id'] = self.headers['X-Equipment-Id'] or None
+        with self.server.operation_lock:
+            Policy.load(self.server.policy_path).require('sentinel')
+            self.server.capture_context(row)
+        if not self.server.capture_lock.acquire(blocking=False):
+            self._send(409, {'code': 'analysis_unavailable', 'error': 'Another capture is being uploaded. Try again when it finishes.'})
+            return
+        try:
+            # One bounded body at a time; no multipart parser or arbitrary filename is used.
+            raw = self.rfile.read(length)
+            if len(raw) != length:
+                raise Phase10Error('Incomplete capture upload')
+            try:
+                result = self.server.upload_capture(raw, row)
+            except InputTooLarge:
+                raise
+            except Phase10Error:
+                self._send(409, {'code': 'analysis_unavailable', 'error': 'Check the capture format, enabled Sentinel module and current analysis job.'})
+                return
+            self._send(202, result)
+        finally:
+            self.server.capture_lock.release()
+
     def do_OPTIONS(self):
         self._send(405, {'code': 'method_not_allowed', 'error': 'Use the local dashboard interface.'})
 
 
-def create_server(root, port=0, policy_path=None, store_path=None, sentinel_root=None, log_root=None):
+def create_server(root, port=0, policy_path=None, store_path=None, sentinel_root=None, log_root=None,
+                  telemetry_root=None):
     if os.geteuid() == 0:
         raise Phase10Error('Run the dashboard as an unprivileged operator')
     if type(port) is not int or not 0 <= port <= 65535:
         raise Phase10Error('Invalid dashboard port')
-    return DashboardServer(root, port, policy_path, store_path, sentinel_root, log_root)
+    return DashboardServer(root, port, policy_path, store_path, sentinel_root, log_root, telemetry_root)
 
 
-def serve(root, port=8765, policy_path=None, store_path=None, sentinel_root=None, log_root=None):
-    server = create_server(root, port, policy_path, store_path, sentinel_root, log_root)
+def serve(root, port=8765, policy_path=None, store_path=None, sentinel_root=None, log_root=None,
+          telemetry_root=None):
+    server = create_server(root, port, policy_path, store_path, sentinel_root, log_root, telemetry_root)
     server.log.event('dashboard.started', operation='serve')
     print('HoneyTrace Forensic Dashboard — local security suite', flush=True)
     print('Open http://127.0.0.1:' + str(server.server_port) + '/#token=' + server.session_token, flush=True)

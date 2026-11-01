@@ -2,8 +2,10 @@
 
 The local dashboard brings the free honeypot core, saved telemetry, offline
 analysis, verified cases and diagnostics into one workspace. Its forensic engine
-is included in the same checkout. Start with a report or capture, review its
-findings and provenance, then export what you need.
+is included in the same checkout. Start with a saved honeypot interaction or
+finished capture, review its findings and provenance, then export what you need.
+The [installation guide](INSTALL.md) covers a clean local start, first example,
+updates and private workspace recovery.
 
 ## Open the dashboard
 
@@ -12,7 +14,8 @@ The dashboard must be downloaded to the computer where you run it. A path under
 desktop. Cloning the upstream default branch does not include unpublished changes;
 use the supplied dashboard review branch or source bundle.
 
-From that downloaded repository's root, run as your normal user:
+Use Linux with Python 3.11+ and its standard-library SQLite module. From that
+downloaded repository's root, run as your normal user:
 
 ```sh
 bash tools/launch-dashboard.sh --port 8765
@@ -31,6 +34,25 @@ workspace, supply paths when starting it:
 ```sh
 bash tools/launch-dashboard.sh --port 8765 --policy /private/workspace/policy.json --store /private/workspace/imports
 ```
+
+## Your first honeypot case
+
+In **Settings**, turn on **Enable offline imports** and **Sentinel Forensics**
+and choose **Save settings**. Open **Honeypot → Try a synthetic interaction**,
+then choose the synthetic interaction's **Open case**. Follow local analysis and open the saved
+case's **Overview**, **Timeline**, **Leads** and **Custody** tabs.
+
+The transcript describes observed inputs. Leads show supporting records, rule
+thresholds and possible benign explanations; your review, including a false
+positive assessment, stays separate from the original finding. **Custody** shows
+retained artifacts, hashes, import details and equipment snapshots, with a text
+report and private artifact downloads. Review evidence before sharing it.
+
+To read existing saved HoneyTrace data, launch with
+`--telemetry-root /absolute/path/to/existing/honeypot`. This reads saved sources;
+it does not start or refresh sensors. A selected interaction can become a
+log-only case when no unique, verified packet association is available. The
+[workflow guide](FORENSIC_WORKFLOWS.md) explains those bounds.
 
 ## Your first report
 
@@ -59,12 +81,12 @@ results by their SHA-256 hash. Dashboard export contains normalized findings.
 | --- | --- |
 | **Overview** | See real import counts, recent activity and the next useful action |
 | **Evidence & Analysis** | Search findings, inspect provenance and export results |
-| **Forensic cases** | Analyze local captures, follow jobs, search case timelines and review coverage |
+| **Forensic cases** | Analyze finished captures, follow jobs, review transcripts, timelines, leads and custody |
 | **Diagnostics** | Search structured suite operations and export sanitized diagnostics |
 | **My equipment** | Label hardware/tools/sensors, record class/value and follow sourced status |
 | **Security review** | Prioritize approved Nmap/Nuclei observations, record triage and export reports |
 | **Telemetry** | Review available saved health observations and source activity |
-| **Honeypot** | Understand the free core and its recorded posture |
+| **Honeypot** | Open saved interactions as cases, try the synthetic example and review recorded posture |
 | **Integrations** | Import supported reports and use the available offline tools |
 | **Settings** | Choose modules, asset scope and import preferences |
 
@@ -78,8 +100,10 @@ running a fresh Docker, firewall or capture check.
 **Sentinel cases:** import a completed local Sentinel case folder. Folder paths
 refer to the computer running the dashboard. The importer checks the case's
 completion state and checksum ledger before accepting its exchange.
-**Forensic cases → Analyze a capture** uses the bundled engine automatically
-for local PCAP/PCAPNG, including Packet Squirrel captures. You can optionally
+**Forensic cases → Packet Squirrel / capture** accepts a finished local
+PCAP/PCAPNG by file selection or drop, up to 64 MiB. An oversized capture remains
+rejected with a visible message. Analysis uses the bundled engine automatically,
+retains a private source copy and leaves the original unchanged. You can optionally
 select a separate trusted checkout with `--sentinel-root` at launch.
 See the [forensic workflow guide](FORENSIC_WORKFLOWS.md) and
 [Sentinel bridge guide](phase9/IMPLEMENTATION.md).
@@ -105,6 +129,11 @@ capabilities and do not start scanners or require hardware setup now.
   it does not authorize or start an active scan.
 - **Saved telemetry unavailable:** use the import and analysis workflow normally.
   Fresh runtime observations come from the existing HoneyTrace operator tools.
+- **Capture too large:** the capture limit is 64 MiB, separate from the report
+  import limit. Keep the original and choose a smaller finished capture.
+- **Custody unavailable:** missing fields remain unknown. Preserve private job
+  inputs and the known case ID if finalization failed; do not infer an earlier
+  acquisition history from hashes or current equipment status.
 
 For exact report formats and current bounds, see the
 [import specification](phase10/PLUGIN_SPECIFICATION.md). The

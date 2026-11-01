@@ -31,6 +31,9 @@ ROUTES = frozenset(('/', '/app.js', '/styles.css', '/api/state', '/api/export',
 ROUTES = ROUTES | {'/api/decoys', '/api/decoy-profile', '/api/equipment', '/api/equipment-save',
                    '/api/equipment-report', '/api/equipment-remove', '/api/review-imports',
                    '/api/security-review', '/api/security-triage', '/api/security-report'}
+ROUTES = ROUTES | {'/api/sessions', '/api/session-open-case', '/api/demo-session',
+                   '/api/case-review', '/api/case-custody', '/api/case-custody-export',
+                   '/api/case-artifact', '/api/capture-upload'}
 COMMANDS = frozenset(('dashboard', 'integrations', 'status', 'health', 'stop',
                       'readiness', 'boot-start', 'doctor', 'start', 'guard', 'pcap',
                       'wan', 'intel', 'bait', 'incident', 'logs', 'demo', 'unknown'))
