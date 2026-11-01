@@ -36,12 +36,14 @@ class ForensicJobs(unittest.TestCase):
         workspace.mkdir(mode=0o700)
         wide = workspace / 'wide'
         wide.mkdir(mode=0o700)
+        parent = wide
         for index in range(40):
-            child = wide / f'd{index:02d}'
+            child = parent / f'd{index:02d}'
             child.mkdir(mode=0o700)
             blob = child / 'f'
             blob.write_bytes(b'x')
             blob.chmod(0o600)
+            parent = child
         root = _directory(workspace)
         self.addCleanup(os.close, root)
         open_count = {'now': 0, 'max': 0}

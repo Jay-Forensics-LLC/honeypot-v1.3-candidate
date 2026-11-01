@@ -55,40 +55,60 @@ def _directory(path, create=False):
 
 
 def _usage(descriptor):
-    """Count regular files without retaining every sibling directory."""
+    """Count private regular files with bounded directory descriptors."""
     total = entries = 0
+    pending = [()]
 
-    def walk(current):
-        nonlocal total, entries
-        names = []
-        with os.scandir(current) as children:
-            for child in children:
-                entries += 1
-                if entries > 10000:
-                    raise Phase10Error('Private job workspace is full')
+    while pending:
+        parts = pending.pop()
+        current = descriptor
+        owned = False
+
+        try:
+            missing = False
+            for name in parts:
                 try:
-                    info = child.stat(follow_symlinks=False)
+                    child_fd = os.open(name, _DIRECTORY, dir_fd=current)
                 except FileNotFoundError:
-                    continue  # The companion atomically replaces its progress files.
+                    missing = True
+                    break
+
+                if owned:
+                    os.close(current)
+                current = child_fd
+                owned = True
+
+                info = os.fstat(current)
                 if info.st_uid != os.geteuid() or info.st_mode & 0o077:
                     raise Phase10Error('Unsupported job workspace entry')
-                if stat.S_ISDIR(info.st_mode):
-                    names.append(child.name)
-                elif stat.S_ISREG(info.st_mode) and info.st_nlink == 1:
-                    total += info.st_size
-                else:
-                    raise Phase10Error('Unsupported job workspace entry')
-        for name in names:
-            try:
-                child = os.open(name, _DIRECTORY, dir_fd=current)
-            except FileNotFoundError:
-                continue
-            try:
-                walk(child)
-            finally:
-                os.close(child)
 
-    walk(descriptor)
+            if missing:
+                continue
+
+            directories = []
+            with os.scandir(current) as children:
+                for child in children:
+                    entries += 1
+                    if entries > 10000:
+                        raise Phase10Error('Private job workspace is full')
+                    try:
+                        info = child.stat(follow_symlinks=False)
+                    except FileNotFoundError:
+                        continue
+                    if info.st_uid != os.geteuid() or info.st_mode & 0o077:
+                        raise Phase10Error('Unsupported job workspace entry')
+                    if stat.S_ISDIR(info.st_mode):
+                        directories.append(child.name)
+                    elif stat.S_ISREG(info.st_mode) and info.st_nlink == 1:
+                        total += info.st_size
+                    else:
+                        raise Phase10Error('Unsupported job workspace entry')
+
+            pending.extend(parts + (name,) for name in directories)
+        finally:
+            if owned:
+                os.close(current)
+
     return total
 
 
