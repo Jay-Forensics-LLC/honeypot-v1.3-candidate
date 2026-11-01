@@ -1,4 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+import { readBoundedResponse } from './helpers/readBoundedResponse.ts';
+
+const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024;
+const FILE_FETCH_TIMEOUT_MS = 10_000;
 
 Deno.serve(async (req) => {
     try {
@@ -38,24 +42,32 @@ Deno.serve(async (req) => {
             file_uri: evidence.file_url,
             expires_in: 300
         });
-        const fileResponse = await fetch(signedUrlResponse.signed_url);
+        const signedUrl = new URL(signedUrlResponse.signed_url);
+        if (signedUrl.protocol !== 'https:' || signedUrl.username || signedUrl.password) {
+            return Response.json({ error: 'Invalid file URL' }, { status: 400 });
+        }
+
+        const fileResponse = await fetch(signedUrl, {
+            signal: AbortSignal.timeout(FILE_FETCH_TIMEOUT_MS),
+            redirect: 'error'
+        });
         if (!fileResponse.ok) {
             return Response.json({ error: 'Failed to fetch file' }, { status: 400 });
         }
 
-        const arrayBuffer = await fileResponse.arrayBuffer();
-        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+        const fileBytes = await readBoundedResponse(fileResponse, MAX_FILE_SIZE_BYTES);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', fileBytes);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-        const md5Buffer = await crypto.subtle.digest('SHA-1', arrayBuffer);
+        const md5Buffer = await crypto.subtle.digest('SHA-1', fileBytes);
         const md5Array = Array.from(new Uint8Array(md5Buffer));
         const md5Hex = md5Array.map(b => b.toString(16).padStart(2, '0')).join('');
 
         return Response.json({
             sha256: hashHex,
             sha1: md5Hex,
-            file_size: arrayBuffer.byteLength,
+            file_size: fileBytes.byteLength,
             timestamp: new Date().toISOString()
         });
     } catch (error) {

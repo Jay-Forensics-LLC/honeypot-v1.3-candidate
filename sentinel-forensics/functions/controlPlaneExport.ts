@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { encodeCsvRow } from './helpers/csv.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -31,15 +32,15 @@ Deno.serve(async (req) => {
 
     if (format === 'csv_manifest') {
       const csv = [
-        ['Type', 'Timestamp', 'Description', 'Status', 'Hash'],
+        encodeCsvRow(['Type', 'Timestamp', 'Description', 'Status', 'Hash']),
         ...chain.map(entry => [
           entry.entry_type,
           entry.timestamp_utc,
           entry.narrative,
           'RECORDED',
           entry.entry_hash
-        ])
-      ].map(row => row.join(',')).join('\n');
+        ]).map(encodeCsvRow)
+      ].join('\n');
 
       return new Response(csv, {
         headers: {

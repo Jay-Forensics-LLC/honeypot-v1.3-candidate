@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { createPageUrl } from '../utils';
+import { createPageUrl } from '@/utils';
 
 // Root routes where back button should NOT appear
 const ROOT_ROUTES = [

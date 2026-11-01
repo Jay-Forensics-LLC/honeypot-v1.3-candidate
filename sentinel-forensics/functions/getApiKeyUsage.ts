@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { parseApiKeyUsageFilters } from './helpers/apiKeyUsageFilters.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -9,11 +10,24 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
+    let body: Record<string, unknown> = {};
+    if (req.method !== 'GET') {
+      try {
+        body = await req.json();
+      } catch {
+        return Response.json({ error: 'Invalid request body' }, { status: 400 });
+      }
+      if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        return Response.json({ error: 'Invalid request body' }, { status: 400 });
+      }
+    }
+
     const url = new URL(req.url);
-    const apiKeyId = url.searchParams.get('apiKeyId');
-    const statusCode = url.searchParams.get('statusCode');
-    const rateLimitAction = url.searchParams.get('rateLimitAction');
-    const limit = parseInt(url.searchParams.get('limit') || '100');
+    const filters = parseApiKeyUsageFilters(url.searchParams, body);
+    if (!filters) {
+      return Response.json({ error: 'Invalid usage filter' }, { status: 400 });
+    }
+    const { apiKeyId, statusCode, rateLimitAction, limit } = filters;
 
     const filter = {
       organization_id: user.organization_id
@@ -23,8 +37,8 @@ Deno.serve(async (req) => {
       filter.api_key_id = apiKeyId;
     }
 
-    if (statusCode) {
-      filter.status_code = parseInt(statusCode);
+    if (statusCode !== null && statusCode !== undefined && statusCode !== '') {
+      filter.status_code = parseInt(String(statusCode), 10);
     }
 
     if (rateLimitAction) {

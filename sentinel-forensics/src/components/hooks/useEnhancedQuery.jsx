@@ -50,12 +50,15 @@ export function useEnhancedMutation(mutationFn, options = {}) {
 
   return useMutation({
     ...reactQueryOptions,
-    mutationFn: enhancedMutation({
-      mutationFn,
-      invalidatePatterns,
-      enableCircuitBreaker,
-      breakerName
-    }),
+    mutationFn: async (...args) => {
+      const wrappedMutation = await enhancedMutation({
+        mutationFn,
+        invalidatePatterns,
+        enableCircuitBreaker,
+        breakerName
+      });
+      return wrappedMutation(...args);
+    },
     onSuccess: (data, variables, context) => {
       // Invalidate React Query caches
       invalidateQueries.forEach(queryKey => {

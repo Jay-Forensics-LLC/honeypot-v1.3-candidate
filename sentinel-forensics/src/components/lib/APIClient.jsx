@@ -3,7 +3,7 @@ import { requestCache } from './RequestCache';
 import { requestDeduplicator } from './RequestDeduplicator';
 import { retryHandler } from './RetryHandler';
 import { apiLimiter } from './RateLimiter';
-import { logger } from '../utils/Logger';
+import { logger } from '../utils/logger';
 
 /**
  * ENHANCED API CLIENT
