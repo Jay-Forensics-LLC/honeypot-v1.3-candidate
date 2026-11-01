@@ -14,7 +14,7 @@ export default function NavigationTracker() {
     useEffect(() => {
         window.parent?.postMessage({
             type: "app_changed_url",
-            url: window.location.href
+            url: location.pathname
         }, '*');
     }, [location]);
 

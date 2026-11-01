@@ -9,6 +9,10 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
+    if (!user.organization_id) {
+      return Response.json({ error: 'Organization context required' }, { status: 403 });
+    }
+
     const url = new URL(req.url);
     const status = url.searchParams.get('status');
     const caseId = url.searchParams.get('caseId');

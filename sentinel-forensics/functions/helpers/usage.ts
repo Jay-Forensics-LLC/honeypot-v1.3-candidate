@@ -7,3 +7,10 @@ export function isValidUsageIncrement(metricType: unknown, amount: unknown): boo
         && Number.isFinite(amount)
         && amount > 0;
 }
+
+export async function incrementUsageCounter(userEntity, userId, metricType, amount) {
+    const updatedUser = await userEntity.update(userId, {
+        $inc: { [`usage_current_period.${metricType}`]: amount }
+    });
+    return updatedUser.usage_current_period?.[metricType];
+}

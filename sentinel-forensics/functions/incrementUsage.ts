@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
-import { isValidUsageIncrement, VALID_USAGE_METRICS } from './helpers/usage.ts';
+import { incrementUsageCounter, isValidUsageIncrement, VALID_USAGE_METRICS } from './helpers/usage.ts';
 
 /**
  * Increment usage counter for current period
@@ -26,15 +26,12 @@ Deno.serve(async (req) => {
             }, { status: 400 });
         }
 
-        const currentUsage = user.usage_current_period || {};
-        const newValue = (currentUsage[metricType] || 0) + amount;
-
-        await base44.auth.updateMe({
-            usage_current_period: {
-                ...currentUsage,
-                [metricType]: newValue
-            }
-        });
+        const newValue = await incrementUsageCounter(
+            base44.asServiceRole.entities.User,
+            user.id,
+            metricType,
+            amount
+        );
 
         return Response.json({
             success: true,

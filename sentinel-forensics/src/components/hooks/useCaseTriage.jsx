@@ -13,9 +13,10 @@ export function useCaseTriage() {
       const result = await base44.functions.invoke('aiCaseTriage', { caseId });
       return result.data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, caseId) => {
       toast.success(`Case triaged: ${data.triage.priority} priority assigned`);
-      queryClient.invalidateQueries({ queryKey: ['cases'] });
+      queryClient.invalidateQueries({ queryKey: ['case', caseId] });
+      queryClient.invalidateQueries({ queryKey: ['org-query', 'Case'] });
     },
     onError: (error) => {
       toast.error(`Triage failed: ${error.message}`);

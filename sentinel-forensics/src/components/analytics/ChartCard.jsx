@@ -29,6 +29,7 @@ export default function ChartCard({
                 variant="ghost" 
                 size="sm" 
                 onClick={onExport}
+                aria-label={`Export ${title} chart`}
                 className="text-slate-400 hover:text-white"
               >
                 <Download className="w-4 h-4" />
@@ -39,6 +40,8 @@ export default function ChartCard({
                 variant="ghost" 
                 size="sm" 
                 onClick={() => setShowAbout(!showAbout)}
+                aria-label={`Toggle data provenance for ${title}`}
+                aria-expanded={showAbout}
                 className="text-slate-400 hover:text-white"
               >
                 <Info className="w-4 h-4" />

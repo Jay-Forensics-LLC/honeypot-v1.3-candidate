@@ -27,9 +27,9 @@ Deno.serve(async (req) => {
             { cancel_at_period_end: true }
         );
 
-        // Update user status
+        // Keep local access aligned with Stripe until the subscription is deleted.
         await base44.auth.updateMe({
-            subscription_status: 'cancelled',
+            subscription_status: subscription.status,
         });
 
         // Log cancellation

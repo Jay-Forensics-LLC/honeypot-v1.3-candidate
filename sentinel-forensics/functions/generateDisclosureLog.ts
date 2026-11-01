@@ -4,20 +4,25 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
+
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { legal_case_id, disclosure_type, evidence_ids } = await req.json();
+    if (!Array.isArray(evidence_ids)) {
+      return Response.json({ error: 'Evidence IDs must be an array' }, { status: 400 });
+    }
 
     const evidenceItems = [];
     for (const evidenceId of evidence_ids) {
       const evidence = await base44.entities.EvidenceV2.filter({ id: evidenceId });
-      if (evidence[0]) {
-        evidenceItems.push({
-          evidence_id: evidenceId,
-          exhibit_number: evidence[0].exhibit_number || 'TBD',
-          description: evidence[0].description
-        });
+      if (!evidence[0]) {
+        return Response.json({ error: 'Selected evidence is unavailable' }, { status: 404 });
       }
+      evidenceItems.push({
+        evidence_id: evidenceId,
+        exhibit_number: evidence[0].exhibit_number || 'TBD',
+        description: evidence[0].description
+      });
     }
 
     const disclosureLog = await base44.entities.DisclosureLog.create({

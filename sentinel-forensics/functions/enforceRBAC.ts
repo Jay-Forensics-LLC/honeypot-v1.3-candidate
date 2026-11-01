@@ -29,20 +29,22 @@ export async function enforceRBAC(req, allowedRoles = ['admin']) {
 /**
  * Standalone RBAC enforcement function
  */
-Deno.serve(async (req) => {
-  try {
-    const { allowed_roles = ['admin'] } = await req.json();
-    const { user } = await enforceRBAC(req, allowed_roles);
+if (import.meta.main) {
+  Deno.serve(async (req) => {
+    try {
+      const { allowed_roles = ['admin'] } = await req.json();
+      const { user } = await enforceRBAC(req, allowed_roles);
 
-    return Response.json({
-      success: true,
-      user: {
-        email: user.email,
-        role: user.role,
-        organization_id: user.organization_id
-      }
-    });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 403 });
-  }
-});
+      return Response.json({
+        success: true,
+        user: {
+          email: user.email,
+          role: user.role,
+          organization_id: user.organization_id
+        }
+      });
+    } catch (error) {
+      return Response.json({ error: error.message }, { status: 403 });
+    }
+  });
+}

@@ -1,4 +1,8 @@
-import { isValidUsageIncrement, VALID_USAGE_METRICS } from '../helpers/usage.ts';
+import {
+    incrementUsageCounter,
+    isValidUsageIncrement,
+    VALID_USAGE_METRICS
+} from '../helpers/usage.ts';
 
 Deno.test('usage increments accept supported counters and positive finite numbers', () => {
     for (const metric of VALID_USAGE_METRICS) {
@@ -19,5 +23,34 @@ Deno.test('usage increments reject unsupported counters and invalid amounts', ()
         if (isValidUsageIncrement('scans_per_month', amount)) {
             throw new Error(`Expected invalid amount ${String(amount)} to be rejected`);
         }
+    }
+});
+
+Deno.test('usage increments use atomic updates for each metric', async () => {
+    const user = { usage_current_period: { scans_per_month: 2, evidence_mb: 5 } };
+    const updates = [];
+    const userEntity = {
+        async update(userId, update) {
+            if (userId !== 'user-1') throw new Error('Unexpected user ID');
+            updates.push(update);
+            for (const [path, amount] of Object.entries(update.$inc)) {
+                const [, metric] = path.split('.');
+                user.usage_current_period[metric] =
+                    (user.usage_current_period[metric] || 0) + amount;
+            }
+            return structuredClone(user);
+        }
+    };
+
+    await Promise.all([
+        incrementUsageCounter(userEntity, 'user-1', 'scans_per_month', 1),
+        incrementUsageCounter(userEntity, 'user-1', 'scans_per_month', 1),
+        incrementUsageCounter(userEntity, 'user-1', 'evidence_mb', 2)
+    ]);
+
+    if (user.usage_current_period.scans_per_month !== 4
+        || user.usage_current_period.evidence_mb !== 7
+        || updates.some(update => !update.$inc || update.usage_current_period)) {
+        throw new Error('Expected atomic counter updates without replacing the usage snapshot');
     }
 });
