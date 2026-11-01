@@ -59,7 +59,7 @@ Parent-controlled offline sandbox, synthetic data only, no external network:
 
 The clean-source check used commit `93b31be` without Git metadata, launched from
 another directory with a stale `HP_ROOT`, and completed the first synthetic case.
-Only this handoff text changed afterward.
+Only review documentation changed afterward.
 
 The full suite caught and drove corrections for timestamp/reconstruction and
 rule-version/dashboard integration mismatches. A separate source review also
