@@ -10,7 +10,7 @@ under `sentinel-forensics/`.
 - Upstream Git tree: `45e7025dd351732dfa0d321362891ff353f8b940`.
 - Bundled license: **GNU Affero General Public License, version 3**;
   the full text is preserved at [sentinel-forensics/LICENSE](sentinel-forensics/LICENSE).
-- Import method: complete committed tree with 12 recorded replacements and four local additions, without upstream Git metadata/history
+- Import method: complete committed tree with 34 recorded replacements and 18 local additions, without upstream Git metadata/history
   or untracked files. See [the source manifest](docs/sentinel-source.json).
 
 Keep the component's license and existing source notices with copies of the

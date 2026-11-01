@@ -2,13 +2,13 @@
   "schema_version": 1,
   "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
   "commit": "187bec14835fc9497b05594ca467a49259553d64",
-  "git_tree": "56b207090d2d45bbef3946c1afd9d9454d5758df",
+  "git_tree": "07b3be346f2be59f17f629a7595a9e2b7fa8238b",
   "prefix": "sentinel-forensics",
-  "files": 1420,
-  "bytes": 11452887,
+  "files": 1434,
+  "bytes": 11468248,
   "license": "AGPL-3.0",
   "license_sha256": "7f8f48e4266aa8fd3033dfaa4bb7f6e83a60c6e099f82d4959b81de90e67cd8f",
-  "import_method": "Complete committed upstream tree with 12 recorded replacements and four local additions; Git metadata/history and untracked files excluded.",
+  "import_method": "Complete committed upstream tree with 34 recorded replacements and 18 local additions; Git metadata/history and untracked files excluded.",
   "upstream_git_tree": "45e7025dd351732dfa0d321362891ff353f8b940",
   "upstream_bytes": 11448833,
   "patches": [
@@ -33,7 +33,7 @@
       "operation": "replace",
       "upstream_blob": "cc336ed7ad91bcc2d26222339cfb70584264864d",
       "upstream_sha256": "b98a09780435c52fa9f8220cebc988f43cce82af6e90cc62745f39a24734b45e",
-      "sha256": "4bc71ef2e648d4ea1a8e8653744b1bdecd5fc834b843c0cdf00ee13c3424b4b9",
+      "sha256": "5fb92fc80009e795b13abb2c030db216fa5b1c99cbf0a2dd0c3a5d9978997752",
       "reason": "Restrict API case reads to the authenticated case scope."
     },
     {
@@ -41,8 +41,8 @@
       "operation": "replace",
       "upstream_blob": "baef279e72994b9c576cb578fef69a3e4fa29b84",
       "upstream_sha256": "d4f9ddae3fa5d46f55d817d63f39a392ce067221d7a66b6dbe3a85e66ab1c95d",
-      "sha256": "c457dafb22322b8ba96fce72d5cca43aa0efa0dc99ec31ffcc70ccdba86b49cd",
-      "reason": "Resolve evidence by ID and enforce case authorization before retrieving a short-lived signed URL."
+      "sha256": "c40f46c081169be263172081e896938c0589d7c7edebeb768e3340183cae2ed0",
+      "reason": "Resolve evidence by ID, enforce case authorization, and bound signed-URL downloads."
     },
     {
       "path": "functions/helpers/orgContext.ts",
@@ -105,7 +105,7 @@
       "operation": "replace",
       "upstream_blob": "67bab39def761edd55e05e53aba01b1389c6cd9b",
       "upstream_sha256": "972ad9b32fbb15957b3f2a6f11dfaa3874587b4dcf4a9ca33345e2784b57b475",
-      "sha256": "2aeb4480a7d1ccc9be32b0ce03b9f8b17b42d9b9757aad72dd71826301d069bc",
+      "sha256": "03788535b1f9ea0ae170b44aa18eea29cc9cadd7a7be612fa228e8ebf420edcb",
       "reason": "Preserve the composed mutation success callback instead of overriding it."
     },
     {
@@ -113,8 +113,8 @@
       "operation": "replace",
       "upstream_blob": "f3edb08b78191e686aed3edae35b71922217cf20",
       "upstream_sha256": "be7c48808fd7b71d8c5cc5274971eb33581f217af9f0583d79534e3465457acf",
-      "sha256": "a4a180aba9d6ebedce7094a2f33054826f07fe5124ce8fc70a3b5a37174b19f2",
-      "reason": "Propagate organization query failures instead of presenting them as empty results."
+      "sha256": "04127956ac8b799298c5fe317a435a08b22a9124920d533a2235ab57e158653b",
+      "reason": "Keep organization filters authenticated and propagate query failures."
     },
     {
       "path": "src/components/ui/progress.jsx",
@@ -131,6 +131,266 @@
       "upstream_sha256": "0932f9c15cdbb89365ea14d07ee2b5ed9dd0cdf17057f428504768e1343b232e",
       "sha256": "da87d24ecc5eaecbce6d45a70963149f4ba56a1de35fcfb53da24f061d4a5c1f",
       "reason": "Use the configured backend origin rather than a URL parameter override."
+    },
+    {
+      "path": "functions/controlPlaneExport.ts",
+      "operation": "replace",
+      "upstream_blob": "157bab7aac9445bb04c8ddaad20a3647b8966acc",
+      "upstream_sha256": "6d3a574696dea8cb64e00683bbc39937f7ed9c6a93f18f81afd494131d009ea2",
+      "sha256": "09bbe9f3b83dc2095805e4fe3afe50f7d08821d5b4291ec3f3c7b89e2092455e",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/getApiKeyUsage.ts",
+      "operation": "replace",
+      "upstream_blob": "38331fc96bc0eebb675a6ca928f445847f45155b",
+      "upstream_sha256": "a0de5d2ee437d2e7db2f8610253ee1ffbc3737092c870056f80ac36389366cf0",
+      "sha256": "092f7058dc2750054091c4d76eac6bfb808521f0ad62f42eb31f275601979059",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/helpers/apiKeyScope.ts",
+      "operation": "add",
+      "sha256": "8773f2029808411d9d4f394373bc72b8984bcecbeb1cacb194e23b7582c56977",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/helpers/apiKeyStatus.ts",
+      "operation": "add",
+      "sha256": "60974c5fd7b0d885340b44e5806fa322432d3f669540da6767a798326c3ca09f",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/helpers/apiKeyUsage.ts",
+      "operation": "add",
+      "sha256": "6bab15a2cb03842e1928720042a3aa1cbe971a1a3d293e32bb5a179d51faa5d5",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/helpers/apiKeyUsageFilters.ts",
+      "operation": "add",
+      "sha256": "9d35d1ae1379ce9c29c126b5c0077d7ddf14028e78974757744aff40a449de6e",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/helpers/boundedFetch.ts",
+      "operation": "add",
+      "sha256": "85ced2e6f9d402207b5347ec9a0fb45fdcf86a093fa8c576c67fbb65c9614f75",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/helpers/csv.ts",
+      "operation": "add",
+      "sha256": "07f0233578ac745417f46a521003711c74a7923fa8a232f909b00e811a2f1afd",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/helpers/cveInput.ts",
+      "operation": "add",
+      "sha256": "7225dc6c8c74b9ea4ae3015f830e2773a7e930606b5fcd57f39ed40466c44809",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/helpers/readBoundedResponse.ts",
+      "operation": "add",
+      "sha256": "c07ad5569c283803601b983fef3461c798e5bf5e66f8de0f1b2db4ea5f52f481",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/logUsage.ts",
+      "operation": "replace",
+      "upstream_blob": "3dd72eea410e992595e388232c0f5108c06f8ff2",
+      "upstream_sha256": "aa799ca350d1f59408e90cf5e3e4e03994f4f0d24da69df8c1bd1cdbb80e577e",
+      "sha256": "98a4c7d63bf36f5b0115e4426692e32f206263c44a44d57c93d59d9edb655326",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/revokeApiKey.ts",
+      "operation": "replace",
+      "upstream_blob": "e4df659a38b533c65d7d00b4d98d6f0b19a0b45c",
+      "upstream_sha256": "25341d74156c3feb57e955d9f82ada2984141f612a3c8a0462a5dc9706b88da7",
+      "sha256": "b0ac14ea68aedd825d2e9ea005f9bddbefc3470caa06e10b0c11d31f8ba50586",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/secureThreatIngest.ts",
+      "operation": "replace",
+      "upstream_blob": "05c367d026b1baa86704667e0836707827130dc5",
+      "upstream_sha256": "659ddb89878d3e03d6e95c33319a3dec727960eb5b0b72b36ea375e0eaf0d668",
+      "sha256": "2b24d15bb8a8bb5ab850c9e8432a0abf836e0c32077fbc959d84a1b85ee1d093",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/tests/apiKeyStatus.test.mjs",
+      "operation": "add",
+      "sha256": "24c89046cc14f945e4c8a2c10baa91b06cc641f58ba7f3e4fa59a51957d01163",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/tests/apiKeyUsageFilters.test.mjs",
+      "operation": "add",
+      "sha256": "71aa94b8bd9aaafc0835d30285e281ae743f8a9905503d42d2dc36d8a7403788",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/tests/boundedFetch.test.mjs",
+      "operation": "add",
+      "sha256": "4d56ed9c7dbcf151d9c1e43224237b04974d89b362e870dc19da2f93d197b18d",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/tests/csv.test.mjs",
+      "operation": "add",
+      "sha256": "940127a222ce027354e1658f4e45412f35637966139bc3cab6d06865aa5049df",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/tests/cveInput.test.mjs",
+      "operation": "add",
+      "sha256": "c239c80c032336830d4fba8c4b8a42b8bfb06be3546cc901b180eab77f3ce70b",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/tests/readBoundedResponse.test.mjs",
+      "operation": "add",
+      "sha256": "7a3f067e92b5271f8d849c6e6f40f0d29f37d007237be305a0b9743fc5240187",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/toggleApiKey.ts",
+      "operation": "replace",
+      "upstream_blob": "c4fae6d46cdfc13e38afc04bf1b5a55e5e1a4c7c",
+      "upstream_sha256": "da113a6ba545a6fa925283b6778ca227177e0ec086c7288ccaa948f422fe219f",
+      "sha256": "8be24e713fd1efc0813eb427b2b2191e3213e55ed19a9372feb230c3b6039080",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/hooks/useOfflineSync.jsx",
+      "operation": "replace",
+      "upstream_blob": "e0ec21493d45be8191c2d27c807fb6a0c5fb1d9b",
+      "upstream_sha256": "00de792a19b95d888575796a2317ab125fc5171cd065104258bdcb4f5275b60e",
+      "sha256": "71bf52ac7b3eb09a02909c9e53a29469017c53af98ff585a5e0468ca7dfae946",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/lib/APIClient.jsx",
+      "operation": "replace",
+      "upstream_blob": "d4ce658757208eb4f61f16e3abcf729093f2a605",
+      "upstream_sha256": "f7608d15c3d0c49cbe1b1a7e9e57a89236315dc045d5a3acf5db358dfeebafc3",
+      "sha256": "4bb46463cd2d6b842f34494c63830abea7dea3ccd04802a6d84bdc3f81be1f2f",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/lib/Container.jsx",
+      "operation": "replace",
+      "upstream_blob": "50f6d2d9487034a09f5a0336601a7c143d45caac",
+      "upstream_sha256": "448a604cccbecfdef2e198b1295dc699a4f330d4aa2a132b9dd745d0ac040e9d",
+      "sha256": "4a57834170b1f73742fa5b058d2085407bc40997b182fd8d33e5b379843a0bcd",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/lib/OfflineDB.jsx",
+      "operation": "replace",
+      "upstream_blob": "49dfa584ff740dd111ed21fc761804d5db3c102f",
+      "upstream_sha256": "a6f4d800089045f440c8c3238926572a915ea3bc664daa2f7e39db4f45c0acab",
+      "sha256": "306801642752a6545425182b3d7660685a24f7c11f02f50f67a1b76c339ab171",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/lib/OfflineQueue.jsx",
+      "operation": "replace",
+      "upstream_blob": "a5defcc2f14311ea1db2db3d4ea8b213554617bc",
+      "upstream_sha256": "939a4d6f55ecd06757e5880729545a07e10875a95e89b75fc49a9412a6ba7fef",
+      "sha256": "c26f46df5ba79259fdf593e6ba20ddc407938609c97a3242420ebec196baec10",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/lib/RateLimiter.jsx",
+      "operation": "replace",
+      "upstream_blob": "4c3ce805fe98b9b2e59602cb3f9efd5fb6a9d088",
+      "upstream_sha256": "9ca7a6bfcdb63f574bd7ef953dda03058724f7962aef7646f6bf79ea43f76fd7",
+      "sha256": "b37fdbd77be59fdfdf08d4f2a3490d04efbcc0945f19a309063f32b108ddeeaf",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/lib/RequestCache.jsx",
+      "operation": "replace",
+      "upstream_blob": "33851f9059cfc8c4b111d6197870bb0a83712fcf",
+      "upstream_sha256": "c5b973b176e127d23aa8e6cab910c163fd05f19f6cd4ad1657af0e2f236c1fc1",
+      "sha256": "13e0d562ec71a0af729434eac3636730ed8dbf5abb244594f8a26f491df01974",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/lib/RequestDeduplicator.jsx",
+      "operation": "replace",
+      "upstream_blob": "6ece9267c22ff0db5c955386c5551f1821197e22",
+      "upstream_sha256": "5921aa3b7ca55c9a2b0b8eaa7f4d1cc956816feddc88a0f5a4baa1cb95b6f1e1",
+      "sha256": "1974654f23cd636a4df2909ff31ae6b2e358b6a742849f4b734d4c139a2f5a2e",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/lib/RetryHandler.jsx",
+      "operation": "replace",
+      "upstream_blob": "b6340d7ac3eeff54545c0b28c5e2960dccbbf4fb",
+      "upstream_sha256": "b7284fd4361eb6b75c0798b32ec295b8227d12ae535af134fbe912c9a4ab7705",
+      "sha256": "3275e269a93376f22f7941e9cf32d1f26e1673393381268f63ccbf416480a611",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/navigation/SmartBackButton.jsx",
+      "operation": "replace",
+      "upstream_blob": "1fe26d5058b1dfd9c76b68b4461d4d91721ace24",
+      "upstream_sha256": "cc454893da487377a65e78d1159cf9dbf3ebd4294b49c975ab7d2ce64d4efec5",
+      "sha256": "64ece79b78f0cd935798d934cd17b0d773b485568da037443fed4c7256d66d74",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/onboarding/OnboardingGuard.jsx",
+      "operation": "replace",
+      "upstream_blob": "544864830c3541002303594cd133c491e1a6f7a0",
+      "upstream_sha256": "9c86ec8de879d7620ebd3f42862d56f00e9e33a8ff03f39309489900bb07addd",
+      "sha256": "22274ba6455f4da858ffe4ae8a278ae690dcff380fef48b58c9586ad693788de",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/performance/ComponentMonitor.jsx",
+      "operation": "replace",
+      "upstream_blob": "215130e17fd833649fc5369f4ff8d3e33a00bbf4",
+      "upstream_sha256": "ed1b9376d5e9f9978d8ac4e0fe1f4a0aa42bb500427c786e666fbf03180e8401",
+      "sha256": "deb8784544e5231ad366072cea835585ab80a45b4fb4874e9848a27110019e4a",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/performance/DataPreloader.jsx",
+      "operation": "replace",
+      "upstream_blob": "091d04bc1e9a0df813137283dffdf4d545cadbe2",
+      "upstream_sha256": "427c9fcfedb25903b344785f82b5412d1f53b29fa7e88a6fee86d272c6a5fc87",
+      "sha256": "c18deeea3cf0a0aba54674444fb96586413570775823af23f6ec9b881da6f0f5",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/performance/MemoryManager.jsx",
+      "operation": "replace",
+      "upstream_blob": "5942f5e9242116c1916c1274bbfdb3553b36f493",
+      "upstream_sha256": "b7b1a3cfe3e80e3966dded38132c993ee864efba52236ae8c64dccd628dd9877",
+      "sha256": "773c6efa5b40b0b2178aaed1f3d90ddb80788e78c6c64d9c83b35c7b8458bb09",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/performance/OptimizedImage.jsx",
+      "operation": "replace",
+      "upstream_blob": "caf86c9dbed08ee6f753b81bb70e40cb544280c9",
+      "upstream_sha256": "60d49487542aee3fcf24c141dba0fafa7b67a3daa062bc9839578dcf907b58df",
+      "sha256": "1e058509a987681dcc00511cd2ff65b5c01b2ab8e94e28d224f5a85fa84cc7e4",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/subscription/UpgradeButton.jsx",
+      "operation": "replace",
+      "upstream_blob": "db621f1b1e8bdc2ea7e68112ee7e094fe7f7cf9a",
+      "upstream_sha256": "cb41d9f92f4f900b9e3516e4462558fb844407722383ef0c70027033dbf9fc89",
+      "sha256": "da7c8f5845c492ec12c0b458df2543a6c6951b19830ef563113cf3035055ca09",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
     }
   ]
 }
