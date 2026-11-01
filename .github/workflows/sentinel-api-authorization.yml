@@ -12,6 +12,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
@@ -34,7 +35,7 @@ jobs:
           # This namespace has only loopback and no external interface or route.
           ip link set lo up
           mount -t tmpfs -o size=16m,mode=0755,nodev,nosuid tmpfs "$root_dir"
-          mkdir -p "$root_dir"/{usr,bin,lib,lib64,runtime,source,etc,dev,proc,scratch}
+          mkdir -p "$root_dir"/{usr,bin,lib,lib64,runtime,source,etc,dev,proc,scratch,tmp}
           for dir in usr bin lib lib64; do
             mount --bind "/$dir" "$root_dir/$dir"
             mount -o remount,bind,ro "$root_dir/$dir"
@@ -53,11 +54,14 @@ jobs:
           mount -o remount,bind,ro "$root_dir/etc/ld.so.cache"
           mount -t proc -o ro,nosuid,nodev,noexec,hidepid=2 proc "$root_dir/proc"
           mount -t tmpfs -o size=64m,mode=0700,uid=65534,gid=65534,nodev,nosuid,noexec tmpfs "$root_dir/scratch"
+          # Existing offline packet fixtures explicitly use /tmp. It is an
+          # alias of the same bounded scratch mount, never the runner's /tmp.
+          mount --bind "$root_dir/scratch" "$root_dir/tmp"
           mount -o remount,ro "$root_dir"
           cd /
           exec chroot "$root_dir" /usr/bin/setpriv \
             --reuid=65534 --regid=65534 --clear-groups --bounding-set=-all --no-new-privs \
             /usr/bin/env -i PATH=/runtime:/usr/bin:/bin HOME=/scratch TMPDIR=/scratch XDG_CACHE_HOME=/scratch \
-            /usr/bin/prlimit --cpu=120 --as=4294967296 --nproc=64 --nofile=256 --fsize=16777216 --core=0 \
+            /usr/bin/prlimit --cpu=120 --as=4294967296 --nproc=64 --nofile=256 --fsize=134217728 --core=0 \
             /bin/sh -c 'set -eu; cd /source; node --disable-wasm-trap-handler --max-old-space-size=256 --test --test-concurrency=1 sentinel-forensics/functions/tests/*.test.mjs; python3 -B tools/validate_sentinel_bundle.py; python3 -B -m unittest discover -s tools/tests -p test_sentinel_bundle.py -v; make -C honeypot test; make -C honeypot verify'
           SANDBOX

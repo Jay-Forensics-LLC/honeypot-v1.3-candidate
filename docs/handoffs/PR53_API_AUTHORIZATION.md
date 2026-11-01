@@ -58,7 +58,8 @@ bundle tests, then the repository-required `make -C honeypot test` and
 `make -C honeypot verify` in an OS sandbox. It uses an isolated loopback-only
 network namespace, read-only source/toolchain, empty allowlisted environment,
 unprivileged UID, 120 CPU seconds per process, 4 GiB address-space limit, 64
-processes, 256 descriptors, 16 MiB file-size limit, 64 MiB scratch space and a
+processes, 256 descriptors, 128 MiB file-size limit, 64 MiB scratch space (also
+mounted at `/tmp` for existing sparse-file/packet fixtures) and a
 240-second wall deadline. Check the exact correction commit's job results before
 acceptance; scheduling a job is not a PASS.
 
