@@ -48,7 +48,6 @@ export function useOrgQuery(
     enabled: !!user?.organization_id && (options.enabled !== undefined ? options.enabled : true),
     staleTime: options.staleTime || 60000,
     retry: options.retry !== undefined ? options.retry : 1,
-    initialData: options.initialData || [],
     suspense: false,
     useErrorBoundary: false,
     ...options
