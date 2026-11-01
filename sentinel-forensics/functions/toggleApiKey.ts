@@ -1,8 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 import {
-  getApiKeyStatusTransitionFilter,
   getOrganizationApiKeyFilter,
-  getToggleApiKeyStatus
+  getToggleApiKeyStatus,
+  transitionApiKeyStatus
 } from './helpers/apiKeyStatus.ts';
 
 Deno.serve(async (req) => {
@@ -39,11 +39,13 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Only active or disabled API keys can be toggled' }, { status: 409 });
     }
 
-    const result = await base44.asServiceRole.entities.ApiKey.updateMany(
-      getApiKeyStatusTransitionFilter(keyFilter, keys[0].status),
-      { $set: { status } }
+    const transitioned = await transitionApiKeyStatus(
+      base44.asServiceRole.entities.ApiKey,
+      keyFilter,
+      keys[0].status,
+      status
     );
-    if (result.updatedCount !== 1) {
+    if (!transitioned) {
       return Response.json({ error: 'API key status changed; reload and try again' }, { status: 409 });
     }
 

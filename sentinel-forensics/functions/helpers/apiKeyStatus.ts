@@ -21,3 +21,16 @@ export function getApiKeyStatusTransitionFilter(
 ): { id: string; organization_id: string; status: string } {
   return { ...keyFilter, status: currentStatus };
 }
+
+export async function transitionApiKeyStatus(
+  apiKeyEntity,
+  keyFilter: { id: string; organization_id: string },
+  currentStatus: string,
+  nextStatus: 'active' | 'disabled'
+): Promise<boolean> {
+  const result = await apiKeyEntity.updateMany(
+    getApiKeyStatusTransitionFilter(keyFilter, currentStatus),
+    { $set: { status: nextStatus } }
+  );
+  return result.updatedCount === 1;
+}
