@@ -20,6 +20,8 @@ from hp_common import ROOT, append_json
 LEVELS = {'DEBUG': 10, 'INFO': 20, 'WARNING': 30, 'ERROR': 40, 'CRITICAL': 50}
 COMPONENTS = frozenset(('suite', 'cli', 'dashboard', 'imports', 'store', 'jobs',
                         'incidentd', 'health', 'guard', 'decoys'))
+SINKS = frozenset(('suite', 'incidentd'))
+READ_SINKS = SINKS | {'legacy'}
 PREFIXES = COMPONENTS | {'http', 'policy', 'import', 'worker', 'job', 'case', 'decoy', 'equipment', 'review', 'diagnostics'}
 PLUGINS = frozenset(('spiderfoot', 'recon-ng', 'bbot', 'nmap', 'nuclei', 'cloudfox',
                      'bloodhound', 'awareness', 'mock-ti', 'forensics', 'sentinel', 'imazing'))
@@ -40,6 +42,21 @@ _CURRENT_LOG = ContextVar('suite_log', default=None)
 _BACKENDS, _BACKEND_LOCK = {}, threading.Lock()
 MAX_TAIL_BYTES = 2 * 1024**2
 MAX_LINE_BYTES = 4096
+
+
+def _sink_path(root, sink):
+    if sink not in READ_SINKS:
+        raise ValueError('Invalid diagnostics sink')
+    name = {'suite': 'host-suite.jsonl', 'incidentd': 'incidentd-suite.jsonl',
+            'legacy': 'suite.jsonl'}[sink]
+    return root / 'logs/system' / name
+
+
+def _backend_state(path):
+    with _BACKEND_LOCK:
+        return _BACKENDS.setdefault(str(path), {
+            'write_failures': 0, 'last_error': None, 'last_written': None,
+            'lock': threading.RLock()})
 
 
 @contextmanager
@@ -110,7 +127,7 @@ def _record(row):
     return result
 
 
-def _tail(path, budget):
+def _tail(path, budget, allow_incidentd_root=False):
     """Read a bounded end snapshot without following any file or ancestor link."""
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
     parent = os.open(path.anchor, flags)
@@ -122,7 +139,9 @@ def _tail(path, budget):
             parent = child
         descriptor = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=parent)
         info = os.fstat(descriptor)
-        if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_uid != os.geteuid()
+        owner_allowed = (info.st_uid == os.geteuid() or
+                         allow_incidentd_root and os.geteuid() == 0 and info.st_uid == 10001)
+        if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or not owner_allowed
                 or info.st_mode & 0o077):
             raise ValueError('Unsafe diagnostics file')
         size = min(info.st_size, budget)
@@ -144,23 +163,23 @@ def _tail(path, budget):
 
 
 class SuiteLog:
-    def __init__(self, root, component='suite', level=None):
+    def __init__(self, root, component='suite', level=None, sink=None):
         if not isinstance(component, str) or component not in COMPONENTS:
             raise ValueError('Unknown logging component')
         self.root = Path(root).absolute()
         if '..' in self.root.parts:
             raise ValueError('Unsupported logging root')
-        self.path = self.root / 'logs/system/suite.jsonl'
+        self.sink = ('incidentd' if component == 'incidentd' else 'suite') if sink is None else sink
+        if self.sink not in SINKS:
+            raise ValueError('Invalid diagnostics sink')
+        self.path = _sink_path(self.root, self.sink)
         self.component = component
         selected = level if level is not None else os.environ.get('HP_LOG_LEVEL', 'INFO')
         self.level = selected.upper() if isinstance(selected, str) and selected.upper() in LEVELS else 'INFO'
-        with _BACKEND_LOCK:
-            self._state = _BACKENDS.setdefault(str(self.path), {
-                'write_failures': 0, 'last_error': None, 'last_written': None,
-                'lock': threading.RLock()})
+        self._state = _backend_state(self.path)
 
     def child(self, component):
-        return SuiteLog(self.root, component, self.level)
+        return SuiteLog(self.root, component, self.level, self.sink)
 
     @contextmanager
     def bind(self):
@@ -192,21 +211,25 @@ class SuiteLog:
             self._state['last_error'] = None
         return True
 
-    def status(self):
-        with self._state['lock']:
-            return {'level': self.level, 'write_failures': self._state['write_failures'],
-                    'last_error': self._state['last_error'], 'last_written': self._state['last_written'],
+    def status(self, sink=None):
+        state = _backend_state(_sink_path(self.root, self.sink if sink is None else sink))
+        with state['lock']:
+            return {'level': self.level, 'write_failures': state['write_failures'],
+                    'last_error': state['last_error'], 'last_written': state['last_written'],
                     'rotation_bytes': 20 * 1024**2, 'retained_archives': 10}
 
-    def read_recent(self, limit=100, level='', component=''):
+    def read_recent(self, limit=100, level='', component='', sink=None):
         if (type(limit) is not int or not 1 <= limit <= 200 or level not in ('', *LEVELS)
-                or component not in ('', *COMPONENTS)):
+                or component not in ('', *COMPONENTS) or (sink is not None and sink not in READ_SINKS)):
             raise ValueError('Invalid diagnostics filter')
+        selected_sink = self.sink if sink is None else sink
+        path = _sink_path(self.root, selected_sink)
         entries, remaining, truncated, found = [], MAX_TAIL_BYTES, False, False
         try:
             for suffix in ('', *(f'.{number}' for number in range(1, 11))):
                 try:
-                    lines, size, partial = _tail(Path(str(self.path) + suffix), remaining)
+                    lines, size, partial = _tail(Path(str(path) + suffix), remaining,
+                                                 allow_incidentd_root=selected_sink == 'incidentd')
                 except FileNotFoundError:
                     continue
                 found = True
@@ -229,9 +252,9 @@ class SuiteLog:
                     truncated = True
                     break
             return {'status': 'available' if found else 'not_collected', 'entries': entries,
-                    'truncated': truncated, **self.status()}
+                    'truncated': truncated, **self.status(selected_sink)}
         except (OSError, ValueError):
-            return {'status': 'unavailable', 'entries': [], 'truncated': False, **self.status()}
+            return {'status': 'unavailable', 'entries': [], 'truncated': False, **self.status(selected_sink)}
 
 
 def get_log(component):

@@ -1,19 +1,32 @@
-import React from 'react';
+import { useEffect, useRef } from 'react';
 import { FileCheck } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
+import DashboardMetricsStatus from './DashboardMetricsStatus';
 
 export default function PolicyComplianceWidget({ globalFilters, refreshKey }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['dashboard-metrics', globalFilters, refreshKey],
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['dashboard-metrics', globalFilters],
     queryFn: async () => {
       const result = await base44.functions.invoke('dashboardMetrics', globalFilters);
       return result.data;
     }
   });
+  const previousRefreshKey = useRef(refreshKey);
+
+  useEffect(() => {
+    if (previousRefreshKey.current !== refreshKey) {
+      previousRefreshKey.current = refreshKey;
+      refetch();
+    }
+  }, [refreshKey, refetch]);
 
   if (isLoading) {
     return <div className="h-32 bg-gray-100 rounded animate-pulse" />;
+  }
+
+  if (isError && !data) {
+    return <DashboardMetricsStatus isError={isError} hasData={false} />;
   }
 
   const devices = data?.metrics?.devices || {};
@@ -21,6 +34,7 @@ export default function PolicyComplianceWidget({ globalFilters, refreshKey }) {
 
   return (
     <div className="space-y-4">
+      <DashboardMetricsStatus isError={isError} hasData={Boolean(data)} />
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-gray-700">Device Compliance</h3>
         <FileCheck className="w-5 h-5 text-gray-400" />

@@ -260,10 +260,15 @@ class DashboardServer(ThreadingHTTPServer):
         super().server_close()
 
     def diagnostics(self, filters=None):
-        filters = {} if filters is None else filters
-        _expect(filters, (), ('limit', 'level', 'component'))
-        recent = self.log.read_recent(**filters)
-        return {'logging': {**self.log.status(), 'status': recent['status']},
+        filters = {} if filters is None else dict(filters)
+        _expect(filters, (), ('limit', 'level', 'component', 'sink'))
+        sink = filters.pop('sink', 'suite')
+        if sink not in ('suite', 'incidentd', 'legacy'):
+            raise ValueError('Invalid diagnostics sink')
+        log = (self.log if sink == 'suite' else
+               SuiteLog(self.root, 'incidentd' if sink == 'incidentd' else 'suite', self.log.level))
+        recent = log.read_recent(**filters, sink=sink)
+        return {'logging': {**log.status(sink), 'status': recent['status']},
                 'entries': recent['entries'], 'truncated': recent.get('truncated', False)}
 
     def equipment_workspace(self):
@@ -343,9 +348,10 @@ class DashboardServer(ThreadingHTTPServer):
             if path == '/api/diagnostics':
                 return self.diagnostics(row)
             if path == '/api/diagnostics-export':
-                _expect(row, ())
+                _expect(row, (), ('sink',))
                 return {'schema_version': 1, 'exported_at': utc(),
-                        'scope': 'sanitized_operational_diagnostics', **self.diagnostics({'limit': 200})}
+                        'scope': 'sanitized_operational_diagnostics',
+                        **self.diagnostics({'limit': 200, 'sink': row.get('sink', 'suite')})}
             if path == '/api/decoy-profile':
                 _expect(row, ('profile_id',))
                 result = render_profile(Path(__file__).resolve().parents[1], row['profile_id'])

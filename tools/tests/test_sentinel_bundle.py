@@ -1,4 +1,5 @@
 """A pinned import must retain every file, byte and Git mode."""
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -7,7 +8,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from validate_sentinel_bundle import check
+from validate_sentinel_bundle import _object, check
 
 
 class SentinelSnapshot(unittest.TestCase):
@@ -88,6 +89,30 @@ class SentinelSnapshot(unittest.TestCase):
         receipt.write_text(json.dumps(manifest))
         self.assertEqual(check(self.root)['recorded_patches'], 1)
         manifest['patches'][0]['upstream_blob'] = '0' * 40
+        receipt.write_text(json.dumps(manifest))
+        with self.assertRaises(ValueError):
+            check(self.root)
+
+    def test_recorded_rename_preserves_upstream_identity(self):
+        source = self.source / 'README.md'
+        renamed = self.source / 'README-renamed.md'
+        raw = source.read_bytes()
+        source.rename(renamed)
+        effective = []
+        for path in self.source.iterdir():
+            blob = _object('blob', path.read_bytes())
+            effective.append((path.name.encode(), b'100644 ' + path.name.encode() + b'\0' + blob))
+        tree = _object('tree', b''.join(data for _, data in sorted(effective))).hex()
+        receipt = self.root / 'docs/sentinel-source.json'
+        manifest = json.loads(receipt.read_text())
+        manifest.update(git_tree=tree, upstream_git_tree='6b4e8899c4ae45347bc15114d3b5d31891e741b6',
+                        patches=[{'path': 'README-renamed.md', 'operation': 'replace',
+                                  'upstream_path': 'README.md',
+                                  'upstream_blob': _object('blob', raw).hex(),
+                                  'sha256': hashlib.sha256(raw).hexdigest()}])
+        receipt.write_text(json.dumps(manifest))
+        self.assertEqual(check(self.root)['upstream_git_tree'], manifest['upstream_git_tree'])
+        manifest['patches'][0]['upstream_path'] = '../README.md'
         receipt.write_text(json.dumps(manifest))
         with self.assertRaises(ValueError):
             check(self.root)

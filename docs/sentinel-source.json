@@ -2,13 +2,13 @@
   "schema_version": 1,
   "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
   "commit": "187bec14835fc9497b05594ca467a49259553d64",
-  "git_tree": "bd1037891630d2eab0db1455d98b3f2b965f9d36",
+  "git_tree": "7fedacb9c3972a86f52de10ebb36a8984aa210ae",
   "prefix": "sentinel-forensics",
   "files": 1444,
-  "bytes": 11524281,
+  "bytes": 11527488,
   "license": "AGPL-3.0",
   "license_sha256": "7f8f48e4266aa8fd3033dfaa4bb7f6e83a60c6e099f82d4959b81de90e67cd8f",
-  "import_method": "Complete committed upstream tree with 55 recorded replacements and 28 local additions; Git metadata/history and untracked files excluded.",
+  "import_method": "Complete committed upstream tree with 59 recorded replacements and 28 local additions; Git metadata/history and untracked files excluded.",
   "upstream_git_tree": "45e7025dd351732dfa0d321362891ff353f8b940",
   "upstream_bytes": 11448833,
   "patches": [
@@ -157,8 +157,8 @@
     {
       "path": "functions/helpers/apiKeyStatus.ts",
       "operation": "add",
-      "sha256": "25fb28a7230411e82b9accfa6332ad1dac3f02ef5bf887d675fdb5ece972b91a",
-      "reason": "Transition API key status with a conditional updateMany on the observed organization, id, and status, and fail closed if that atomic writer is unavailable."
+      "sha256": "75f4a635e36d69ed76f60b20ddccb1e9cd6c0c510ef0cf63c32b3b049d06a67e",
+      "reason": "Transition API key status with a conditional updateMany on the observed organization, id, and status, and fail closed if that atomic writer is unavailable. Add the same guarded transition for revocation in the PR #53 review fix."
     },
     {
       "path": "functions/helpers/apiKeyUsage.ts",
@@ -209,8 +209,8 @@
       "operation": "replace",
       "upstream_blob": "e4df659a38b533c65d7d00b4d98d6f0b19a0b45c",
       "upstream_sha256": "25341d74156c3feb57e955d9f82ada2984141f612a3c8a0462a5dc9706b88da7",
-      "sha256": "b0ac14ea68aedd825d2e9ea005f9bddbefc3470caa06e10b0c11d31f8ba50586",
-      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+      "sha256": "79e17a269d5f7a58d350b841e6e99ee0b4151c06267d8ebb86df0256474e2f59",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree; apply the conditional revocation transition in the PR #53 review fix."
     },
     {
       "path": "functions/secureThreatIngest.ts",
@@ -555,24 +555,24 @@
       "operation": "replace",
       "upstream_blob": "bf64015612c4643814f30308e74e381a97762282",
       "upstream_sha256": "c15482ead217d8161d377fc129f273ae0b9b7810e356d591987944b70cddc031",
-      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction.",
-      "sha256": "f4202523afb0955ec288f48578af7a81b505f9a095f21139c520c135e55f8c87"
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction. Add failed-refresh status handling in the PR #53 review fix.",
+      "sha256": "36c6bc4797857050655dc17bf05180567fd6647347c94d8d4c921a80177550c2"
     },
     {
       "path": "src/components/dashboard/widgets/AlertTrendWidget.jsx",
       "operation": "replace",
       "upstream_blob": "88b054a0a5703094abded81b648e3418d616cff3",
       "upstream_sha256": "e7dcdfa8224a1d5b742075159fa4549f4a8712c18463da395cc84328c4e2ac75",
-      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction.",
-      "sha256": "7759a3e5247d8906c16d9f64084e62dfb2cd578d94a3a19b41c7df9d5c527bf8"
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction. Add failed-refresh status handling in the PR #53 review fix.",
+      "sha256": "038ce4a9df8e6ba455d554b067818bd4be2aa14622d40278f600744d0826f4d0"
     },
     {
       "path": "src/components/dashboard/widgets/CriticalAlertsWidget.jsx",
       "operation": "replace",
       "upstream_blob": "83d605768170cf083c29fc7bdf4d8bb0f73b9b18",
       "upstream_sha256": "9c4d888c42564020c8b63331bf5d9440795f5d2a3534de3ab9f6c5e83eb28c1a",
-      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction.",
-      "sha256": "bc47aa447125a339771b9ec7eddffd65146c5d3f0b55bb990ce0642f4f5850c2"
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction. Add failed-refresh status handling in the PR #53 review fix.",
+      "sha256": "2a841e8500681d071e4abb6ff38646e05155823eeca1c43ea15878e9d8347d2a"
     },
     {
       "path": "src/components/dashboard/widgets/DashboardMetricsStatus.jsx",
@@ -585,24 +585,24 @@
       "operation": "replace",
       "upstream_blob": "4784289e5a4f6aa19eb37a1b76285f2fcc83b761",
       "upstream_sha256": "60691187a245096714963fea3f8f5a457b3c7fbf4717e0805897f1ed0320e043",
-      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction.",
-      "sha256": "f49de0e867b77a0e589c451c8b0db43cb109d943aeaeb1041fa4a74d198de3ce"
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction. Add failed-refresh status handling in the PR #53 review fix.",
+      "sha256": "23fa2c9e85c06f113419770597502d1b4e195ee8b42898fa28c8b48f98d85038"
     },
     {
       "path": "src/components/dashboard/widgets/EvidenceIntegrityWidget.jsx",
       "operation": "replace",
       "upstream_blob": "01e8e7bf62183ab806640ab545e566f7e109cf19",
       "upstream_sha256": "fa71542f7a3ddd9996ccc82da4b17c8d98ab2aa11deda07fee866c24741ed8dc",
-      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction.",
-      "sha256": "ad64dad30e7bc4bd49cd244a9a21dd4f62d8e0622f21873354eebc1cba82b57e"
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction. Add failed-refresh status handling in the PR #53 review fix.",
+      "sha256": "01ecca73d181ac4933cc10690293e8dd16d200365797d81a88c6777f9910a56a"
     },
     {
       "path": "src/components/dashboard/widgets/ThreatOverviewWidget.jsx",
       "operation": "replace",
       "upstream_blob": "2dbf8d6adf1f92254e15a865554581ba87dced68",
       "upstream_sha256": "60cb0ea25310f2a2c11cefee5ab38b3fddece09b81cdfd4992883104940cd9dc",
-      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction.",
-      "sha256": "cc5c3b8ba9793f1e28c30b5de65781773cf74ac1d605f2e78617105c4befb2eb"
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction. Add failed-refresh status handling in the PR #53 review fix.",
+      "sha256": "f304ca444511982212be4a981b7412f5011b8544c98d9bce756fe6b313ba9d91"
     },
     {
       "path": "src/components/demo/LoadingFallback.jsx",
@@ -617,8 +617,42 @@
       "operation": "replace",
       "upstream_blob": "55d5fa9d4f92eb90ce5ca1152a52e3e252ffb8f1",
       "upstream_sha256": "25542b2f035ebc0edc236869cf4a1d0f672debd08143da079072f811ae558d73",
-      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction.",
-      "sha256": "bb240a7281b8bdf34fc9d98ab9421aa2d933e31841a8d35f05a98e9a2080945b"
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction. Add route loading and error handling in the PR #53 review fix.",
+      "sha256": "d08b77acbd8360e010049bf4347a80bfd5b70ef1c7e89dc2d8f65f98e73c9575"
+    },
+    {
+      "path": "src/pages/App.jsx",
+      "operation": "replace",
+      "upstream_blob": "722865f4d1570131fe97d0e3826a9660c750c17b",
+      "upstream_sha256": "d679dc7dc16f0c906edeb0dbe3c59b6857a169c16096a67c00408e32b5d03398",
+      "reason": "Use the existing RouteGate for route loading and error handling in the PR #53 review fix.",
+      "sha256": "4999fe6bd7636c9787729e3eccbf16b7de90e874f147ed61187c6f972f0ab4b8"
+    },
+    {
+      "path": "src/components/dashboard/widgets/PolicyComplianceWidget.jsx",
+      "operation": "replace",
+      "upstream_blob": "a10e05b3a7fbc187dbe4904f7c90769120dd5015",
+      "upstream_sha256": "9439c50caee6fc728d585917b46837d3102f0b2ed8bbf27007bd0f15eb4394b7",
+      "reason": "Handle failed metric queries and retain cached data during refresh in the PR #53 review fix.",
+      "sha256": "3deb39f2156d9ed2ae98787757acc005cf6777750f25644a899729db77b9463c"
+    },
+    {
+      "path": "src/components/docs/PHASE_3_UI_VALIDATION_TESTS.md",
+      "operation": "replace",
+      "upstream_blob": "1d48ec6f281b13554dd030094c73e8a1c608c4f4",
+      "upstream_sha256": "ce99e7dc8845d59061f42e530a916c13a636533d75d698d13b07331a24dddd5e",
+      "upstream_path": "src/components/docs/PHASE_3_UI_VALIDATION_TESTS.md.jsx",
+      "reason": "Rename Markdown stored with a JSX extension without changing its contents.",
+      "sha256": "ce99e7dc8845d59061f42e530a916c13a636533d75d698d13b07331a24dddd5e"
+    },
+    {
+      "path": "src/components/docs/PHASE_SCAFFOLDING.md",
+      "operation": "replace",
+      "upstream_blob": "cc87bcaf0523fa77fb039231392d86ec257ad8af",
+      "upstream_sha256": "d61f94db12fa302fb826c9805ee39126e0e4ba52fceac0e5531d8355f87c4033",
+      "upstream_path": "src/components/docs/PHASE_SCAFFOLDING.md.jsx",
+      "reason": "Rename Markdown stored with a JSX extension without changing its contents.",
+      "sha256": "d61f94db12fa302fb826c9805ee39126e0e4ba52fceac0e5531d8355f87c4033"
     }
   ]
 }

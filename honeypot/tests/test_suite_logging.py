@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -32,6 +33,57 @@ class SuiteLogging(unittest.TestCase):
         self.assertEqual(self.log.read_recent()['entries'][0]['event'], 'suite.failed')
         with patch.dict(os.environ, {'HP_LOG_LEVEL': 'invalid'}):
             self.assertEqual(SuiteLog(self.root).level, 'INFO')
+
+    def test_incidentd_sink_is_private_separate_and_explicitly_readable(self):
+        self.assertTrue(SuiteLog(self.root, 'health').event('health.completed'))
+        self.assertTrue(SuiteLog(self.root, 'guard').event('guard.checked'))
+        suite = self.root / 'logs/system/host-suite.jsonl'
+        original = suite.read_bytes()
+        incidentd = SuiteLog(self.root, 'incidentd')
+        self.assertTrue(incidentd.event('incidentd.started'))
+        self.assertEqual(incidentd.path.name, 'incidentd-suite.jsonl')
+        self.assertEqual(incidentd.child('jobs').path, incidentd.path)
+        self.assertEqual(incidentd.path.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(incidentd.path.stat().st_uid, os.geteuid())
+        self.assertEqual(suite.read_bytes(), original)
+        self.assertEqual(self.log.read_recent(sink='incidentd')['entries'][0]['event'], 'incidentd.started')
+        self.assertEqual({row['event'] for row in self.log.read_recent()['entries']},
+                         {'health.completed', 'guard.checked'})
+        legacy = self.root / 'logs/system/suite.jsonl'
+        legacy.write_bytes(original)
+        legacy.chmod(0o600)
+        self.assertEqual({row['event'] for row in self.log.read_recent(sink='legacy')['entries']},
+                         {'health.completed', 'guard.checked'})
+        with self.assertRaises(ValueError):
+            self.log.read_recent(sink='../suite.jsonl')
+
+        from dashboard import DashboardServer
+        server = object.__new__(DashboardServer)
+        server.root = self.root
+        server.log = self.log
+        self.assertEqual(server.diagnostics({'sink': 'incidentd'})['entries'][0]['event'],
+                         'incidentd.started')
+        with self.assertRaises(ValueError):
+            server.diagnostics({'sink': 'untrusted'})
+
+    def test_incidentd_does_not_start_collection_when_startup_logging_fails(self):
+        scripts = Path(__file__).resolve().parents[1] / 'scripts'
+        code = (
+            'import runpy,sys\n'
+            'sys.path.insert(0,sys.argv[1])\n'
+            'from operational_log import SuiteLog\n'
+            'SuiteLog.event=lambda *args,**kwargs: False\n'
+            'try:\n'
+            '    runpy.run_module("incidentd",run_name="__main__")\n'
+            'except RuntimeError as error:\n'
+            '    assert str(error)=="incidentd diagnostics unavailable"\n'
+            'else:\n'
+            '    raise AssertionError("incidentd started without diagnostics")\n'
+        )
+        result = subprocess.run([sys.executable, '-B', '-c', code, str(scripts)], cwd=self.root,
+                                env={**os.environ, 'HP_ROOT': str(self.root)}, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(list(self.root.iterdir()), [])
 
     def test_closed_fields_drop_credentials_evidence_and_unbounded_text(self):
         self.log.event('http.completed', route='/api/import', method='POST', status_code=200,

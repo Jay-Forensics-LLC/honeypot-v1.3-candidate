@@ -20,7 +20,7 @@
     };
     const genericModules = new Set(['spiderfoot', 'recon-ng', 'bbot', 'nmap', 'nuclei', 'cloudfox', 'bloodhound', 'awareness']);
     const MAX_FILE = 8 * 1024 * 1024;
-    const ui = {token: '', data: null, page: 'overview', refreshing: false, filters: {query: '', plugin: '', assessment: ''}};
+    const ui = {token: '', data: null, page: 'overview', refreshing: false, diagnosticSink: 'suite', filters: {query: '', plugin: '', assessment: ''}};
     const caseView = {selected: '', filters: null, request: 0, poll: null};
     const equipmentView = {query: '', category: '', status: '', equipment_class: ''};
     const securityView = {importIds: [], query: '', asset_id: null, status: 'all', offset: 0, limit: 50};
@@ -600,16 +600,22 @@
         page.append(pageHeader('A clear record of activity.', 'Review local operation events and share sanitized diagnostics when you need help.',
             button('Refresh diagnostics', () => navigate('diagnostics', false), 'secondary', 'refresh'),
             button('Export diagnostics', async () => {
-                try {const result = await api('/api/diagnostics-export', {}); download('honeytrace-diagnostics.json', JSON.stringify(result, null, 2)); toast('Sanitized diagnostics exported. Evidence and raw sensor logs are separate.');}
+                try {const result = await api('/api/diagnostics-export', {sink: ui.diagnosticSink}); download('honeytrace-diagnostics.json', JSON.stringify(result, null, 2)); toast('Sanitized diagnostics exported. Evidence and raw sensor logs are separate.');}
                 catch (error) {toast(error.message, 'error');}
             }, 'primary', 'download')));
         const host = E('div', {class: 'diagnostics-content'}, E('div', {class: 'loading-screen'}, E('span', {class: 'spinner'}), E('p', {}, 'Reading diagnostic events…')));
         page.append(host);
         const revision = caseView.request;
-        api('/api/diagnostics').then(data => {
+        api('/api/diagnostics', {sink: ui.diagnosticSink}).then(data => {
             if (!host.isConnected || ui.page !== 'diagnostics' || revision !== caseView.request) return;
             const entries = data.entries || [], logging = data.logging || {};
             const search = E('input', {id: 'diagnostic-search', type: 'search', placeholder: 'Search events, components or correlation IDs…', 'aria-label': 'Search diagnostics'});
+            const sink = E('select', {'aria-label': 'Select diagnostic log sink'},
+                E('option', {value: 'suite'}, 'Host diagnostics'),
+                E('option', {value: 'incidentd'}, 'Incident daemon diagnostics'),
+                E('option', {value: 'legacy'}, 'Previous combined diagnostics'));
+            sink.value = ui.diagnosticSink;
+            sink.addEventListener('change', () => {ui.diagnosticSink = sink.value; navigate('diagnostics', false);});
             const level = E('select', {id: 'diagnostic-level', 'aria-label': 'Filter diagnostic level'}, E('option', {value: ''}, 'All levels'),
                 [...new Set(entries.map(row => row.level))].sort().map(value => E('option', {value}, value)));
             const component = E('select', {id: 'diagnostic-component', 'aria-label': 'Filter diagnostic component'}, E('option', {value: ''}, 'All components'),
@@ -638,7 +644,7 @@
                 E('div', {class: 'stats-grid'}, E('section', {class: 'stat-card'}, E('div', {class: 'stat-label'}, E('span', {}, 'Logging'), icon('file')),
                     E('p', {class: 'posture-value'}, human(logging.status)), E('p', {class: 'muted'}, `Minimum level: ${display(logging.level)}`)),
                     stat('Recent events', entries.length, 'Bounded activity history', 'clock'), stat('Write failures', logging.write_failures, 'Failures observed by this process', 'info')),
-                E('section', {class: 'card'}, E('div', {class: 'toolbar'}, E('div', {class: 'search-wrap'}, icon('search', 'search-icon'), search), level, component),
+                E('section', {class: 'card'}, E('div', {class: 'toolbar'}, E('div', {class: 'search-wrap'}, icon('search', 'search-icon'), search), sink, level, component),
                     E('div', {class: 'card-body'}, E('div', {class: 'section-heading'}, E('h2', {class: 'card-title'}, 'Operation events'), countLabel), results)),
                 notice('These diagnostics record operations and outcomes. Captured content, original evidence, credentials and raw sensor logs are kept out of this view.')].filter(Boolean));
             draw();

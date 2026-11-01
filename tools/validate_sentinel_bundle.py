@@ -28,10 +28,19 @@ def check(root=ROOT):
                 not re.fullmatch('[a-f0-9]{64}', patch['sha256'])):
             raise ValueError('Invalid recorded Sentinel source patch')
         if operation == 'add':
-            if patch.get('upstream_blob') is not None or patch.get('upstream_sha256') is not None:
+            if (patch.get('upstream_blob') is not None or patch.get('upstream_sha256') is not None or
+                    patch.get('upstream_path') is not None):
                 raise ValueError('Invalid recorded Sentinel source addition')
         elif not re.fullmatch('[a-f0-9]{40}', patch.get('upstream_blob', '')):
             raise ValueError('Invalid recorded Sentinel source replacement')
+        if 'upstream_path' in patch:
+            if not isinstance(patch['upstream_path'], str):
+                raise ValueError('Invalid recorded Sentinel source rename')
+            upstream_path = Path(patch['upstream_path'])
+            if (operation != 'replace' or
+                    upstream_path.is_absolute() or '..' in upstream_path.parts or
+                    upstream_path.parent != Path(name).parent or upstream_path.name == Path(name).name):
+                raise ValueError('Invalid recorded Sentinel source rename')
         patches[name] = patch
     observed_patches = set()
 
@@ -43,6 +52,7 @@ def check(root=ROOT):
             if stat.S_ISDIR(info.st_mode) and path.name != '.git':
                 digest, upstream = tree(path)
                 mode, key = b'40000', path.name.encode() + b'/'
+                upstream_key, upstream_name = key, path.name.encode()
             elif stat.S_ISREG(info.st_mode) and info.st_nlink == 1:
                 if info.st_size > manifest['bytes']:
                     raise ValueError('Unexpected Sentinel source size')
@@ -51,20 +61,23 @@ def check(root=ROOT):
                 total += len(raw)
                 mode = b'100755' if info.st_mode & 0o111 else b'100644'
                 digest, key = _object('blob', raw), path.name.encode()
-                upstream = digest
+                upstream, upstream_key = digest, key
                 relative = path.relative_to(source).as_posix()
+                upstream_name = path.name.encode()
                 if relative in patches:
                     patch = patches[relative]
                     if hashlib.sha256(raw).hexdigest() != patch['sha256']:
                         raise ValueError('Recorded Sentinel patch bytes differ')
                     upstream = (None if patch.get('operation', 'replace') == 'add' else
                                 bytes.fromhex(patch['upstream_blob']))
+                    upstream_name = Path(patch.get('upstream_path', relative)).name.encode()
+                    upstream_key = upstream_name
                     observed_patches.add(relative)
             else:
                 raise ValueError('Unsupported Sentinel source object')
             entries.append((key, mode + b' ' + path.name.encode() + b'\0' + digest))
             if upstream is not None:
-                upstream_entries.append((key, mode + b' ' + path.name.encode() + b'\0' + upstream))
+                upstream_entries.append((upstream_key, mode + b' ' + upstream_name + b'\0' + upstream))
         return (_object('tree', b''.join(data for _, data in sorted(entries))),
                 _object('tree', b''.join(data for _, data in sorted(upstream_entries))))
 
