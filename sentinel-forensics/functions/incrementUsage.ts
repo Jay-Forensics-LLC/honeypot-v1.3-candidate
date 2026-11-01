@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.30';
 import { incrementUsageCounter, isValidUsageIncrement, VALID_USAGE_METRICS } from './helpers/usage.ts';
 
 /**

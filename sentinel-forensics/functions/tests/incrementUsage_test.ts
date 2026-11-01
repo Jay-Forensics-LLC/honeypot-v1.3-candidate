@@ -26,18 +26,25 @@ Deno.test('usage increments reject unsupported counters and invalid amounts', ()
     }
 });
 
-Deno.test('usage increments use atomic updates for each metric', async () => {
+Deno.test('usage increments use atomic updateMany operators for each metric', async () => {
     const user = { usage_current_period: { scans_per_month: 2, evidence_mb: 5 } };
     const updates = [];
     const userEntity = {
-        async update(userId, update) {
-            if (userId !== 'user-1') throw new Error('Unexpected user ID');
+        async update() {
+            throw new Error('plain update must not replace the usage snapshot');
+        },
+        async updateMany(query, update) {
+            if (query.id !== 'user-1') throw new Error('Unexpected user ID');
             updates.push(update);
             for (const [path, amount] of Object.entries(update.$inc)) {
                 const [, metric] = path.split('.');
                 user.usage_current_period[metric] =
                     (user.usage_current_period[metric] || 0) + amount;
             }
+            return { updatedCount: 1 };
+        },
+        async get(userId) {
+            if (userId !== 'user-1') throw new Error('Unexpected user ID');
             return structuredClone(user);
         }
     };

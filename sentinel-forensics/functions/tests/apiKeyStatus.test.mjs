@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
+import { ATOMIC_ENTITY_SDK } from "../helpers/usage.ts";
 import {
   getApiKeyStatusTransitionFilter,
   getOrganizationApiKeyFilter,
@@ -55,4 +57,47 @@ test("a stale enable cannot overwrite a revoked key", async () => {
     false
   );
   assert.equal(key.status, "revoked");
+});
+
+test("status transitions accept a Mongo modifiedCount of one", async () => {
+  let writes = 0;
+  const applied = await transitionApiKeyStatus({
+    async updateMany() {
+      writes += 1;
+      return { matchedCount: 1, modifiedCount: 1 };
+    }
+  }, { id: "key-1", organization_id: "org-a" }, "disabled", "active");
+  assert.equal(applied, true);
+  assert.equal(writes, 1);
+  const missed = await transitionApiKeyStatus({
+    async updateMany() {
+      return { matchedCount: 0, modifiedCount: 0 };
+    }
+  }, { id: "key-1", organization_id: "org-a" }, "disabled", "active");
+  assert.equal(missed, false);
+});
+
+test("status transitions fail closed without atomic updateMany", async () => {
+  await assert.rejects(
+    () => transitionApiKeyStatus(
+      { async update() { throw new Error("must not use unconditional update"); } },
+      { id: "key-1", organization_id: "org-a" },
+      "disabled",
+      "active"
+    ),
+    /atomic updateMany/
+  );
+});
+
+test("toggle endpoint loads an SDK that provides conditional updates", () => {
+  const source = readFileSync(new URL("../toggleApiKey.ts", import.meta.url), "utf8");
+  const specifier = source.match(/from '([^']+)'/)[1];
+  const match = specifier.match(/npm:@base44\/sdk@(\d+)\.(\d+)\.(\d+)/);
+  assert.ok(match, specifier);
+  const actual = match.slice(1).map(Number);
+  const required = ATOMIC_ENTITY_SDK.split(".").map(Number);
+  for (let index = 0; index < required.length; index += 1) {
+    if (actual[index] > required[index]) return;
+    assert.ok(actual[index] >= required[index], `${specifier} is older than ${ATOMIC_ENTITY_SDK}`);
+  }
 });

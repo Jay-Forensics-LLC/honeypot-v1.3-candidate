@@ -28,9 +28,20 @@ export async function transitionApiKeyStatus(
   currentStatus: string,
   nextStatus: 'active' | 'disabled'
 ): Promise<boolean> {
+  if (typeof apiKeyEntity?.updateMany !== 'function') {
+    throw new Error('API key status transitions require atomic updateMany');
+  }
   const result = await apiKeyEntity.updateMany(
     getApiKeyStatusTransitionFilter(keyFilter, currentStatus),
     { $set: { status: nextStatus } }
   );
-  return result.updatedCount === 1;
+  if (!result || typeof result !== 'object') {
+    return false;
+  }
+  for (const key of ['updatedCount', 'modifiedCount', 'nModified']) {
+    if (typeof result[key] === 'number') {
+      return result[key] === 1;
+    }
+  }
+  return false;
 }

@@ -2,10 +2,10 @@
   "schema_version": 1,
   "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
   "commit": "187bec14835fc9497b05594ca467a49259553d64",
-  "git_tree": "59e9998842c2a9858ab5cab69be37681045b72a8",
+  "git_tree": "bd1037891630d2eab0db1455d98b3f2b965f9d36",
   "prefix": "sentinel-forensics",
   "files": 1444,
-  "bytes": 11519299,
+  "bytes": 11524281,
   "license": "AGPL-3.0",
   "license_sha256": "7f8f48e4266aa8fd3033dfaa4bb7f6e83a60c6e099f82d4959b81de90e67cd8f",
   "import_method": "Complete committed upstream tree with 55 recorded replacements and 28 local additions; Git metadata/history and untracked files excluded.",
@@ -63,22 +63,22 @@
     {
       "path": "functions/helpers/usage.ts",
       "operation": "add",
-      "sha256": "08e701cb750119526ff89db0a0933c8a99ef699bb9b8ca19b87f704b9d3adc10",
-      "reason": "Add allowlisted, finite positive usage-increment validation."
+      "sha256": "30f711685f7283ae55a51da6217aa00ec9e0a79fa1f01ab7ca9f712c937f19b1",
+      "reason": "Add allowlisted, finite positive usage-increment validation and apply increments with updateMany $inc rather than a field PUT."
     },
     {
       "path": "functions/incrementUsage.ts",
       "operation": "replace",
       "upstream_blob": "ad1408b84d948cfc2ba287c49ffb3a1c37194a89",
       "upstream_sha256": "1456fb844b46ed34bc226b7662a4b5969e85949b775041586af8d8752d46fe61",
-      "sha256": "9a5034d1fcc1421b34db8a16264e98b066ba08591bfe0130f84850ec6e9109c7",
-      "reason": "Reject unsupported usage metrics and invalid increments; update counters atomically."
+      "sha256": "527a70f9468e5078dfae826515243dae7fa6b5a75d2df9816cb394b28db9e997",
+      "reason": "Reject unsupported usage metrics and invalid increments; load SDK 0.8.30 so counters increment through atomic updateMany operators."
     },
     {
       "path": "functions/tests/incrementUsage_test.ts",
       "operation": "add",
-      "sha256": "5c0462c17b6bb1f2657adcbfbee4f81165fd0fe72be9c4ba7b4e3e0c6c9a32e0",
-      "reason": "Add regression coverage for accepted and rejected usage increments and atomic counter updates."
+      "sha256": "6143c2e8c6d09c1cc99f9735ae95fba38ad922e07c7d1f70e542dcadeb7f30fc",
+      "reason": "Add regression coverage for accepted and rejected usage increments and atomic updateMany counter updates."
     },
     {
       "path": "functions/tests/orgContext.test.mjs",
@@ -157,8 +157,8 @@
     {
       "path": "functions/helpers/apiKeyStatus.ts",
       "operation": "add",
-      "sha256": "db0af6fc0a09680d0f20d4d4ea342f6e26b0ca9ae7fe8415dee6dde5e801e37c",
-      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree. Reconcile bytes last changed in 37e4a43d36fcf69587cb307f1394c53a10517abd; source preserved unchanged in the authorization correction."
+      "sha256": "25fb28a7230411e82b9accfa6332ad1dac3f02ef5bf887d675fdb5ece972b91a",
+      "reason": "Transition API key status with a conditional updateMany on the observed organization, id, and status, and fail closed if that atomic writer is unavailable."
     },
     {
       "path": "functions/helpers/apiKeyUsage.ts",
@@ -223,8 +223,8 @@
     {
       "path": "functions/tests/apiKeyStatus.test.mjs",
       "operation": "add",
-      "sha256": "57ab35beb708689cbfea30fb158634f18f8015e81bf4d239f74c284a635b5670",
-      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree. Reconcile bytes last changed in 37e4a43d36fcf69587cb307f1394c53a10517abd; source preserved unchanged in the authorization correction."
+      "sha256": "b98c16590bb8a10cd67ca68752a3f578125e4808f69d951bdce57637ba440ffc",
+      "reason": "Cover stale enable requests after revocation and require the SDK pin that provides conditional updateMany."
     },
     {
       "path": "functions/tests/apiKeyUsageFilters.test.mjs",
@@ -261,8 +261,8 @@
       "operation": "replace",
       "upstream_blob": "c4fae6d46cdfc13e38afc04bf1b5a55e5e1a4c7c",
       "upstream_sha256": "da113a6ba545a6fa925283b6778ca227177e0ec086c7288ccaa948f422fe219f",
-      "sha256": "1fa5c8ab08d7f6e877e8c2c667b141627c0051f168298e919e9b62c073332462",
-      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree. Reconcile bytes last changed in 37e4a43d36fcf69587cb307f1394c53a10517abd; source preserved unchanged in the authorization correction."
+      "sha256": "deb19645d237ff6c7f1cadf09806d335241da42ea12a24cb9098b2bc34e9ef73",
+      "reason": "Load SDK 0.8.30 so enable/disable uses conditional updateMany and cannot reactivate a key revoked after the status was read."
     },
     {
       "path": "src/components/hooks/useOfflineSync.jsx",
@@ -427,8 +427,8 @@
     {
       "path": "functions/tests/usageCounter.test.mjs",
       "operation": "add",
-      "sha256": "c937e6644fdd8dff03f2e29c0887496946d28b1d85fefb50eb2ff6c58948925b",
-      "reason": "Add regression coverage for concurrent atomic usage counter updates."
+      "sha256": "c75e0b6e22f9f01fa87acec5c6c9cbeb60062bfcab747a44bf94a583632dcd1f",
+      "reason": "Add regression coverage for concurrent atomic updateMany usage increments and the SDK pin that provides them."
     },
     {
       "path": "package-lock.json",
