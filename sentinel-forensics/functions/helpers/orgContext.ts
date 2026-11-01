@@ -21,8 +21,8 @@ export function createOrgFilter(user, additionalFilters = {}) {
   const orgId = requireOrgContext(user);
   
   return {
-    organization_id: orgId,
-    ...additionalFilters
+    ...additionalFilters,
+    organization_id: orgId
   };
 }
 
