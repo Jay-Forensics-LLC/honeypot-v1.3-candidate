@@ -336,9 +336,10 @@ class DashboardServer(ThreadingHTTPServer):
             return {'job': self.jobs.start_bytes(raw, context=self.capture_context(row))}
 
     def case_workspace(self):
-        policy = Policy.load(self.policy_path)
-        cases = list_cases(Store(self.store_path, policy)) if 'sentinel' in policy.plugins else []
-        return {'cases': cases, 'jobs': self.jobs.snapshot()}
+        with self.operation_lock:
+            policy = Policy.load(self.policy_path)
+            cases = list_cases(Store(self.store_path, policy)) if 'sentinel' in policy.plugins else []
+            return {'cases': cases, 'jobs': self.jobs.snapshot()}
 
     def server_close(self):
         self.jobs.close()

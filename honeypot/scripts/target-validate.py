@@ -32,8 +32,10 @@ def main():
     results = []
 
     unit = run([sys.executable, '-B', '-m', 'unittest', 'discover', '-s', str(ROOT / 'tests'), '-v'])
+    unit_lines = (unit.stderr or unit.stdout).strip().splitlines()
+    failed_tests = [line for line in unit_lines if line.startswith(('FAIL:', 'ERROR:'))]
     add(results, 'Behavioral unit tests', 'PASS' if unit.returncode == 0 else 'FAIL',
-        (unit.stderr or unit.stdout).strip().splitlines()[-3] if (unit.stderr or unit.stdout) else 'no output')
+        '; '.join(failed_tests + [unit_lines[-3] if len(unit_lines) >= 3 else 'no test summary']))
 
     val = run([sys.executable, '-B', str(ROOT / 'scripts' / 'validate.py')])
     summary = val.stdout.strip().splitlines()[-1] if val.stdout else val.stderr[-200:]

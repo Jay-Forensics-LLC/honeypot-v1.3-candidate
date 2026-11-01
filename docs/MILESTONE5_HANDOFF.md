@@ -45,7 +45,7 @@ sandbox. It runs the required `make -C honeypot test` and
 
 | Check | Result |
 | --- | --- |
-| HoneyTrace behavioral suite | 863 run; 856 passed, 7 skipped |
+| HoneyTrace behavioral suite | 864 run; 857 passed, 7 skipped |
 | Repository tools | 73 passed |
 | Stage 7 offline suite | 89 passed |
 | Sentinel iOS diagnostics suite | 31 passed |
@@ -64,6 +64,15 @@ navigation fit; the oversized-file alert survives dialog close/reopen and no
 oversized capture request is sent. HTTP tests independently reject oversized
 Content-Length before consuming its body. Inputs and inventory snapshots remain
 unchanged by subsequent review or inventory edits/deletion.
+
+CI additionally exposed an import/poll race: case progress could read the store
+while its import held the exclusive write lease. Case polling now uses the same
+operation lock as imports and returns a coherent committed-case/job snapshot. A
+deterministic HTTP regression rejects the former 503 response under that lease.
+The preparation-deadline test advances a separate mocked job clock after the
+worker enters preparation, avoiding a 10 ms scheduler assumption without
+changing the production deadline. Validation output now names failed tests and
+static checks rather than showing only a count summary.
 
 The focused source review corrected two presentation errors: mixed real/demo
 catalogs retain the server's synthetic flag, and a missing custody receipt no

@@ -13,7 +13,7 @@ from unittest.mock import patch
 from unittest.mock import Mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from phase10.jobs import JobManager, MAX_CAPTURE_BYTES, _usage, _directory
+from phase10.jobs import JobManager, JOB_TIMEOUT_SECONDS, MAX_CAPTURE_BYTES, _usage, _directory
 from phase10.io import InputTooLarge, read_regular
 from phase10.model import Phase10Error
 
@@ -356,16 +356,20 @@ assert pathlib.Path(sys.argv[1]).read_bytes().startswith(b'{')
 
     def test_preparation_consumes_the_existing_deadline(self):
         entered, release = threading.Event(), threading.Event()
+        clock = Mock(return_value=0.0)
 
         def prepare():
             entered.set()
             self.assertTrue(release.wait(3))
             return {'sources': [('session.jsonl', b'{}\n')], 'attachments': {}, 'context': {}}
 
-        with patch('phase10.jobs.JOB_TIMEOUT_SECONDS', 0.01), patch('phase10.jobs.subprocess.Popen') as process:
+        with patch('phase10.jobs.time', Mock(monotonic=clock)), \
+                patch('phase10.jobs.subprocess.Popen') as process:
             self.manager.start_prepared(prepare)
             self.assertTrue(entered.wait(3))
-            time.sleep(0.03)
+            # Advance only the job clock; real thread scheduling cannot consume
+            # the test budget before preparation has even been entered.
+            clock.return_value = JOB_TIMEOUT_SECONDS + 1.0
             release.set()
             self.assertEqual(self.finish()['error_code'], 'analysis_timeout')
             process.assert_not_called()

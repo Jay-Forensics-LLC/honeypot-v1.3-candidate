@@ -1,9 +1,10 @@
 """Local HTTP regressions use synthetic files, loopback and the bundled analyzer only."""
-from contextlib import closing
+from contextlib import closing, contextmanager
 import hashlib
 import http.client
 import json
 from pathlib import Path
+import queue
 import struct
 import sys
 import tempfile
@@ -173,6 +174,87 @@ class LocalCaseWorkflow(unittest.TestCase):
                           side_effect=AssertionError('Expired selection reached analysis')):
             self.assertEqual(self.call('/api/session-open-case', {'selection_id': selection})[0], 400)
         self.assertEqual(self.call('/api/cases')[1]['jobs']['jobs'], [])
+
+    def test_cases_poll_during_import_returns_a_committed_case_and_job_snapshot(self):
+        from phase10.policy import Policy
+        from phase10.store import Store
+        from test_case_workspace import BASE, saved_case
+
+        self.start()
+        self.enable()
+        store = Store(self.server.store_path, Policy.load(self.server.policy_path))
+        writer_ready, release_writer = threading.Event(), threading.Event()
+        arrivals = queue.Queue()
+        errors, response, committed = [], [], []
+        operation_lock = self.server.operation_lock
+        original_open = Store._open
+        job = {'id': 'c' * 32, 'status': 'running', 'stage': 'verifying', 'case_id': None}
+
+        class ObservedLock:
+            def __enter__(self):
+                # Notification coordinates the fixture; acquisition behavior is unchanged.
+                arrivals.put('reader_waiting')
+                operation_lock.acquire()
+                return self
+
+            def __exit__(self, *unused):
+                operation_lock.release()
+
+        @contextmanager
+        def paused_import_lease(selected_store, create=False):
+            with original_open(selected_store, create=create) as descriptor:
+                if create and threading.current_thread() is writer:
+                    writer_ready.set()
+                    if not release_writer.wait(5):
+                        raise AssertionError('Import lease was not released by the test')
+                yield descriptor
+
+        def import_case():
+            try:
+                with operation_lock:
+                    case_id = saved_case(store, [BASE])
+                    committed.append(case_id)
+                    job.update(status='complete', stage='complete', case_id=case_id)
+            except BaseException as exc:
+                errors.append(exc)
+
+        def poll_cases():
+            try:
+                response.append(self.call('/api/cases'))
+            except BaseException as exc:
+                errors.append(exc)
+            finally:
+                arrivals.put('response_finished')
+
+        writer = threading.Thread(target=import_case, daemon=True)
+        reader = threading.Thread(target=poll_cases, daemon=True)
+        with patch.object(self.server, 'operation_lock', ObservedLock()), \
+                patch.object(Store, '_open', paused_import_lease), \
+                patch.object(self.server.jobs, 'snapshot', side_effect=lambda: {
+                    'available': False, 'history_status': 'available', 'jobs': [dict(job)]}):
+            writer.start()
+            try:
+                self.assertTrue(writer_ready.wait(3), f'Writer did not acquire its store lease: {errors}')
+                reader.start()
+                # Hold the exclusive lease until either the reader queues behind
+                # the import, or an unprotected reader has already returned 503.
+                # Both paths are event-coordinated: no scheduler timing assumption.
+                arrivals.get(timeout=3)
+            finally:
+                release_writer.set()
+                writer.join(timeout=3)
+                if reader.ident is not None:
+                    reader.join(timeout=3)
+        self.assertFalse(writer.is_alive())
+        self.assertFalse(reader.is_alive())
+        self.assertEqual(errors, [])
+        self.assertEqual(len(response), 1)
+        status, workspace, _ = response[0]
+        self.assertEqual(status, 200, workspace)
+        self.assertEqual([item['case_id'] for item in workspace['cases']], committed)
+        self.assertEqual(workspace['cases'][0]['event_count'], 1)
+        self.assertEqual(workspace['jobs']['jobs'][0]['status'], 'complete')
+        self.assertEqual(workspace['jobs']['jobs'][0]['case_id'], committed[0])
 
     def test_native_session_case_support_review_custody_and_log_only_case(self):
         self.start(native=True)
