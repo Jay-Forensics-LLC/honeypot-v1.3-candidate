@@ -79,6 +79,13 @@ def logs(source, count):
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
     sub=ap.add_subparsers(dest='command',required=True)
+    from phase10.cli import configure_parser
+    configure_parser(sub)
+    dashboard=sub.add_parser('dashboard',help='Open the local HoneyTrace Security Suite workspace')
+    dashboard.add_argument('--port',type=int,default=8765)
+    dashboard.add_argument('--policy',type=Path)
+    dashboard.add_argument('--store',type=Path)
+    dashboard.add_argument('--sentinel-root',type=Path)
     for name in ('status','health','stop','readiness'): sub.add_parser(name)
     boot=sub.add_parser('boot-start');boot.add_argument('--image-approval-sha256')
     doctor=sub.add_parser('doctor',help='Read local Docker daemon and existing project ownership; no recovery actions')
@@ -99,6 +106,12 @@ def main():
     log=sub.add_parser('logs');log.add_argument('--source',choices=sorted(source_paths()),required=True)
     log.add_argument('--lines','-n',type=int,default=20);log.add_argument('last',nargs='?',choices=['last']);log.add_argument('count',nargs='?',type=int)
     a=ap.parse_args()
+    if a.command=='dashboard':
+        from dashboard import serve
+        return serve(ROOT,a.port,a.policy,a.store,a.sentinel_root)
+    if a.command=='integrations':
+        from phase10.cli import dispatch
+        return dispatch(a,ROOT)
     if a.command=='doctor':
         from daemon_check import inspect
         row=inspect(a.runtime_root,require_existing=True)

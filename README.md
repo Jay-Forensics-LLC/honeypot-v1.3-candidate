@@ -1,5 +1,10 @@
 # HoneyTrace source candidate
 
+The [Security Suite roadmap](docs/SECURITY_SUITE_ROADMAP.md) stages the free
+honeypot core, local dashboard, offline analysis and optional integrations.
+The [local dashboard guide](docs/DASHBOARD.md) covers the working import,
+provenance review and export workflow.
+
 The application source is in [honeypot/](honeypot/README.md).
 The [current phase status](docs/CURRENT_PHASE_STATUS.md) records HoneyWatch at
 `efac52cce39cd8adcf86a00cd4fe2cb7ab66f607` and the separate October 31 lab closeout.
