@@ -2,10 +2,10 @@
   "schema_version": 1,
   "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
   "commit": "187bec14835fc9497b05594ca467a49259553d64",
-  "git_tree": "07b3be346f2be59f17f629a7595a9e2b7fa8238b",
+  "git_tree": "3e7cd2935317dcc6d43135309243419f4f73e6ac",
   "prefix": "sentinel-forensics",
   "files": 1434,
-  "bytes": 11468248,
+  "bytes": 11468685,
   "license": "AGPL-3.0",
   "license_sha256": "7f8f48e4266aa8fd3033dfaa4bb7f6e83a60c6e099f82d4959b81de90e67cd8f",
   "import_method": "Complete committed upstream tree with 34 recorded replacements and 18 local additions; Git metadata/history and untracked files excluded.",
@@ -201,8 +201,8 @@
       "operation": "replace",
       "upstream_blob": "3dd72eea410e992595e388232c0f5108c06f8ff2",
       "upstream_sha256": "aa799ca350d1f59408e90cf5e3e4e03994f4f0d24da69df8c1bd1cdbb80e577e",
-      "sha256": "98a4c7d63bf36f5b0115e4426692e32f206263c44a44d57c93d59d9edb655326",
-      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+      "sha256": "7d1eaf849b94debe12e38a1a0c78a502877c3287fe8548ef28c886ff54cf5e40",
+      "reason": "Reject unknown usage types and non-positive or non-finite quantities before recording charges."
     },
     {
       "path": "functions/revokeApiKey.ts",
