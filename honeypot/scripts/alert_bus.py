@@ -123,7 +123,8 @@ def emit(event, root=ROOT, cfg=None, now=None):
     if 'password' in json.dumps(payload).lower() and 'password_present' not in json.dumps(payload):
         return {'status': 'refused'}
     if not allow(root, cfg, now=now):
-        atomic_json(spool / 'last.json', {'status': 'suppressed', 'timestamp': utc()})
+        # Suppression is recorded in the digest, not as a delivery outcome.
+        # Keep a failed delivery visible until an actual attempt succeeds.
         return {'status': 'suppressed', 'payload': payload}
     try:
         channel = _deliver(cfg, payload)

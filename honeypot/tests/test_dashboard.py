@@ -69,6 +69,22 @@ class DashboardWorkflow(unittest.TestCase):
         return self.call('/api/import', {'plugin': 'bbot', 'format': 'jsonl',
                                         'data': base64.b64encode(self.raw).decode()})
 
+    def test_unknown_sensor_does_not_require_available_inventory(self):
+        with patch.object(self.server, 'equipment_workspace', side_effect=dashboard.Phase10Error('Unavailable')):
+            self.assertIsNone(self.server.sensor_snapshot({'equipment_id': None}))
+            self.assertIsNone(self.server.capture_context({'workflow': 'packet_squirrel'})['sensor'])
+            self.assertIsNone(self.server.sensor_snapshot({}, 'cowrie'))
+            with self.assertRaises(dashboard.Phase10Error):
+                self.server.sensor_snapshot({'equipment_id': 'explicit-selection'})
+
+    def test_profile_limit_does_not_claim_capture_oversize(self):
+        with patch.object(dashboard, 'render_profile', side_effect=dashboard.InputTooLarge(1024**2, 1024**2 + 1)):
+            status, row, _ = self.call('/api/decoy-profile', {'profile_id': 'small-office'})
+        self.assertEqual(status, 413)
+        self.assertEqual(row['code'], 'input_too_large')
+        self.assertEqual(row['limit_bytes'], 1024**2)
+        self.assertNotIn('Capture', row['error'])
+
     def test_public_shell_and_private_api_session(self):
         status, shell, headers = self.call('/', auth=False)
         self.assertEqual(status, 200)

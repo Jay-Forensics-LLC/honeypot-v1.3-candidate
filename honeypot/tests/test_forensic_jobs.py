@@ -107,6 +107,7 @@ out.mkdir(mode=0o700)
         self.assertNotIn(str(self.root), json.dumps(self.manager.snapshot()))
         for path in self.manager.workspace_path.rglob('*'):
             self.assertEqual(path.stat().st_mode & 0o077, 0)
+        self.manager.close()
         reloaded = JobManager(self.companion, self.manager.workspace_path, self.accept)
         self.addCleanup(reloaded.close)
         self.assertEqual(reloaded.snapshot()['jobs'][0]['id'], started['id'])
@@ -172,6 +173,37 @@ out.mkdir(mode=0o700)
             damaged.start(str(self.capture))
         self.assertEqual(history.read_text(), 'not JSON')
 
+    def test_unavailable_job_directory_keeps_unrelated_dashboard_features_usable(self):
+        import dashboard
+        store = self.root / 'dashboard-store'
+        workspace = store.with_name(store.name + '-cases')
+        workspace.mkdir(mode=0o755)
+        workspace.chmod(0o755)
+        retained = workspace / 'operator-note.txt'
+        retained.write_bytes(b'Synthetic retained operator state')
+        server = dashboard.create_server(self.root, store_path=store,
+                                         sentinel_root=self.companion)
+        self.addCleanup(server.server_close)
+        self.assertEqual(server.jobs.snapshot()['history_status'], 'unavailable')
+        self.assertEqual(server.snapshot()['app']['name'], 'HoneyTrace Forensic Dashboard')
+        self.assertEqual(server.equipment_workspace()['equipment'], [])
+        with self.assertRaisesRegex(Phase10Error, 'history is unavailable'):
+            server.jobs.start_bytes(self.capture.read_bytes())
+        self.assertIsNone(server.jobs._lease)
+        self.assertEqual(list(workspace.iterdir()), [retained])
+        self.assertEqual(retained.read_bytes(), b'Synthetic retained operator state')
+        self.assertEqual(workspace.stat().st_mode & 0o777, 0o755)
+
+    def test_unexpected_startup_failure_releases_acquired_workspace_lease(self):
+        workspace = self.root / 'startup-failure'
+        workspace.mkdir(mode=0o700)
+        with patch.object(JobManager, '_load_history', side_effect=RuntimeError('Synthetic startup failure')):
+            with self.assertRaises(RuntimeError):
+                JobManager(self.companion, workspace, self.accept)
+        replacement = JobManager(self.companion, workspace, self.accept)
+        self.addCleanup(replacement.close)
+        self.assertEqual(replacement.snapshot()['history_status'], 'available')
+
     def test_worker_uses_trusted_imports_minimal_environment_and_limits(self):
         (self.analyzer.parent / 'trusted_sibling.py').write_text('value = 42\n')
         (self.root / 'trusted_sibling.py').write_text('raise RuntimeError("Evidence directory imported")\n')
@@ -212,6 +244,83 @@ assert resource.getrlimit(resource.RLIMIT_NOFILE)[0] <= 64
         with self.assertRaises(Phase10Error):
             self.manager.start(str(self.capture))
         self.assertEqual(self.imports, [])
+
+    def test_rejected_input_reservation_leaves_no_untracked_job(self):
+        with patch('phase10.jobs.MAX_WORKSPACE_BYTES', 64 * 1024 + 1), \
+                patch('phase10.jobs.subprocess.Popen') as process:
+            with self.assertRaises(Phase10Error):
+                self.manager.start_bytes(self.capture.read_bytes())
+            process.assert_not_called()
+        self.assertEqual(list(self.manager.workspace_path.iterdir()), [])
+        self.assertEqual(self.manager.snapshot()['jobs'], [])
+        self.manager.start_bytes(self.capture.read_bytes())
+        self.assertEqual(self.finish()['status'], 'complete')
+
+    def test_rejected_partial_input_write_cleans_only_unaccepted_files(self):
+        real_open = os.open
+
+        def fail_metadata(name, *args, **kwargs):
+            if name == 'inputs.json':
+                raise OSError('Synthetic metadata-write failure')
+            return real_open(name, *args, **kwargs)
+
+        with patch('phase10.jobs.os.open', side_effect=fail_metadata), \
+                patch('phase10.jobs.subprocess.Popen') as process:
+            with self.assertRaises(OSError):
+                self.manager.start_bytes(self.capture.read_bytes())
+            process.assert_not_called()
+        self.assertEqual(list(self.manager.workspace_path.iterdir()), [])
+        self.assertEqual(self.manager.snapshot()['jobs'], [])
+        self.manager.start_bytes(self.capture.read_bytes())
+        self.assertEqual(self.finish()['status'], 'complete')
+
+    def test_workspace_owner_blocks_reconciliation_and_competing_admission(self):
+        other = JobManager(self.companion, self.manager.workspace_path, self.accept)
+        self.addCleanup(other.close)
+        self.stub('time.sleep(20)\n')
+        first = self.manager.start_bytes(self.capture.read_bytes())
+        history = self.manager.workspace_path / 'jobs.json'
+        before = history.read_bytes()
+        with self.assertRaisesRegex(Phase10Error, 'already open'):
+            JobManager(self.companion, self.manager.workspace_path, self.accept)
+        with self.assertRaisesRegex(Phase10Error, 'already open'):
+            other.start_bytes(self.capture.read_bytes())
+        self.assertEqual(history.read_bytes(), before)
+        self.assertEqual(self.manager.snapshot()['jobs'][0]['status'], 'running')
+        self.manager.cancel(first['id'])
+        self.assertEqual(self.finish()['status'], 'cancelled')
+        self.manager.close()
+        self.stub()
+        other.start_bytes(self.capture.read_bytes())
+        other.close()
+        self.assertEqual({row['id'] for row in json.loads(history.read_text())},
+                         {first['id'], other.snapshot()['jobs'][0]['id']})
+
+    def test_shutdown_keeps_lease_until_slow_preparation_thread_exits(self):
+        entered, release = threading.Event(), threading.Event()
+
+        def prepare():
+            entered.set()
+            self.assertTrue(release.wait(5))
+            return {'sources': [('session.jsonl', b'{}\n')], 'attachments': {}, 'context': {}}
+
+        self.manager.start_prepared(prepare)
+        self.assertTrue(entered.wait(3))
+        thread = self.manager._jobs[0]['thread']
+        real_join = thread.join
+        # Exercise the existing bounded-shutdown branch without waiting35s.
+        with patch.object(thread, 'join', side_effect=lambda timeout=None: real_join(
+                timeout=0 if timeout is not None else None)):
+            self.manager.close()
+            with self.assertRaisesRegex(Phase10Error, 'already open'):
+                JobManager(self.companion, self.manager.workspace_path, self.accept)
+            release.set()
+        real_join(timeout=3)
+        self.assertFalse(thread.is_alive())
+        self.manager._closing.join(timeout=3)
+        replacement = JobManager(self.companion, self.manager.workspace_path, self.accept)
+        self.addCleanup(replacement.close)
+        self.assertEqual(replacement.snapshot()['jobs'][0]['status'], 'cancelled')
 
     def test_shutdown_cancels_child_and_reconciles_interrupted_history(self):
         self.stub('time.sleep(20)\n')
@@ -429,6 +538,7 @@ assert pathlib.Path(sys.argv[1]).read_bytes().startswith(b'{')
         folder = self.manager.workspace_path / job['id']
         self.assertTrue((folder / 'capture.pcap').is_file())
         self.assertTrue((folder / 'inputs.json').is_file())
+        self.manager.close()
         reloaded = JobManager(self.companion, self.manager.workspace_path, self.accept,
                               completion_callback=completion)
         self.addCleanup(reloaded.close)

@@ -76,7 +76,7 @@ def _quarantine(name,undo=False):
         if info['State'].get('Paused'): run(['docker','unpause',cid])
     else:
         # Save metadata/logs BEFORE pausing. No Docker socket is exposed to a decoy.
-        p=ROOT/'incidents/quarantine'/utc().replace(':','-')/name;p.mkdir(parents=True,exist_ok=True)
+        p=runtime_path('INCIDENT_PATH','incidents',ROOT)/'quarantine'/utc().replace(':','-')/name;p.mkdir(parents=True,exist_ok=True)
         atomic_json(p/'container.json',info)
         (p/'docker.log').write_text(run(['docker','logs','--tail','2000',cid],check=False).stdout)
         if info['State'].get('Running') and not info['State'].get('Paused'): run(['docker','pause',cid])

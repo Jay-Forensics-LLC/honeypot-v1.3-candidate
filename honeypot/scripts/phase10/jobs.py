@@ -1,5 +1,6 @@
 """Explicit offline capture jobs through an operator-configured Sentinel checkout."""
 import datetime as dt
+import fcntl
 import hashlib
 import json
 import os
@@ -33,6 +34,10 @@ _ATTACHMENTS = frozenset(('transcript.json', 'session-provenance.json'))
 class _WorkspaceFull(Phase10Error):
     def __init__(self):
         super().__init__('Private job workspace is full; preserve or move completed cases first')
+
+
+class _WorkspaceBusy(Phase10Error):
+    pass
 
 
 def _context(value):
@@ -116,7 +121,10 @@ def _directory(path, create=False):
             except FileNotFoundError:
                 if not create:
                     raise
-                os.mkdir(part, 0o700, dir_fd=descriptor)
+                try:
+                    os.mkdir(part, 0o700, dir_fd=descriptor)
+                except FileExistsError:
+                    pass
                 child = os.open(part, _DIRECTORY, dir_fd=descriptor)
             os.close(descriptor)
             descriptor = child
@@ -196,11 +204,47 @@ class JobManager:
         self._closed = False
         self._history_error = False
         self._reconciled = 0
-        self._load_history()
+        self._lease = None
+        self._closing = None
+        # Existing history must be reconciled only by its lifetime owner. A
+        # fresh disabled dashboard still creates no job workspace.
+        try:
+            root = self._workspace()
+        except FileNotFoundError:
+            pass
+        except _WorkspaceBusy:
+            raise
+        except (OSError, Phase10Error):
+            self._history_error = True
+            return
+        else:
+            os.close(root)
+        try:
+            self._load_history()
+        except BaseException:
+            self._release_lease()
+            raise
+
+    def _workspace(self, create=False):
+        root = _directory(self.workspace_path, create=create)
+        try:
+            if self._lease is None:
+                try:
+                    fcntl.flock(root, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError as exc:
+                    raise _WorkspaceBusy('This analysis workspace is already open in another dashboard') from exc
+                self._lease = os.dup(root)
+            elif (os.fstat(root).st_dev, os.fstat(root).st_ino) != (
+                    os.fstat(self._lease).st_dev, os.fstat(self._lease).st_ino):
+                raise Phase10Error('The private analysis workspace changed')
+            return root
+        except BaseException:
+            os.close(root)
+            raise
 
     def _load_history(self):
         try:
-            root = _directory(self.workspace_path)
+            root = self._workspace()
             os.close(root)
             path = self.workspace_path / 'jobs.json'
             info = path.lstat()
@@ -245,7 +289,7 @@ class JobManager:
         root = None
         temporary = '.jobs-' + secrets.token_hex(16)
         try:
-            root = _directory(self.workspace_path)
+            root = self._workspace()
             data = json.dumps([self._public(job) for job in self._jobs], allow_nan=False).encode()
             fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
                          0o600, dir_fd=root)
@@ -337,7 +381,7 @@ class JobManager:
         return {'job_id': job['id'], 'created_at': job['created_at'],
                 'context': job['context'], 'artifacts': job['artifacts']}
 
-    def _persist_prepared(self, job, prepared):
+    def _persist_prepared(self, job, prepared, rollback=False):
         artifacts = [{'path': str(job['folder'] / name), 'name': name,
                       'sha256': hashlib.sha256(raw).hexdigest(), 'bytes': len(raw)}
                      for name, raw in prepared['sources'] + prepared['attachments']]
@@ -346,8 +390,9 @@ class JobManager:
         record = json.dumps(metadata, allow_nan=False, ensure_ascii=True,
                             separators=(',', ':')).encode()
         writes = prepared['sources'] + prepared['attachments'] + [('inputs.json', record)]
-        root = _directory(self.workspace_path)
+        root = self._workspace()
         directory = None
+        created = []
         try:
             # Reserve the bounded public ledger as well as the private inputs.
             if _usage(root) + sum(len(raw) for _, raw in writes) + 64 * 1024 > MAX_WORKSPACE_BYTES:
@@ -356,11 +401,20 @@ class JobManager:
             for name, raw in writes:
                 descriptor = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
                                      os.O_NOFOLLOW | os.O_CLOEXEC, 0o600, dir_fd=directory)
+                created.append(name)
                 with os.fdopen(descriptor, 'wb') as stream:
                     stream.write(raw)
                     stream.flush()
                     os.fsync(stream.fileno())
             os.fsync(directory)
+        except BaseException:
+            if rollback and directory is not None:
+                # Only synchronous, unaccepted inputs are rolled back. Accepted
+                # jobs retain partial acquisition for review and recovery.
+                for name in created:
+                    os.unlink(name, dir_fd=directory)
+                os.fsync(directory)
+            raise
         finally:
             if directory is not None:
                 os.close(directory)
@@ -369,21 +423,34 @@ class JobManager:
                    artifacts=artifacts)
 
     def _enqueue(self, prepared=None, prepare=None, context=None):
-        root = _directory(self.workspace_path, create=True)
+        needs_history = self._lease is None
+        root = self._workspace(create=True)
         identifier, now = secrets.token_hex(16), _utc()
         job = {'id': identifier, 'status': 'running', 'stage': 'starting',
                'error_code': None, 'case_id': None, 'created_at': now, 'updated_at': now,
                'folder': self.workspace_path / identifier, 'cancel': threading.Event(),
                'started': time.monotonic(), 'prepare': prepare, 'context': context or {},
                'sources': [], 'artifacts': []}
+        created = False
         try:
+            if needs_history:
+                # Another dashboard may have created and closed this workspace
+                # after our state-free startup. Read its history under the lease.
+                self._load_history()
+                self._require_slot()
             if _usage(root) + 64 * 1024 > MAX_WORKSPACE_BYTES:
                 raise _WorkspaceFull()
             os.mkdir(identifier, 0o700, dir_fd=root)
+            created = True
+            if prepared is not None:
+                self._persist_prepared(job, prepared, rollback=True)
+        except BaseException:
+            if created:
+                os.rmdir(identifier, dir_fd=root)
+                os.fsync(root)
+            raise
         finally:
             os.close(root)
-        if prepared is not None:
-            self._persist_prepared(job, prepared)
         job['thread'] = threading.Thread(target=self._run, args=(job,), daemon=True,
                                          name='honeytrace-offline-analysis')
         self._jobs.append(job)
@@ -487,7 +554,7 @@ class JobManager:
                         failure = self._interruption(job)
                         if failure:
                             break
-                        root = _directory(self.workspace_path)
+                        root = self._workspace()
                         try:
                             if _usage(root) > MAX_WORKSPACE_BYTES:
                                 failure = 'workspace_quota'
@@ -567,3 +634,25 @@ class JobManager:
             threads = [job['thread'] for job in self._jobs if 'thread' in job]
         for thread in threads:
             thread.join(timeout=35)
+        with self._lock:
+            if self._closing is None:
+                if any(thread.is_alive() for thread in threads):
+                    # A slow trusted preparer or commit may outlive shutdown's
+                    # bounded join. Keep its lease until it actually finishes.
+                    self._closing = threading.Thread(target=self._release_workspace,
+                                                     args=(threads,), daemon=True,
+                                                     name='honeytrace-analysis-close')
+                    self._closing.start()
+                else:
+                    self._release_lease()
+
+    def _release_workspace(self, threads):
+        for thread in threads:
+            thread.join()
+        with self._lock:
+            self._release_lease()
+
+    def _release_lease(self):
+        if self._lease is not None:
+            os.close(self._lease)
+            self._lease = None

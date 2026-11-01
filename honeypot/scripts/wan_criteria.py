@@ -292,8 +292,15 @@ def check(cfg, root=ROOT, rendered=None):
     if observation.exists():
         try:
             seen = json.loads(observation.read_text(encoding='utf-8'))
-            ok = detector_self_check() and source_fidelity_ok(seen.get('observed_src'), seen.get('expected_src'))
-            record(root, 'wan_source_fidelity', ok, 'observation ' + str(seen.get('observed_src')), scope='observation', live=ok)
+            from readiness import evidence_passes
+            if not isinstance(seen, dict):
+                raise ValueError('Observation must be an object')
+            epoch = seen.get('epoch')
+            fresh = (type(epoch) in (int, float) and evidence_passes('wan_source_fidelity',
+                     {'status': 'PASS', 'epoch': epoch, 'scope': 'observation', 'live': True}))
+            ok = fresh and detector_self_check() and source_fidelity_ok(seen.get('observed_src'), seen.get('expected_src'))
+            record(root, 'wan_source_fidelity', ok, 'saved observation; missing, future or stale time is not evidence',
+                   scope='observation', live=ok, epoch=epoch if fresh else 0)
         except (OSError, ValueError):
             record(root, 'wan_source_fidelity', False, 'observation file unreadable', scope='observation', live=False)
     elif asserted:

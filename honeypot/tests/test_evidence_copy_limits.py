@@ -112,5 +112,43 @@ class FiniteEvidenceCopy(unittest.TestCase):
         real=self.root/'real.bin';self.source.rename(real);self.source.symlink_to(real)
         self.copy();self.assertEqual(real.read_bytes(),b'A'*8);self.assertEqual(self.meta['copies'],[])
 
+    def test_requested_historical_hash_does_not_copy_a_different_current_version(self):
+        expected=hashlib.sha256(self.source.read_bytes()).hexdigest()
+        self.source.write_bytes(b'B'*8)
+        self.engine.copy_evidence(self.source,self.dest,self.meta,16,expected_sha256=expected)
+        self.assertEqual(self.meta['copies'],[])
+        self.assertEqual(list(self.dest.iterdir()),[])
+        self.assertEqual(self.source.read_bytes(),b'B'*8)
+        self.assertIn('Requested artifact version unavailable',self.meta['limitations'][-1])
+
+    def test_preservation_retains_two_versions_from_one_source_path(self):
+        import json
+        self.engine.artifacts=self.root/'source-artifacts';self.engine.artifacts.mkdir()
+        self.engine.captures=self.root/'captures';self.engine.captures.mkdir()
+        self.engine.window=300
+        source=self.engine.artifacts/'versioned.bin'
+        manifest=self.engine.artifacts/'sha256-manifest.jsonl'
+        path=self.root/'incident';path.mkdir()
+        incident={'timestamp_start':'2026-11-01T00:00:00Z','evidence_paths':[]}
+        digests=[]
+        for raw in (b'first version',b'second version'):
+            source.write_bytes(raw);digest=hashlib.sha256(raw).hexdigest();digests.append(digest)
+            with manifest.open('a') as stream:
+                stream.write(json.dumps({'evidence_path':source.name,'sha256':digest})+'\n')
+            self.engine.preserve(path,incident,{'sha256':digest})
+        meta=json.loads((path/'metadata.json').read_text())
+        self.assertEqual([row['sha256'] for row in meta['copies']],digests)
+        self.assertTrue(all(row['verified_stable'] for row in meta['copies']))
+        self.assertEqual((path/'artifacts'/meta['copies'][0]['destination']).read_bytes(),b'first version')
+        self.assertEqual((path/'artifacts'/meta['copies'][1]['destination']).read_bytes(),b'second version')
+        # A later case cannot claim it reacquired a version no longer at source.
+        later=self.root/'later-incident';later.mkdir()
+        self.engine.preserve(later,{'timestamp_start':incident['timestamp_start'],'evidence_paths':[]},
+                             {'sha256':digests[0]})
+        missing=json.loads((later/'metadata.json').read_text())
+        self.assertEqual(missing['copies'],[])
+        self.assertTrue(any('Requested artifact version unavailable' in note for note in missing['limitations']))
+        self.assertEqual(source.read_bytes(),b'second version')
+
 
 if __name__=='__main__':unittest.main()

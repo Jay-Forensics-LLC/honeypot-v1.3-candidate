@@ -1,8 +1,9 @@
 """Small transparent lead-generation rule set; no compromise or malware score."""
+# Modified for HoneyTrace on 2026-11-01: exact DNS support and preflight thresholds.
 import json
 from core import IngestError, canonical
 
-VERSION = '1.0.0'
+VERSION = '1.0.1'
 DEFAULTS = {'window_seconds':60, 'syn_minimum':10, 'port_minimum':10,
             'dns_label_minimum':50, 'dns_minimum_questions':5, 'mapping_minimum_conflicts':1}
 CATALOG = {
@@ -41,6 +42,7 @@ def configuration(options=None):
         if type(value) is not int or value <= 0 or value > 10**6:
             raise IngestError('invalid_rule_threshold')
     if result['dns_label_minimum'] > 63: raise IngestError('invalid_dns_label_threshold')
+    if result['mapping_minimum_conflicts'] != 1: raise IngestError('mapping_threshold_must_be_one')
     return result
 
 
@@ -112,10 +114,12 @@ def evaluate(db, options=None):
                      'dport':db.execute('SELECT dport FROM rule_packets WHERE id=?',(first,)).fetchone()[0] if rule == 'repeated_syn' else None}})
         evaluation(rule,eligible,count,minimum)
     count = 0
-    for context,bucket,start,end,total,longs,first,last in db.execute('''SELECT context,bucket,MIN(event_ns),MAX(event_ns),COUNT(*),
-        SUM(label_length>=?),MIN(observation_id),MAX(observation_id) FROM rule_dns GROUP BY context,bucket
+    for context,bucket,start,end,total,longs,first,last in db.execute('''SELECT context,bucket,
+        MIN(CASE WHEN label_length>=? THEN event_ns END),MAX(CASE WHEN label_length>=? THEN event_ns END),COUNT(*),
+        SUM(label_length>=?),MIN(CASE WHEN label_length>=? THEN observation_id END),
+        MAX(CASE WHEN label_length>=? THEN observation_id END) FROM rule_dns GROUP BY context,bucket
         HAVING SUM(label_length>=?)>=? ORDER BY context,bucket''',
-        (config['dns_label_minimum'],config['dns_label_minimum'],config['dns_minimum_questions'])):
+        (config['dns_label_minimum'],)*6+(config['dns_minimum_questions'],)):
         count += 1
         finding('dns_long_labels',context,start,end,{'questions':total,'long_label_questions':longs,'window_bucket':bucket},
                 {'first_observation':first,'last_observation':last,'selector':{'table':'rule_dns','context':context,'bucket':bucket,'minimum_label_length':config['dns_label_minimum']}})
@@ -126,6 +130,5 @@ def evaluate(db, options=None):
        JOIN associations a ON a.id=c.association_a JOIN associations b ON b.id=c.association_b ORDER BY c.id'''):
         count += 1
         finding('conflicting_mappings',context,start,end,{'conflicts':1}, {'conflict':cid,'associations':[a,b]})
-    # Every conflict is a separate traceable lead; threshold controls evaluability only at 1.
-    if config['mapping_minimum_conflicts'] != 1: raise IngestError('mapping_threshold_must_be_one')
+    # Configuration admits only one; every conflict remains a separate traceable lead.
     evaluation('conflicting_mappings',db.execute("SELECT COUNT(*) FROM associations WHERE left_type='ip' AND right_type='mac' AND start_ns IS NOT NULL").fetchone()[0],count,2)

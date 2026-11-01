@@ -14,11 +14,11 @@
 | Containment | nft table backup/preview/check/apply/scoped rollback; single-IP timeouts; reversible Docker pause |
 | Automatic hook | opt-in host timer handles CRITICAL requests after evidence exists; no Docker socket in incidentd |
 | Dashboard | 19 panels; credentials counted without displaying passwords; bait ids are separate |
-| Health | disk/RAM/load/interfaces/Docker/services/logs/drop counts/HTTP/clock/permissions/forwarding/backups; alert bus only if configured and last delivery failed |
+| Health | disk/RAM/load/interfaces/Docker/services/logs/drop counts/HTTP/clock/permissions/forwarding/backups; unintegrated opt-in alert helper health if configured and last delivery failed |
 | Backups | timestamp archive + checksum; safe restore-check; optional verified protected-evidence copy to mount |
 | Retention | Loki compactor, bounded writer/Docker logs, raw logrotate, finite capture; protected evidence manual |
 | Deployment | preflight/bootstrap/start/stop/status/update and explicit dependency/systemd installation |
-| Safety gates | fresh test records + current checks, fail-closed non-loopback startup, WAN matrix, approval record, source-fidelity evidence |
+| Safety gates | fresh test records + current checks, strict loopback runtime startup; preparatory WAN matrix, approval record, source-fidelity evidence |
 | Intel product | sanitized pack, STIX bundle, and brief from incident evidence; no raw password field |
 | Bait | per-deployment tripwires under state/bait; not valid credentials |
 | Alerts | disabled-by-default redacted webhook or SMTP; no reputation lookup |

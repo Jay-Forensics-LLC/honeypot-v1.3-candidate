@@ -1,9 +1,12 @@
 """Closed opt-in policy; offline imports do not authorize tool execution."""
-from dataclasses import dataclass, fields
+from dataclasses import asdict, dataclass, fields
+import json
 from pathlib import Path
 from .io import parse_json, read_regular
 from .model import MAX_BYTES, MAX_RECORDS, Phase10Error
 from .registry import PLUGINS
+
+MAX_POLICY_BYTES = 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -39,6 +42,13 @@ class Policy:
         for name, maximum in (('max_bytes', MAX_BYTES), ('max_records', MAX_RECORDS), ('timeout_seconds', 30), ('retention_days', 365)):
             if type(row[name]) is not int or not 1 <= row[name] <= maximum:
                 raise Phase10Error('Invalid policy quota')
+        self.serialize()
+
+    def serialize(self):
+        raw = (json.dumps(asdict(self), ensure_ascii=True, indent=2, allow_nan=False) + '\n').encode()
+        if len(raw) > MAX_POLICY_BYTES:
+            raise Phase10Error('Policy exceeds its serialized byte limit')
+        return raw
 
     @classmethod
     def from_dict(cls, row):
@@ -54,7 +64,7 @@ class Policy:
             path.lstat()
         except FileNotFoundError:
             return cls()
-        return cls.from_dict(parse_json(read_regular(path, 1024 * 1024)))
+        return cls.from_dict(parse_json(read_regular(path, MAX_POLICY_BYTES)))
 
     def require(self, plugin_id):
         if not self.enabled:

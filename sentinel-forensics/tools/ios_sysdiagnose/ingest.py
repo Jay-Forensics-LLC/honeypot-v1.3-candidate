@@ -1,4 +1,5 @@
 """Offline, bounded sysdiagnose subset importer. Python 3.11+; stdlib only."""
+# Modified for HoneyTrace on 2026-11-01: reject invalid explicit offset components.
 from __future__ import annotations
 
 import argparse
@@ -21,7 +22,7 @@ import zipfile
 from xml.parsers.expat import ExpatError
 from dataclasses import asdict, dataclass
 
-VERSION = '0.2.1'
+VERSION = '0.2.2'
 SCHEMA = 'ios-sysdiagnose-evidence/1'
 
 
@@ -66,6 +67,10 @@ def timestamp(value):
         return None, 'unsupported'
     try:
         value = re.sub(r'\s+([+-]\d{2}:?\d{2})$', r'\1', value)
+        zone = re.search(r'([+-])(\d{2}):?(\d{2})(?::?(\d{2}))?(?:[.,]\d+)?$', value)
+        if zone and (int(zone[2]) > 23 or int(zone[3]) > 59 or
+                     zone[4] is not None and int(zone[4]) > 59):
+            raise ValueError('invalid_timezone_offset')
         parsed = dt.datetime.fromisoformat(value.replace('Z', '+00:00'))
         if parsed.tzinfo is None:
             return None, 'timezone_missing'

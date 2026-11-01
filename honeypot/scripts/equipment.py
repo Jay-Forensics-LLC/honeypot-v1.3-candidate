@@ -47,9 +47,11 @@ def _identifier(value):
              'Choose an existing equipment entry')
 
 
-def _text(value, maximum, *, empty=False):
+def _text(value, maximum, *, empty=False, multiline=False):
+    if multiline and isinstance(value, str):
+        value = value.replace('\r\n', '\n')
     _require(isinstance(value, str) and (empty or value.strip()) and len(value) <= maximum
-             and all(ord(char) >= 32 and ord(char) != 127 for char in value),
+             and all((multiline and char == '\n') or ord(char) >= 32 and ord(char) != 127 for char in value),
              'Use a bounded label or description without control characters')
     return value.strip()
 
@@ -57,7 +59,7 @@ def _text(value, maximum, *, empty=False):
 def _editable(row):
     _require(isinstance(row, dict) and set(row) == _EDITABLE, 'Unsupported equipment fields')
     result = {**row, 'name': _text(row['name'], 80),
-              'description': _text(row['description'], 500, empty=True),
+              'description': _text(row['description'], 500, empty=True, multiline=True),
               'equipment_class': _text(row['equipment_class'], 80, empty=True),
               'value': _text(row['value'], 80, empty=True)}
     _require(result['category'] in CATEGORIES and result['tracking'] in TRACKING

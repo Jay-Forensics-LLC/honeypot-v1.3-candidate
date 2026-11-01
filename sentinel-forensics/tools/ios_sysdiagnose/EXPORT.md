@@ -1,5 +1,7 @@
 # Evidence export contract: ios-sysdiagnose-evidence/1
 
+Modified for HoneyTrace on 2026-11-01: clarify producer version and timestamp statuses.
+
 UTF-8 JSON; deterministic sorted-key serialization, ASCII escapes, no NaN/Infinity.
 IDs/hashes are lowercase 64-character SHA-256 hex. No wall-clock import timestamp
 is inserted: identical archive + options + parser version yields identical output.
@@ -13,8 +15,9 @@ Custody/acquisition times must be recorded independently by the operator.
 | `manifest.json` | Version, options/budgets, archive hash/size, file inventory, counts, coverage, events hash, limitations |
 | `SHA256SUMS` | Exact-byte SHA-256 of events and manifest; written last |
 
-Manifest `schema_version` is `ios-sysdiagnose-evidence/1`, `parser_version` is
-`0.1.0`. `archive` contains SHA-256 and byte size, without local path/name.
+Manifest `schema_version` is `ios-sysdiagnose-evidence/1`; `parser_version` records
+the producing implementation version (currently `0.2.2`), independently of the
+envelope version. `archive` contains SHA-256 and byte size, without local path/name.
 `privacy` is `minimized` or `sensitive`. `limits` records every applied budget.
 `files` includes all regular members, even unsupported ones. Each entry contains:
 
@@ -62,7 +65,9 @@ zero observations. `interpretations`, `suspected_anomalies`, and
 
 Placeholder hash strings above illustrate the contract, not genuine evidence.
 `timestamp` may be null; statuses are `normalized`, `missing`, `unsupported`,
-`timezone_missing`, `invalid`. `diagnostic.crash_report` identifies `.ips` objects.
+`unsupported_nonfinite`, `timezone_missing`, `invalid`. Nonfinite numeric input
+remains null with `unsupported_nonfinite`; no timestamp is guessed.
+`diagnostic.crash_report` identifies `.ips` objects.
 Source is assigned by the importer, never accepted from a source record.
 No severity, confidence of compromise, actor attribution or malware flag is added.
 

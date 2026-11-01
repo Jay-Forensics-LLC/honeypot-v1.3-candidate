@@ -11,6 +11,7 @@ from hp_common import atomic_json, config, runtime_path, sha256, utc
 from runtime_inventory import collect
 from live_capture import readiness
 from capture_status import inspect_capture
+from evidence_group import render_unit_template
 
 SOURCE=Path(__file__).resolve().parents[1]
 ONLY_BLOCKER='PCAP identity/interface verification failed'
@@ -152,7 +153,8 @@ def recover(root,start=False):
         loaded=service.get('ExecStart','')
         if loaded.count('argv[]=')!=1 or 'argv[]=/usr/bin/python3 '+str(root/'scripts/pcap.py')+' ;' not in loaded:
             raise ValueError('Loaded PCAP command differs from reviewed command')
-        expected=(SOURCE/'systemd/honeypot-pcap.service.in').read_text().replace('@ROOT@',str(root)).replace('@PCAP@',str(runtime_path('PCAP_PATH','captures',root))).replace('@EVIDENCE_GROUP@','honeypot-evidence')
+        expected=render_unit_template((SOURCE/'systemd/honeypot-pcap.service.in').read_text(),
+                                      root,runtime_path('PCAP_PATH','captures',root))
         actual=command(['systemctl','cat','honeypot-pcap.service']).stdout
         clean=lambda value:'\n'.join(line.strip() for line in value.splitlines() if line.strip() and not line.lstrip().startswith('#'))
         if clean(actual)!=clean(expected):raise ValueError('PCAP unit differs from reviewed source')

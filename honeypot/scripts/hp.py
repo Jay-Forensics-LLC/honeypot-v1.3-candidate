@@ -129,10 +129,10 @@ def _main():
         return demo.main(a.mode,a.runtime_root,a.timeout,a.output_root)
     if a.command in ('start','boot-start','stop'):
         import ops
-        texts={'start':('Explicit first deploy/rebuild after containment and exposure gates','Enable automatic boot or alter firewall'),
+        texts={'start':('Create/start reviewed immutable images after strict loopback and containment gates','Build, pull, enable automatic boot or alter firewall'),
                'boot-start':('Start existing healthy loopback decoys after gates','Build, pull, create, or enable boot'),
                'stop':('Stop the Compose stack','Delete evidence, containers, or firewall rules')}
-        describe(*texts[a.command],approval='--exposure-approved plus fresh readiness PASS, approval record, and source-fidelity evidence for non-loopback decoys' if a.command=='start' else 'Explicit command')
+        describe(*texts[a.command],approval='Independent image approval hash; non-loopback startup remains blocked by runtime validation' if a.command=='start' else 'Explicit command')
         kwargs={'approval_sha256':a.image_approval_sha256} if a.command in ('start','boot-start') else {}
         return getattr(ops,a.command.replace('-','_'))(**kwargs) or 0
     if a.command=='wan':

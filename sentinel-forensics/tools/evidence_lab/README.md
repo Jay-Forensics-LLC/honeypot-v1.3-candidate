@@ -1,5 +1,7 @@
 # Evidence Lab: offline analysis CLI
 
+<!-- HoneyTrace local modification, 2026-11-01: whole-page cohort limits and strict RSS sampling. -->
+
 Python 3.11+ and SQLite (JSON1) are sufficient for analysis; no Python runtime
 packages or services are installed. Run from the repository root. Local Wireshark
 `capinfos` is required for real qualification; `tshark` is used for independent
@@ -247,6 +249,13 @@ all applicable gates. Failure/cancellation can also return 2. The reviewed actua
 wrapper returns 0 for PASS_APPLICABLE_GATES, without waiving the 1,825 raw losses.
 Do not overwrite completed output or silently accept a nonzero exit.
 
+Qualification report schema `capture-qualification/3` samples the fixed worker
+process and the parent separately; descendants are not sampled. The analysis
+worker reports its own lifetime peak RSS and launches no external decoders. Missing live
+RSS metadata fails qualification; bounded rereads allow transient metadata to
+recover, and only positively observed process termination contributes zero.
+The 50 ms samples can still miss short peaks; they are not an OS memory quota.
+
 `state.json` and `manifest.json` describe status. `SHA256SUMS` is written last and
 covers all completed files, including child bundles and export. Verify locally:
 
@@ -466,9 +475,16 @@ standard bundle can locate its cap-excluded cohorts:
 SELECT DISTINCT json_extract(provenance_json,'$.cohort_id') AS cohort_id
 FROM derivations
 WHERE status='not_evaluated' AND reason IN
-  ('whole_cohort_frame_cap','whole_cohort_byte_cap','whole_cohort_frame_and_byte_caps')
+  ('whole_cohort_frame_cap','whole_cohort_byte_cap','whole_cohort_frame_and_byte_caps',
+   'whole_cohort_total_frame_cap')
 ORDER BY cohort_id;
 ```
+
+Planner `whole-cohort-first-fit/2` also treats a cohort larger than the entire
+page's `total_frames` allowance as permanently excluded. A cohort that fits a
+page alone but exceeds its remaining allowance stays deferred to another page.
+Continuation retains the existing exact code and limits binding; a page from
+different code is not silently reinterpreted under the new planner.
 
 The locator identifies
 an indexed scoped tuple, not a physical device. Selection verifies the full

@@ -1,4 +1,5 @@
 """Measured two-run Linux capture qualification; real and synthetic gates stay separate."""
+# HoneyTrace local modification, 2026-11-01: require complete live RSS measurements.
 from __future__ import annotations
 from contextlib import closing
 import argparse
@@ -18,8 +19,9 @@ import sys
 import tempfile
 import time
 from analyze import analyze, config_validate
-from core import IngestError, MAX_RECORD, canonical, hash_file, source_file, fingerprint, private_write, atomic_json, VERSION
+from core import IngestError, MAX_RECORD, canonical, hash_file, source_file, fingerprint, private_write, atomic_json, VERSION, read_pseudonym_key, read_configuration
 from capture import MAGICS, NG
+from reconstruct_resource import ResourceSamplingFailure, measured_process_rss
 
 GOAL_BYTES = 30_000_000_000  # Description only: actual dataset identity/bytes control acceptance.
 MAX_SOURCES = 4096
@@ -125,21 +127,10 @@ def verify_bundle(bundle):
         raise IngestError('bundle_checksum_coverage')
 
 
-def tree_rss(pid):
-    total=0
-    pending=[pid]; seen=set()
-    while pending and len(seen)<128:
-        current=pending.pop()
-        if current in seen: continue
-        seen.add(current)
-        try:
-            text=Path(f'/proc/{current}/status').read_text()
-            match=re.search(r'^VmRSS:\s+(\d+) kB',text,re.M)
-            if match: total+=int(match[1])*1024
-            for task in Path(f'/proc/{current}/task').iterdir():
-                pending.extend(map(int,(task/'children').read_text().split()))
-        except (OSError,ValueError): pass
-    return total
+def process_rss(pid):
+    """Missing live metadata fails; only positively terminal processes contribute zero."""
+    rss,_=measured_process_rss(pid)
+    return 0 if rss is None else rss
 
 
 def allocated_bytes(root):
@@ -165,7 +156,8 @@ def measured_process(args, *, timeout, scratch):
             next_disk=0
             while proc.poll() is None:
                 now=time.perf_counter()
-                peak=max(peak,tree_rss(proc.pid)); parent_peak=max(parent_peak,tree_rss(os.getpid())-tree_rss(proc.pid))
+                peak=max(peak,process_rss(proc.pid))
+                parent_peak=max(parent_peak,process_rss(os.getpid()))
                 if now>=next_disk:
                     disk_peak=max(disk_peak,allocated_bytes(scratch.parent)[1]); next_disk=now+1
                 if now-start>timeout:
@@ -179,7 +171,7 @@ def measured_process(args, *, timeout, scratch):
         after=resource.getrusage(resource.RUSAGE_CHILDREN)
         fs_after=os.statvfs(scratch).f_bavail*os.statvfs(scratch).f_frsize
         metrics={'wall_seconds':time.perf_counter()-start,'cpu_user_seconds':after.ru_utime-before.ru_utime,
-                 'cpu_system_seconds':after.ru_stime-before.ru_stime,'sampled_worker_tree_peak_rss_bytes':peak,
+                 'cpu_system_seconds':after.ru_stime-before.ru_stime,'sampled_worker_process_peak_rss_bytes':peak,
                  'sampled_parent_peak_rss_bytes':parent_peak,'sampled_case_allocated_peak_bytes':disk_peak,
                  'filesystem_free_decrease_bytes':max(0,fs_before-fs_after),'returncode':result}
         data=stdout.read_bytes() if stdout.stat().st_size<=2*MAX_RECORD else b''
@@ -242,17 +234,6 @@ def host_info():
             'cpu_model':next((line.split(':',1)[1].strip() for line in Path('/proc/cpuinfo').read_text().splitlines() if line.startswith('model name')),'unknown')}
 
 
-def read_pseudonym_key(path):
-    """Read a protected caller key without unbounded reads or path-bearing errors."""
-    try:
-        with source_file(path) as (stream,_):
-            key=stream.read(33)
-    except (IngestError,OSError):
-        raise IngestError('pseudonym_key_file_unavailable') from None
-    if len(key)!=32: raise IngestError('pseudonym_key_must_be_32_bytes')
-    return key
-
-
 def qualify(source,output,*,profile='real',timeout=14400,max_rss=512*1024**2,expected_packets=None,
             min_free_bytes=None,dataset_id=None,config=None,pseudonym_key=None):
     if pseudonym_key is not None and (not isinstance(pseudonym_key,bytes) or len(pseudonym_key)!=32):
@@ -266,7 +247,7 @@ def qualify(source,output,*,profile='real',timeout=14400,max_rss=512*1024**2,exp
         raise IngestError('qualification_output_must_be_separate_from_source')
     output.mkdir(mode=0o700)
     start=time.perf_counter(); cpu=time.process_time(); child_start=resource.getrusage(resource.RUSAGE_CHILDREN)
-    report={'schema':'capture-qualification/2','profile':profile,'status':'BLOCKED_EXTERNAL',
+    report={'schema':'capture-qualification/3','profile':profile,'status':'BLOCKED_EXTERNAL',
      'goal':'Actual Packet Squirrel dataset: reproducible supported-subset analysis',
      'dataset_identified':bool(dataset_id),'dataset_id_sha256':hashlib.sha256(dataset_id.encode()).hexdigest() if dataset_id else None,
      'description_approximate_bytes':GOAL_BYTES,'environment':host_info(),
@@ -275,7 +256,7 @@ def qualify(source,output,*,profile='real',timeout=14400,max_rss=512*1024**2,exp
                'disk_estimate_bytes_per_packet_per_run':6000,'disk_reserve_bytes':1024**3},
      'configuration':config,'runs':[],'checks':{},'timing':{},'independent':[],
      'metric_limitations':['50 ms RSS samples can miss short peaks; Python worker ru_maxrss also recorded.',
-       'Worker process tree sampled; parent RSS sampled separately. No external decode workers inside analysis.',
+       'Fixed worker process and parent RSS sampled separately; descendants are not sampled. No external decode workers inside analysis.',
        '1 s allocated-file sampling can miss temporary files; filesystem deltas include unrelated activity.',
        'Filesystem cache not flushed: both runs are clean cases but warm-cache effects are possible.',
        'Full cost includes inventory, all source hashes, decoder, worker startup, analysis, output verification and semantic/export digests; excludes report finalization.',
@@ -387,8 +368,11 @@ def qualify(source,output,*,profile='real',timeout=14400,max_rss=512*1024**2,exp
           'implementation_unchanged':all(hash_file(path)==report['code_sha256'][name] for name,path in implementation.items()),
           'reproducible_records':runs[0]['semantic_sha256']==runs[1]['semantic_sha256'],
           'reproducible_minimized_export':runs[0]['export_sha256']==runs[1]['export_sha256'],
-          'memory_budget':all(max(r['peak_rss_bytes'],r['sampled_worker_tree_peak_rss_bytes'])<=max_rss for r in runs),
-          'independent_memory_budget':all(not r['metrics'] or r['metrics'].get('sampled_worker_tree_peak_rss_bytes',0)<=max_rss for r in report['independent']),
+          'memory_budget':all(max(r['peak_rss_bytes'],r['sampled_worker_process_peak_rss_bytes'])<=max_rss for r in runs),
+          'independent_memory_budget':all(r['packets'] is None or (r['metrics'] is not None
+              and type(r['metrics'].get('sampled_worker_process_peak_rss_bytes')) is int
+              and 0<=r['metrics']['sampled_worker_process_peak_rss_bytes']<=max_rss)
+              for r in report['independent']),
           'parent_memory_budget':all(r['sampled_parent_peak_rss_bytes']<=max_rss for r in runs),
           'pinned_real_code':profile!='real' or (report['code_commit'] is not None and report['code_dirty'] is False and report['code_matches_revision'] is True),
           'time_budget':all(r['wall_seconds']<=timeout for r in runs),'nonempty_capture':all(r['packets']>0 for r in runs),
@@ -404,7 +388,7 @@ def qualify(source,output,*,profile='real',timeout=14400,max_rss=512*1024**2,exp
             report['reason']='Framing/count/integrity gates pass, but decoding losses require review; unsupported content is not fully analyzed.'
     except IngestError as exc:
         report['reason']=str(exc)
-        if report['runs'] or str(exc) in ('independent_decoder_failed','analysis_worker_failed'):
+        if report['runs'] or isinstance(exc,ResourceSamplingFailure) or str(exc) in ('independent_decoder_failed','analysis_worker_failed'):
             report['status']='FAILED'
         if hasattr(exc,'details'): report['failure_details']=exc.details
     except subprocess.TimeoutExpired as exc:
@@ -450,7 +434,7 @@ def main():
     a=p.parse_args()
     try:
         key=read_pseudonym_key(a.pseudonym_key) if getattr(a,'pseudonym_key',None) else None
-        cfg=json.loads(a.config.read_bytes()) if getattr(a,'config',None) else None
+        cfg=read_configuration(a.config) if getattr(a,'config',None) else None
         if a.command=='generate': result=generate_cardinality(a.path,a.packets) if a.pattern=='high-cardinality' else generate(a.path,a.packets,a.payload_bytes)
         elif a.command=='_worker':
             if key is None: raise IngestError('pseudonym_key_must_be_32_bytes')

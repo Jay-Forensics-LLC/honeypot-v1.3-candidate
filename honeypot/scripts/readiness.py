@@ -20,7 +20,7 @@ def evidence_passes(name, row, now=None):
     now = time.time() if now is None else now
     try:
         age = now - float(row.get('epoch', 0))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return False
     if row.get('status') != 'PASS' or not 0 <= age < 86400:
         return False

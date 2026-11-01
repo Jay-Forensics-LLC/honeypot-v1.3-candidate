@@ -1,4 +1,5 @@
 """Shared offline primitives. Evidence strings are data, never commands."""
+# Modified for HoneyTrace on 2026-11-01: bounded CLI readers and exact record timestamps.
 from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -15,7 +16,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'ios_sysdiagnose'))
 from ingest import IngestError, Limits, canonical, hash_file, ingest, records, timestamp, VERSION as IOS_PARSER_VERSION
 
-VERSION = '2.0.10'
+VERSION = '2.0.11'
 MAX_RECORD = 1024 * 1024
 MAX_DEPTH = 32
 
@@ -37,6 +38,27 @@ def source_file(path):
         yield stream, before
         if fingerprint(before) != fingerprint(os.fstat(stream.fileno())) or fingerprint(before) != fingerprint(path.stat()):
             raise IngestError('source_changed')
+
+
+def read_pseudonym_key(path):
+    """Read a caller key without unbounded reads or path-bearing errors."""
+    try:
+        with source_file(path) as (stream, _):
+            key = stream.read(33)
+    except (IngestError, OSError):
+        raise IngestError('pseudonym_key_file_unavailable') from None
+    if len(key) != 32:
+        raise IngestError('pseudonym_key_must_be_32_bytes')
+    return key
+
+
+def read_configuration(path):
+    try:
+        with source_file(path) as (stream, _):
+            raw = stream.read(MAX_RECORD + 1)
+    except (IngestError, OSError):
+        raise IngestError('configuration_file_unavailable') from None
+    return strict_json(raw)
 
 
 def _bounded_json(data, *, schema_probe=False):
@@ -146,6 +168,13 @@ def iso_ns(ns):
     if ns is None: return None
     sec, fraction = divmod(ns, 10**9)
     return dt.datetime.fromtimestamp(sec, dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S') + f'.{fraction:09d}Z'
+
+
+def canonical_record_row(row):
+    """Canonical derivative time; original precision remains in time_json."""
+    if row[4] is None:
+        return tuple(row)
+    return (*row[:4], iso_ns(time_info(row[4])['utc_ns']), *row[5:])
 
 
 class Reader:

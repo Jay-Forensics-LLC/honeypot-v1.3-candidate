@@ -51,6 +51,24 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(len(self.incidents()),1);self.assertEqual(self.incidents()[0]['source_ip'],'192.0.2.10')
     def test_dedup(self):
         self.event(1);self.event(1);self.assertEqual(len(self.incidents()[0]['related_events']),1)
+    def test_source_time_extrema_follow_chronology_for_out_of_order_events(self):
+        stamps=['2026-11-01T12:00:00.500000Z','2026-11-01T13:00:00+01:00',
+                '2026-11-01T12:00:00.900000Z']
+        with patch('incidentd.time.time',return_value=1700000000):
+            for index,stamp in enumerate(stamps):self.event(index,timestamp=stamp)
+        incident=self.incidents()[0]
+        self.assertEqual(incident['timestamp_start'],'2026-11-01T12:00:00Z')
+        self.assertEqual(incident['timestamp_end'],'2026-11-01T12:00:00.900000Z')
+        self.assertEqual(len(incident['related_events']),3)
+    def test_committed_replay_still_prunes_expired_correlation_state(self):
+        self.event(1)
+        self.engine.state['sessions']['expired']={'ip':'192.0.2.20','port':1234,'seen':0}
+        self.engine.state['signals']['expired']={'id':'synthetic','seen':0}
+        self.engine.state['groups']['expired']={'segment':0,'seen':0}
+        self.event(1)
+        for values in ('sessions','signals','groups'):
+            self.assertNotIn('expired',self.engine.state[values])
+        self.assertEqual(len(self.incidents()[0]['related_events']),1)
     def test_shared_username_links_not_merge(self):
         self.event(1,username='synthetic');self.event(2,src_ip='192.0.2.11',session='second',username='synthetic')
         values=self.incidents();self.assertEqual(len(values),2);self.assertTrue(any(x['correlation_links'] for x in values))

@@ -31,6 +31,9 @@ diagnostics and decoy identity preparation. See [unified source](docs/UNIFIED_SO
 for the bundled source revision and active integration scope, and the
 [roadmap](docs/SECURITY_SUITE_ROADMAP.md) for later capabilities.
 
+The [feature review and debugging handoff](docs/FEATURE_DEBUG_HANDOFF.md) records
+the current review branch, validation and remaining limits.
+
 The application source is in [honeypot/](honeypot/README.md).
 The [current phase status](docs/CURRENT_PHASE_STATUS.md) records HoneyWatch at
 `efac52cce39cd8adcf86a00cd4fe2cb7ab66f607` and the separate October 31 lab closeout.

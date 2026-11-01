@@ -4,6 +4,7 @@ Checksums establish consistency, not authenticity. A self-sealed index is never
 trusted for packet selection until every original classic-PCAP occurrence has
 been freshly decoded and reconciled. No decoder or network operation occurs here.
 """
+# Modified for HoneyTrace on 2026-11-01: reconcile producer-versioned record timestamps exactly.
 from contextlib import ExitStack, contextmanager
 import hashlib
 import os
@@ -14,7 +15,8 @@ import stat
 
 from analyze import config_validate
 from capture import classic
-from core import IngestError, MAX_RECORD, Reader, canonical, fingerprint, source_file, strict_json
+from core import (IngestError, MAX_RECORD, Reader, canonical, canonical_record_row,
+                  fingerprint, source_file, strict_json)
 from network import decode
 
 MAX_FILES = MAX_SOURCES = 4096
@@ -167,6 +169,11 @@ class BoundCase:
         require(not any('TEMP B-TREE' in row[3].upper() for row in plan),
                 'reconstruct_index_sort_unsupported')
         indexed = iter(self.db.execute(sql))
+        # Parser2.0.11 canonicalizes the derivative records timestamp to nine
+        # digits. Earlier cases retain Packet.row's original six/nine spelling.
+        # Compare the stored row exactly to the selected fresh representation;
+        # never normalize attacker-controlled index values into equivalence.
+        canonical_times = tuple(map(int, self.manifest['parser_version'].split('.'))) >= (2, 0, 11)
         count = 0
         for sid, source in self.sources.items():
             stream = source['stream']
@@ -182,8 +189,9 @@ class BoundCase:
                 require(row is not None, 'reconstruct_index_omits_original_packet')
                 require(row['id'] == count and row['source_id'] == sid,
                         'reconstruct_index_packet_order_mismatch')
+                expected_record = canonical_record_row(packet.row()) if canonical_times else packet.row()
                 require(tuple(row['record_' + name] for name in RECORD_COLUMNS)
-                        == (sid, *packet.row()), 'reconstruct_record_differs_from_original')
+                        == (sid, *expected_record), 'reconstruct_record_differs_from_original')
                 meta, _, losses = decode(packet)
                 if packet.status:
                     losses.append(packet.status)

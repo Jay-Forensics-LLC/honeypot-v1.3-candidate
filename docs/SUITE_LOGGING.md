@@ -12,8 +12,12 @@ correlation ID into their nested worker/store events. Jobs also carry safe job
 IDs. Timestamps use UTC, with severity, component, fixed event code and applicable
 status, count and duration fields.
 
-The default file is `honeypot/logs/system/suite.jsonl` relative to the selected
-operator/runtime root. It rotates at 20 MiB and retains ten archives. New suite
+The default file is `honeypot/logs/system/suite-<effective-uid>.jsonl` relative
+to the selected operator/runtime root. Each operating-system identity writes and
+reads its own private stream, so host health and the incident daemon do not
+compete for an owner-only file. Existing `suite.jsonl` files are left untouched;
+review or archive them separately under their original owner. Diagnostics reads
+the dashboard identity's current stream, not other users' or legacy files. It rotates at 20 MiB and retains ten archives. New suite
 files use mode 0600 and new directories 0700. Existing shared directory
 permissions are preserved. Writers serialize append/rotation and reject file
 aliases; logging errors never abort an otherwise independent operation. The

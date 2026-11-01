@@ -1,9 +1,11 @@
+# HoneyTrace local modification, 2026-11-01: retain failed resource qualification.
 from contextlib import closing
 import sqlite3, subprocess, tempfile, unittest
 from pathlib import Path
 from unittest.mock import patch
 from qualify import generate, qualify, semantic_digest, verify_bundle, capinfos_count
 from analyze import IngestError
+from reconstruct_resource import ResourceSamplingFailure
 
 class Tests(unittest.TestCase):
     def setUp(self):
@@ -14,11 +16,26 @@ class Tests(unittest.TestCase):
         with patch('qualify.capinfos_count',return_value=None):
             return qualify(self.src,self.out,profile='synthetic',expected_packets=expected,min_free_bytes=0,**kw)
     def test_repeat_workers(self):
-        r=self.run_fixture(); self.assertEqual(r['status'],'SYNTHETIC_PASS')
+        r=self.run_fixture(); self.assertEqual(r['status'],'SYNTHETIC_PASS',
+            (r.get('reason'),r.get('failure_details')))
         self.assertTrue(r['checks']['reproducible_records']); self.assertEqual(len(r['runs']),2)
         self.assertNotIn(str(self.src),(self.out/'qualification.json').read_text())
     def test_wrong_count(self): self.assertEqual(self.run_fixture(expected=99)['status'],'FAILED')
     def test_memory_gate(self): self.assertEqual(self.run_fixture(max_rss=1)['status'],'FAILED')
+    def test_unavailable_measurement_cannot_pass_qualification(self):
+        failure=ResourceSamplingFailure('process_status_unavailable','status',
+            exception=PermissionError('synthetic metadata unavailable'))
+        with patch('qualify.measured_process',side_effect=failure):
+            report=self.run_fixture()
+        self.assertEqual(report['status'],'FAILED')
+        self.assertEqual(report['reason'],'process_status_unavailable')
+        self.assertEqual(report['failure_details']['stage'],'status')
+    def test_independent_count_without_memory_metrics_does_not_pass_budget(self):
+        with patch('qualify.capinfos_count',return_value=100) as decoder:
+            decoder.last_metrics=None
+            report=qualify(self.src,self.out,profile='synthetic',expected_packets=100,min_free_bytes=0)
+        self.assertEqual(report['status'],'FAILED')
+        self.assertFalse(report['checks']['independent_memory_budget'])
     def test_real_identity_gate(self):
         r=qualify(self.src,self.out); self.assertEqual(r['reason'],'actual_dataset_identity_required')
         self.assertEqual(r['status'],'BLOCKED_EXTERNAL')

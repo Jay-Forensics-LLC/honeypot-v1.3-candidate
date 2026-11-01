@@ -68,9 +68,11 @@ and the reviewed `/tmp` tmpfs, before logs, pause or unpause are requested.
 `sudo journalctl -u honeypot-health.service` shows health failures. Inspect
 logs/system/health.jsonl and state/health.json. Systemd timers execute as root because
 health needs Docker status/journal/PCAP stop access; incidentd remains unprivileged.
-Health LOW means all monitored checks passed. Idle decoy logs generate MEDIUM even
-on a quiet network; run a local probe before declaring capture broken. cumulative
-Suricata drop counts require operator interpretation; they are not per-minute rates.
+Health LOW means all monitored checks passed. Quiet Cowrie/OpenCanary logs may
+legitimately be old when nonempty; Suricata EVE activity is expected within ten
+minutes. A positive Suricata kernel-drop delta produces a packets-per-second
+warning using elapsed time. Initial, counter-reset or invalid intervals have an
+unknown rate; cumulative counts remain available for interpretation.
 
 To record an independently verified boundary observation, root may append one JSON
 object to state/trusted/boundary.jsonl, e.g. timestamp, event_type=host.compromise,

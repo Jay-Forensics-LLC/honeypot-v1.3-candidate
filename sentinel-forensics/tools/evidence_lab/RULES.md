@@ -1,4 +1,7 @@
-# Explainable initial rules (1.0.0)
+# Explainable initial rules (1.0.1)
+
+Modified for HoneyTrace on 2026-11-01: DNS support ranges include only matching
+questions; unsupported mapping thresholds are rejected before ingestion.
 
 Rules generate **review leads** with confidence `supported_pattern`. Confidence
 means the rule's descriptive predicate is supported by the parsed subset; it is

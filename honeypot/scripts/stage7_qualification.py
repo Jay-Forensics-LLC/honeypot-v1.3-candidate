@@ -309,7 +309,9 @@ def evidence_permissions():
     result = {}
     capture_directory = (Path('/var/lib/honeypot/captures') if CONTEXT is None else
                          runtime_path('PCAP_PATH', 'captures', RUNTIME))
-    for path in (RUNTIME / 'secrets', RUNTIME / 'incidents', RUNTIME / 'artifacts',
+    incident_root = RUNTIME / 'incidents' if CONTEXT is None else runtime_path('INCIDENT_PATH', 'incidents', RUNTIME)
+    artifact_root = RUNTIME / 'artifacts' if CONTEXT is None else runtime_path('ARTIFACT_PATH', 'artifacts', RUNTIME)
+    for path in (RUNTIME / 'secrets', incident_root, artifact_root,
                  RUNTIME / 'state/trusted', capture_directory):
         info = path.lstat()
         if path.resolve() != path.absolute() or not path.is_dir() or info.st_mode & 0o007:
@@ -573,7 +575,7 @@ def cleanroom_demo(current):
             canary['ports'].get('2121/tcp') != [{'HostIp': '127.0.0.1', 'HostPort': str(interaction['host_port'])}]):
         raise ValueError('Guarded demo interaction differs from inspected loopback target')
     incident_path = qualification_context.canonical(report['result']['evidence_path'])
-    incident_path.relative_to(RUNTIME / 'incidents')
+    incident_path.relative_to(runtime_path('INCIDENT_PATH', 'incidents', RUNTIME))
     if incident_path.name != 'events.jsonl' or not re.fullmatch('[0-9a-f]{64}', report['result']['event_id']):
         raise ValueError('Guarded demo incident locator differs')
     if preservation.regular(incident_path).st_size > review.EVIDENCE_FILE_LIMIT:

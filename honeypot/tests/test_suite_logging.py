@@ -20,6 +20,20 @@ class SuiteLogging(unittest.TestCase):
         self.root = Path(folder.name)
         self.log = SuiteLog(self.root, 'dashboard')
 
+    def test_uid_streams_are_distinct_and_legacy_log_is_not_read_or_changed(self):
+        legacy = self.root / 'logs/system/suite.jsonl'
+        legacy.parent.mkdir(parents=True)
+        legacy.write_text('Retained legacy diagnostics\n')
+        legacy.chmod(0o600)
+        self.assertEqual(self.log.path.name, f'suite-{os.geteuid()}.jsonl')
+        with patch('operational_log.os.geteuid', return_value=os.geteuid() + 1):
+            other = SuiteLog(self.root, 'health')
+        self.assertNotEqual(other.path, self.log.path)
+        self.assertEqual(self.log.read_recent()['status'], 'not_collected')
+        self.assertTrue(self.log.event('suite.started'))
+        self.assertEqual(other.read_recent()['status'], 'not_collected')
+        self.assertEqual(legacy.read_text(), 'Retained legacy diagnostics\n')
+
     def test_readonly_construction_levels_and_private_records(self):
         self.assertEqual(self.log.read_recent()['status'], 'not_collected')
         self.assertEqual(list(self.root.iterdir()), [])

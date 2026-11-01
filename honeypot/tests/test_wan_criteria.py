@@ -129,6 +129,25 @@ class WanCriteriaTests(unittest.TestCase):
             self.assertEqual(row['scope'], 'detector')
             self.assertFalse(row['live'])
 
+    def test_saved_observation_keeps_original_age(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'state').mkdir()
+            cfg = {'DECOY_BIND': '127.0.0.1', 'MANAGEMENT_BIND': '127.0.0.1',
+                   'PROTECTED_SUBNET': '10.0.0.0/24', 'PCAP_INTERFACES': 'br-hp-cowrie,br-hp-canary',
+                   'WAN_CRITERIA': 'false', 'WAN_SOURCE_MODE': 'off', 'WAN_INGRESS_IFACE': '',
+                   'APPROVED_DNS': '', 'APPROVED_NTP': '', 'ENABLE_UPDATE_EGRESS': 'false'}
+            now = time.time()
+            for epoch, expected in ((now - 60, 'PASS'), (now - 86401, 'FAIL'), (None, 'FAIL'),
+                                    (now + 60, 'FAIL')):
+                with self.subTest(epoch=epoch):
+                    saved = {'observed_src': '192.0.2.10', 'expected_src': '192.0.2.10', 'epoch': epoch}
+                    (root / 'state/wan-fidelity-observation.json').write_text(json.dumps(saved))
+                    wan_criteria.check(cfg, root)
+                    row = json.loads((root / 'state/test-results/wan_source_fidelity.json').read_text())
+                    self.assertEqual(row['status'], expected)
+                    self.assertEqual(row['epoch'], epoch if expected == 'PASS' else 0)
+
 
 if __name__ == '__main__':
     unittest.main()

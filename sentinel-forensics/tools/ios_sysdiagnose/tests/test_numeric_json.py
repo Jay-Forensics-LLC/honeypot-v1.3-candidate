@@ -1,4 +1,5 @@
 """Synthetic numeric failures retain record provenance and allow later evidence."""
+# Modified for HoneyTrace on 2026-11-01: expect producer version 0.2.2.
 import hashlib
 import json
 from pathlib import Path
@@ -44,7 +45,7 @@ class NumericJSON(unittest.TestCase):
             before=source.read_bytes()
             manifest=ingest(source,root/'case',include_sensitive=True,preserve_time_original=True)
             rows=[json.loads(raw) for raw in (root/'case/events.jsonl').read_bytes().splitlines()]
-            self.assertEqual(manifest['parser_version'],'0.2.1')
+            self.assertEqual(manifest['parser_version'],'0.2.2')
             self.assertEqual(manifest['counts'],{'observations':3,'parse_errors':3,'files':5})
             self.assertEqual(manifest['coverage'],'partial')
             valid=next(row for row in rows if row.get('raw',{}).get('signal')==-55.25)

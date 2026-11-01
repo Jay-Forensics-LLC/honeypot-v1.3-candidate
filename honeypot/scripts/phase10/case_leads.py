@@ -380,7 +380,7 @@ def case_lead_details(store, summary, rows, decision_path=None):
     for row in findings:
         metrics, provenance = row['details']['metrics'], row['details']['provenance']
         rule, version = metrics['rule'], metrics['rule_version']
-        known = rule in _RULES and version == '1.0.0'
+        known = rule in _RULES and version in ('1.0.0', '1.0.1')
         description, alternatives, limitations = _RULES[rule] if known else (
             'This rule has no supported local explanation or selector schema.', [],
             ['Original finding remains preserved; supporting records are unavailable in this view.'])

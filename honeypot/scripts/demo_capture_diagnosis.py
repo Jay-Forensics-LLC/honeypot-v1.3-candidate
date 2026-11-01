@@ -1,12 +1,13 @@
 """Offline inspection of a prior demo marker; no traffic or runtime changes."""
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
 from pathlib import Path
 import tempfile
 import subprocess
-from hp_common import atomic_json, runtime_path, sha256, utc
+from hp_common import atomic_json, runtime_path, utc
 from live_capture import packet_proof, capture_segments
 import qualification_context
 
@@ -29,7 +30,8 @@ def diagnose(report_path,folder,context=None):
     if report_path.is_symlink():raise ValueError('Demo report symlink refused')
     report_path.resolve().relative_to(SOURCE/'work/demo' if context is None else context.evidence_root)
     if report_path.stat().st_size>2*1024**2:raise ValueError('Demo report read budget exceeded')
-    original=json.loads(qualification_context.stable_bytes(report_path,2*1024**2))
+    raw=qualification_context.stable_bytes(report_path,2*1024**2)
+    original=json.loads(raw)
     if original.get('mode')!='live' or original.get('synthetic') is not True:
         raise ValueError('Expected a synthetic live-demo report')
     root=Path(original['runtime']['runtime_root'])
@@ -48,7 +50,7 @@ def diagnose(report_path,folder,context=None):
     candidates.extend(p for p in inventory if begin<=p.stat().st_mtime<=begin+420)
     proof=packet_proof(root,folder,original['demo_run_id'],target,begin,candidate_paths=candidates)
     return {'timestamp':utc(),'status':finding(proof,candidates),
-            'original_report':str(report_path),'original_report_sha256':sha256(report_path)[0],
+            'original_report':str(report_path),'original_report_sha256':hashlib.sha256(raw).hexdigest(),
             'demo_run_id':original['demo_run_id'],'packet_proof':proof,'traffic_generated':False,
             'services_changed':False,'original_report_changed':False,'stage7':'BLOCKED','stage8':'BLOCKED',
             'qualification':'Retrospective packet inspection only; does not convert the failed run into PASS_LIVE'}

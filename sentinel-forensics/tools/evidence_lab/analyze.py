@@ -1,4 +1,5 @@
 """Offline forensic analysis CLI. Python 3.11+; standard library; no network calls."""
+# Modified for HoneyTrace on 2026-11-01: exact source summaries and bounded CLI inputs.
 from __future__ import annotations
 import argparse
 from contextlib import closing
@@ -16,7 +17,8 @@ import uuid
 
 from core import (IngestError, Limits, canonical, hash_file, ingest, records, iso_ns,
                   MAX_RECORD, Reader, fingerprint, source_file, private_write, atomic_json,
-                  strict_json, json_schema_probe, time_info, VERSION, IOS_PARSER_VERSION)
+                  strict_json, json_schema_probe, time_info, VERSION, IOS_PARSER_VERSION,
+                  read_configuration, read_pseudonym_key)
 from capture import MAGICS, NG, packets, ng_packets
 from adapters import (normalize, normalize_ble_ard_parallel, json_rows, csv_rows,
                       sqlite_snapshot, sqlite_rows, TETRA, BLE, BLE_ARD_PARALLEL)
@@ -114,7 +116,7 @@ def add_adapter_record(store, sid, item, *, normalizer=normalize):
     except (IngestError,ValueError,TypeError) as exc:
         kind = 'parse_error'; status = str(exc) if isinstance(exc,IngestError) else 'malformed_adapter_record'
         when = time_info()
-    store.add_record(sid,(ordinal,loc.get('byte_offset'),loc.get('byte_length'),digest,None,
+    store.add_record(sid,(ordinal,loc.get('byte_offset'),loc.get('byte_length'),digest,iso_ns(when['utc_ns']),
                           'parse_error' if kind=='parse_error' else 'observation','radio',0,status))
 
 
@@ -176,7 +178,7 @@ def analyze(paths, output, *, config=None, pseudonym_key=None, min_free_bytes=64
                                     try:
                                         event,data,when = normalize(obj); data.update(extra)
                                         store.observe(sid,ordinal,event,data,when,{'source_id':sid,**loc,'record_sha256':digest},digest)
-                                        store.add_record(sid,(ordinal,None,None,digest,None,'observation','wifi',0,
+                                        store.add_record(sid,(ordinal,None,None,digest,iso_ns(when['utc_ns']),'observation','wifi',0,
                                                            None if when['status']=='normalized' else 'timestamp_'+when['status']))
                                     except IngestError as exc:
                                         store.add_record(sid,(ordinal,None,None,digest,None,'parse_error','wifi',0,str(exc)))
@@ -321,8 +323,8 @@ def main():
     cli.add_argument('--config',type=Path); cli.add_argument('--pseudonym-key',type=Path)
     args=cli.parse_args()
     try:
-        result=analyze(args.inputs,args.output,config=strict_json(args.config.read_bytes()) if args.config else None,
-                       pseudonym_key=args.pseudonym_key.read_bytes() if args.pseudonym_key else None)
+        result=analyze(args.inputs,args.output,config=read_configuration(args.config) if args.config else None,
+                       pseudonym_key=read_pseudonym_key(args.pseudonym_key) if args.pseudonym_key else None)
     except KeyboardInterrupt: print('analysis_cancelled'); return 130
     except (IngestError,OSError,sqlite3.Error,ValueError,TypeError) as exc:
         print(str(exc) if isinstance(exc,IngestError) else 'analysis_failed_'+type(exc).__name__); return 2

@@ -14,6 +14,8 @@ from .model import MAX_BYTES, Phase10Error, make_finding, timestamp
 
 MAX_STORE_BYTES = 256 * 1024**2
 MAX_IMPORTS = 1000
+MAX_MANIFEST_BYTES = 1024 * 1024
+MAX_MANIFEST_INVENTORY_BYTES = MAX_BYTES
 _DIRECTORY = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
 
 
@@ -111,26 +113,26 @@ class Store:
         finally:
             os.close(descriptor)
 
-    def _manifests(self, root):
+    def _manifests(self, root, *, include_bytes=False):
         try:
             directory = _child(root, 'imports')
         except FileNotFoundError:
-            return []
+            return ([], 0) if include_bytes else []
         try:
             names = os.listdir(directory)
             if len(names) > MAX_IMPORTS or any(not re.fullmatch('[a-f0-9]{64}\\.json', n) for n in names):
                 raise Phase10Error('Unsupported import inventory')
             rows, total = [], 0
             for name in sorted(names):
-                data = _read(directory, name, 1024 * 1024)
+                data = _read(directory, name, MAX_MANIFEST_BYTES)
                 total += len(data)
-                if total > MAX_BYTES:
+                if total > MAX_MANIFEST_INVENTORY_BYTES:
                     raise Phase10Error('Manifest inventory byte limit exceeded')
                 row = parse_json(data)
                 if not isinstance(row, dict) or row.get('import_id') != name[:-5]:
                     raise Phase10Error('Invalid import manifest')
                 rows.append(row)
-            return rows
+            return (rows, total) if include_bytes else rows
         finally:
             os.close(directory)
 
@@ -238,12 +240,15 @@ class Store:
         audit_line = _json({'action': 'import', 'import_id': identifier, 'plugin_id': plugin_id,
                            'records': len(rows), 'bytes': len(raw), 'timestamp': imported_at})
         with self._open(create=True) as root:
-            for old in self._manifests(root):
+            manifests, manifest_bytes = self._manifests(root, include_bytes=True)
+            for old in manifests:
                 if old['import_id'] == identifier:
                     self._verify(root, old)
                     get_log('store').event('store.deduplicated', plugin=plugin_id,
                                            import_id=identifier, records=len(rows), deduplicated=True)
                     return {**old, 'deduplicated': True}
+            if len(encoded) > MAX_MANIFEST_BYTES or manifest_bytes + len(encoded) > MAX_MANIFEST_INVENTORY_BYTES:
+                raise Phase10Error('Manifest inventory byte limit exceeded')
             total, count = self._usage(root)
             if count >= MAX_IMPORTS or total + len(raw) + len(projection) + len(encoded) + len(audit_line) > MAX_STORE_BYTES:
                 raise Phase10Error('Integration store quota exceeded')
@@ -307,7 +312,7 @@ class Store:
             with self._open() as root:
                 directory = _child(root, 'imports')
                 try:
-                    manifest = parse_json(_read(directory, import_id + '.json', 1024 * 1024))
+                    manifest = parse_json(_read(directory, import_id + '.json', MAX_MANIFEST_BYTES))
                 finally:
                     os.close(directory)
                 if not isinstance(manifest, dict) or manifest.get('import_id') != import_id:

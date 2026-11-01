@@ -153,7 +153,7 @@ class SuiteLog:
         self.root = Path(root).absolute()
         if '..' in self.root.parts:
             raise ValueError('Unsupported logging root')
-        self.path = self.root / 'logs/system/suite.jsonl'
+        self.path = self.root / 'logs/system' / f'suite-{os.geteuid()}.jsonl'
         self.component = component
         selected = level if level is not None else os.environ.get('HP_LOG_LEVEL', 'INFO')
         self.level = selected.upper() if isinstance(selected, str) and selected.upper() in LEVELS else 'INFO'

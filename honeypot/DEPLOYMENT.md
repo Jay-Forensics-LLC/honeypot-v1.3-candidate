@@ -42,15 +42,17 @@ on the Windows build machine. Commands below act on the Ubuntu target only.
    existing ruleset and a separate scoped snapshot, validates atomically, and
    applies only inet hp_guard. This local temporary rule is required before the
    internal stack starts; broader network isolation is reviewed later.
-7. `sudo bash scripts/start.sh`. Image pulls/builds use host Docker's networking;
-   build output is not an offline installation. Decoys receive no runtime default
-   external network. Suricata starts after the bridges exist. Allow startup time,
-   then `sudo bash scripts/status.sh` and inspect failing service logs.
+7. Prepare and independently approve immutable image references using the image
+   approval workflow in [OPERATIONS](docs/OPERATIONS.md). `start.sh` requires
+   `--image-approval-sha256 <reviewed-record-sha256>`, creates with
+   `--no-build --pull never`, checks all seven exact image identities, and retains
+   strict loopback runtime validation. It does not build or pull images. After
+   approved startup, inspect `status.sh` and failing service logs.
 8. `sudo python3 scripts/install-systemd.py --install` installs reviewed project
    timers. `sudo systemctl start honeypot-pcap.service` starts the finite capture.
    Timers do not install permanent firewall rules. After reboot/Docker restart,
-   reapply hp_guard and use start.sh; decoys use on-failure:5 and do not auto-start
-   after a daemon restart. Do not replace their restart policy without a boot guard.
+   reapply hp_guard and use the reviewed startup gates. Services use `restart: no`;
+   they require an explicit approved start after failure or daemon restart.
 9. Run the actual acceptance tests:
 
 ```bash
@@ -74,18 +76,12 @@ tests can be rerun with `python3 -B -m unittest discover -s tests -v`.
 11. Readiness requires fresh (<24 h) PASS records for each acceptance test plus
     current healthy containers/logs. A quiet decoy can be marked idle; run the
     local probes before readiness. Health tests can create harmless telemetry.
-12. Review topology and external firewall policy. Prefer DMZ isolation. Confirm
-    management never shares the attacker forwarding policy. Record explicit
-    approval in your change-control system. Then stop the stack, deliberately
-    change DECOY_BIND to the dedicated host address, leave MANAGEMENT_BIND at
-    127.0.0.1, and start with `sudo bash scripts/start.sh --exposure-approved`.
-    This requires a recent passing readiness report. It does not create router
-    rules. Configure only approved router ports manually and test from an approved
-    external test source. Never forward 3000/3100/12345/Docker API ports.
-    Before that window, run `python3 scripts/hp.py wan check` and follow
-    docs/WAN_CRITERIA.md. Redis stays on 127.0.0.1. Non-loopback start also
-    requires `state/wan-approval.json`, `WAN_SOURCE_MODE`, and fresh
-    source-fidelity evidence. The script still changes no router rules.
+12. This source currently supports **127.0.0.1 startup only**. The WAN approval,
+    port-matrix and source-fidelity helpers remain preparation tools; the runtime
+    validator blocks nonloopback bindings even if their earlier gates pass.
+    `--exposure-approved` does not bypass that check. Future exposure needs a
+    separately reviewed implementation, target qualification, topology/firewall
+    review and explicit operational authorization. Keep management and Redis local.
 
 No validation flag constitutes authorization to expose services. Complete the
 network review even if all technical tests pass. Persisting firewall policy or

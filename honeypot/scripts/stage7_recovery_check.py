@@ -192,7 +192,7 @@ def evidence_integrity(root, progress=None, on_incident=None):
         progress['historical_reconciliation'] = {'status': 'UNKNOWN',
             'scope': 'Independent clean-room store; original laptop evidence not acquired or qualified'}
     sweep = retained_module('stage7-evidence-integrity-sweep')
-    folder = root / 'incidents'
+    folder = runtime_path('INCIDENT_PATH', 'incidents', root) if CONTEXT is not None else root / 'incidents'
     paths = incident_inventory(folder)
     if not paths: raise ValueError('Incident inventory absent')
     progress['files_in_inventory'] = len(paths)

@@ -2,13 +2,13 @@
   "schema_version": 1,
   "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
   "commit": "187bec14835fc9497b05594ca467a49259553d64",
-  "git_tree": "001b22149d46c2a04d5c38f0d1bf008335f1e9c6",
+  "git_tree": "ac69213aa8828065399d3d054c9edf2c561ea3b3",
   "prefix": "sentinel-forensics",
-  "files": 1435,
-  "bytes": 11495363,
+  "files": 1437,
+  "bytes": 11512917,
   "license": "AGPL-3.0",
   "license_sha256": "7f8f48e4266aa8fd3033dfaa4bb7f6e83a60c6e099f82d4959b81de90e67cd8f",
-  "import_method": "Complete committed upstream tree with 43 recorded replacements and 19 local additions; Git metadata/history and untracked files excluded.",
+  "import_method": "Complete committed upstream tree with recorded local replacements and additions; Git metadata/history and untracked upstream files excluded. See patches for exact operations.",
   "upstream_git_tree": "45e7025dd351732dfa0d321362891ff353f8b940",
   "upstream_bytes": 11448833,
   "patches": [
@@ -471,6 +471,158 @@
       "upstream_sha256": "6f763bef5afe86616af979761bea5e6a57ddae5d893e84c1c87e164509b51329",
       "sha256": "9a893d385b8aa1bb863c042ba5ec58e5a610fe80334f19a369a6f7d4fae8f157",
       "reason": "Preserve concurrent source review fixes from the authorized review branch."
+    },
+    {
+      "path": "tools/evidence_lab/README.md",
+      "operation": "replace",
+      "upstream_blob": "da6acb8ba09e4fa677582cad7e924f6f38fe2a23",
+      "upstream_sha256": "5a55fcbf948432de668e4ee4dcf50f862a2ce95d9c053b6b8950358692de287a",
+      "sha256": "af020ea6c2e46e0a734d05ad40455382a4c3659d43d126c865ca22887e433660",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/evidence_lab/RULES.md",
+      "operation": "replace",
+      "upstream_blob": "e601b539c81f29405ff43263128ba50390cd8f75",
+      "upstream_sha256": "d3b28b99087a6a2f1fb2add9466fe5429687ebd29b83363d060c2fafbe8c4aee",
+      "sha256": "11a0836c86d05bed1b84456438af91cb6486a4a4cbecadc7d268b61d6718a485",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/evidence_lab/analyze.py",
+      "operation": "replace",
+      "upstream_blob": "62ecc4dcd466c3d8dee77e67fd66e7c2c1384072",
+      "upstream_sha256": "147a4ceb70b4daf48d7b29189a7fc7bf8c2a555ad2bf6b1de618b77a53ca16da",
+      "sha256": "c787be112ef1cb78eb79d3f07d1cdba98543427ba07c079a2d5d3eb4f5b7b9b5",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/evidence_lab/core.py",
+      "operation": "replace",
+      "upstream_blob": "2f00491c7e96196aab06ec8a8e003ee557048425",
+      "upstream_sha256": "57c562182541c32fc6bcdc9543d6fc89ddbd05900f7e9e35173382d5a6ae6173",
+      "sha256": "5f2cc0853d5a2a5410a9d1ef26e17e8f8829600feefb9b78611534bde727cb69",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/evidence_lab/network.py",
+      "operation": "replace",
+      "upstream_blob": "862629356cd07060de2e0bf71117c7dad89867f5",
+      "upstream_sha256": "cd9b1823d6fc40eae89635a9aa162e627d17c11d8f3270fab213b2af585cee50",
+      "sha256": "2878b4fccfa311f972e7473983965675db2d8e2af2a50ba8bc3530cbdebbfafb",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/evidence_lab/qualify.py",
+      "operation": "replace",
+      "upstream_blob": "18a1b273df2b784b4168f344c820c3d731e5abf2",
+      "upstream_sha256": "810ab2db2799512060e6e4850f75db0298bb23ac9ed038812ed0422d5d0ed43e",
+      "sha256": "5fab26ffd6fc151d4620bd4530bd68b4b384b58bd4b1a400d41c878f5a13af3c",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/evidence_lab/reconstruct_plan.py",
+      "operation": "replace",
+      "upstream_blob": "9dcb608b5a86ddff935f9025855a585bb63aca46",
+      "upstream_sha256": "3820c254f338409f34d6b1deefa5b42cadb0d44942cb3cddb42fb50b2951d780",
+      "sha256": "9b977604e496e5af489adc2a2c66e26aa9bff2d5e5c4870a8009092ac138c20d",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/evidence_lab/rules.py",
+      "operation": "replace",
+      "upstream_blob": "0a7be057ce03fa6376a4363c66279cf22f4a38ab",
+      "upstream_sha256": "1474260ddc8495cffa4446e0b2dc373bb1ce1a772112c019a0b0e2680a4b4fd8",
+      "sha256": "2efaf9833dc2bcbb872bce7a9ed55738d7c6405fbba7797d4f9649d66a70035f",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/evidence_lab/store.py",
+      "operation": "replace",
+      "upstream_blob": "a5072939dc647c8f821191bfe34d5d2a03b5d3f1",
+      "upstream_sha256": "4d2b7019d16d9f0aed797e9fa7cb9872c50785a85cf2e050d7432157903be4b5",
+      "sha256": "1bca956fa2f4d8277a7280456fc30bd254c25bed5d5fe9bde266c556160cbce2",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/evidence_lab/tests/test_feature_debug.py",
+      "operation": "add",
+      "upstream_blob": null,
+      "upstream_sha256": null,
+      "sha256": "56213eec2e571adecb9f9002fffa9134de5d906a517b8c0bf0ddbd82e7b94fdf",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/evidence_lab/tests/test_qualify.py",
+      "operation": "replace",
+      "upstream_blob": "d2695526eeb1712519c5ec7300275991d6ea1e5c",
+      "upstream_sha256": "f70795a2ffa0c18278e616e7851def7878c3ca82449862766db5ba240cfef2a2",
+      "sha256": "e837bf80f9fdae702abbbf852f77ed52524ae2928137a00755cbd2fabb18f18f",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/evidence_lab/tests/test_qualify_pseudonym_key.py",
+      "operation": "replace",
+      "upstream_blob": "1ecdea09289e1956bde6ed6c06ff90d33744561e",
+      "upstream_sha256": "0d58780e696fcec58c3ed2b3c1bd37b17de0f57156346708bf345c1b5de4a4e1",
+      "sha256": "fa0e5d68f8868fc1b2456ac274d9f60dd046c731faf466a32f54ec62606fa1a0",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/evidence_lab/tests/test_qualify_resources.py",
+      "operation": "add",
+      "upstream_blob": null,
+      "upstream_sha256": null,
+      "sha256": "3cf89727d129465b6cf9eea5f4f95031e5f501d26ed1d689a2d72b18301215f6",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/evidence_lab/tests/test_reconstruct_plan.py",
+      "operation": "replace",
+      "upstream_blob": "c732c0ba3f40d3e1fbded34c8562cbdbeed22561",
+      "upstream_sha256": "52ad33460cfea2e0271fda378043cc14de7b86e7c3427a8f48dcb4d24a0becbc",
+      "sha256": "7195b6e6a697a44e01e45e510e676d68d5833d5e0b32a5117f69d705004eea2d",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/ios_sysdiagnose/EXPORT.md",
+      "operation": "replace",
+      "upstream_blob": "75b61cf1f81dc16fd186bae0699c77c3be4f7b4d",
+      "upstream_sha256": "8c8b92a3759640fcbfa2905b5afd9f4d8691512d1fa6be86100e038e391dc9a1",
+      "sha256": "57c47600fc24de416a51f02b5c66faacbd5ccd3085cf534b41c9df062130663b",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/ios_sysdiagnose/ingest.py",
+      "operation": "replace",
+      "upstream_blob": "ae9c2a6a0f336df04158229cb7d4c75d465b81c9",
+      "upstream_sha256": "93752d9a9a24a132f9b0097c00fe9b1cc507562e3e40053a087333f23a220fc9",
+      "sha256": "29c6ade44566d52b2eda8d2add2effb066ba03f53e7dadb495a4f16b2306028f",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/ios_sysdiagnose/tests/test_numeric_json.py",
+      "operation": "replace",
+      "upstream_blob": "043b563bd2b214d1b87d957c17297e2353e25450",
+      "upstream_sha256": "eea9c51604ee426bca5937f7d8a7b4e801a703a89e60b3724ca3d69a29192528",
+      "sha256": "a8a94ef1511b578ba78a5b440a7c705dba5ddbc5d59e1212e714dec3554b2980",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/evidence_lab/reconstruct_input.py",
+      "operation": "replace",
+      "upstream_blob": "2aa18f968a4093ce84c3ded152202a6aeea116f5",
+      "upstream_sha256": "80d314ef382576d72b80887120d5616bfafe331c99dadd171ba5f78d30ae05de",
+      "sha256": "f37dc5098ac9f25f6e37be4b3df0f50f18105884edc77365bd7ac3f3f6dd4cbf",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
+    },
+    {
+      "path": "tools/evidence_lab/tests/test_reconstruct_input.py",
+      "operation": "replace",
+      "upstream_blob": "3e70eb90b7b3ff239e63286d4a7fec5efe942dd7",
+      "upstream_sha256": "ea795fd772f549dff16279216de36c328f40e088a5163c5094183d01024d9c5a",
+      "sha256": "3e27cd406342793bdf2acb3cbcf94601ea7813cacdd79f7e558dbb44e4991a07",
+      "reason": "HoneyTrace 2026-11-01: correct independently reviewed offline analyzer behavior and regressions."
     }
   ]
 }

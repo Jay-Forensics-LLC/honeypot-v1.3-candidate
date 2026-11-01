@@ -64,6 +64,18 @@ class EquipmentInventory(unittest.TestCase):
         with self.assertRaises(Phase10Error):
             self.store.report(entry['id'], 'invented-state')
 
+    def test_multiline_description_roundtrips_without_relaxing_labels(self):
+        entry = self.store.save(record(description='Desk capture sensor\r\nUSB adapter\nShelf two'))
+        self.assertEqual(entry['description'], 'Desk capture sensor\nUSB adapter\nShelf two')
+        self.assertEqual(equipment.EquipmentStore(self.path).list(), [entry])
+        before = self.path.read_bytes()
+        for field, value in (('name', 'Bad\nlabel'), ('equipment_class', 'Bad\nclass'),
+                             ('value', 'Bad\nvalue'), ('description', 'Bad\x00description'),
+                             ('description', 'Bad\rdescription'), ('description', 'X' * 501)):
+            with self.subTest(field=field, value=value), self.assertRaises(Phase10Error):
+                self.store.save(record(id=entry['id'], **{field: value}))
+            self.assertEqual(self.path.read_bytes(), before)
+
     def test_invalid_fields_do_not_create_or_modify_inventory(self):
         cases = [record(active=1), record(tracking='http://external.example'),
                  record(category='unregistered'), record(name=''), record(name='A' * 81),

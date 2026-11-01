@@ -11,6 +11,36 @@ import intel_pack
 
 
 class IntelPackTests(unittest.TestCase):
+    def test_stix_references_emitted_address_objects_for_both_families(self):
+        rows=intel_pack.cluster([
+            {'source_ip':ip,'timestamp':'2026-11-01T00:00:00Z','bait_ids':['synthetic-bait']}
+            for ip in ('192.0.2.10','2001:db8::10')])
+        bundle=intel_pack.stix_bundle(rows)
+        objects={row['id']:row for row in bundle['objects']}
+        observed=[row for row in objects.values() if row['type']=='observed-data']
+        self.assertEqual(len(observed),2)
+        for row in observed:
+            for reference in row['object_refs']:
+                self.assertIn(reference,objects)
+                address=objects[reference]
+                self.assertIn(address['type'],('ipv4-addr','ipv6-addr'))
+                pattern="["+address['type']+":value = '"+address['value']+"']"
+                self.assertTrue(any(item.get('pattern')==pattern for item in objects.values()))
+        self.assertEqual({row['type'] for row in objects.values() if row['type'].endswith('-addr')},
+                         {'ipv4-addr','ipv6-addr'})
+        self.assertFalse(any('anonymized' in row.get('labels',[]) for row in objects.values()))
+        self.assertEqual(bundle,intel_pack.stix_bundle(rows))
+
+    def test_cluster_time_bounds_compare_instants_instead_of_iso_text(self):
+        rows=intel_pack.cluster([{'source_ip':'192.0.2.10','timestamp':stamp}
+            for stamp in ('2026-11-01T00:00:00.100000Z','2026-11-01T01:00:00+01:00',
+                          '2026-11-01T00:00:00.900000Z')])
+        self.assertEqual(rows[0]['first_seen'],'2026-11-01T01:00:00+01:00')
+        self.assertEqual(rows[0]['last_seen'],'2026-11-01T00:00:00.900000Z')
+        observed=next(row for row in intel_pack.stix_bundle(rows)['objects'] if row['type']=='observed-data')
+        self.assertEqual(observed['first_observed'],'2026-11-01T00:00:00.000000Z')
+        self.assertEqual(observed['last_observed'],'2026-11-01T00:00:00.900000Z')
+
     def test_redaction_and_deterministic_stix(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

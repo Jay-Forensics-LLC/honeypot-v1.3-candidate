@@ -1,4 +1,5 @@
 """Explicit qualification keys reach both workers; fixtures are wholly invented."""
+# HoneyTrace local modification, 2026-11-01: exercise the shared bounded key loader.
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
 import hashlib
 import io
@@ -45,7 +46,8 @@ class QualificationKeys(unittest.TestCase):
                 redirect_stderr(io.StringIO()):
             report = qualify.qualify(self.source, output, profile='synthetic',
                 expected_packets=2, min_free_bytes=0, **kwargs)
-        self.assertEqual(report['status'], 'SYNTHETIC_PASS', report.get('reason'))
+        self.assertEqual(report['status'], 'SYNTHETIC_PASS',
+                         (report.get('reason'), report.get('failure_details')))
         self.assertEqual(len(report['runs']), 2)
         self.assertTrue(report['checks']['reproducible_minimized_export'])
         return output, report
@@ -186,7 +188,7 @@ class KeyBoundary(unittest.TestCase):
         @contextmanager
         def held(_):
             yield stream, None
-        with patch('qualify.source_file', held):
+        with patch('core.source_file', held):
             with self.assertRaisesRegex(IngestError, '^pseudonym_key_must_be_32_bytes$'):
                 qualify.read_pseudonym_key(self.key)
         self.assertEqual(stream.tell(), 33)
@@ -212,8 +214,8 @@ class KeyBoundary(unittest.TestCase):
                         return value
                 self_key = Path(path)
                 yield Reader(), info
-        for boundary in (patch('qualify.source_file', side_effect=PermissionError('private-secret-path')),
-                         patch('qualify.source_file', changed)):
+        for boundary in (patch('core.source_file', side_effect=PermissionError('private-secret-path')),
+                         patch('core.source_file', changed)):
             self.key.write_bytes(KEY_A)
             with boundary, patch('qualify.qualify') as run:
                 code, result, stderr, output = self.cli(key=self.key)
@@ -225,7 +227,7 @@ class KeyBoundary(unittest.TestCase):
             run.assert_not_called()
 
     def test_read_cancellation_is_explicit_before_any_output(self):
-        with patch('qualify.source_file', side_effect=KeyboardInterrupt), patch('qualify.qualify') as run:
+        with patch('core.source_file', side_effect=KeyboardInterrupt), patch('qualify.qualify') as run:
             code, result, _, output = self.cli(key=self.key)
         self.assertEqual(code, 2)
         self.assertEqual(result, {'status': 'CANCELLED', 'reason': 'operator_cancellation'})

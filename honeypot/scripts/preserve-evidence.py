@@ -16,6 +16,7 @@ if __name__=='__main__':
     from hp_common import run
     status=run(['docker','inspect','-f','{{.State.Running}}','honeypot-incidentd'],check=False)
     if status.returncode==0 and status.stdout.strip()=='true':raise SystemExit('Stop incidentd briefly before operator preservation; restart after snapshot')
+    if status.returncode!=0 or status.stdout.strip()!='false':raise SystemExit('Could not confirm incidentd is stopped; evidence was not changed')
     meta=json.loads((p/'metadata.json').read_text());meta['pcap_snapshotted']=False;atomic_json(p/'metadata.json',meta)
     engine=Engine()
     engine.preserve(p,incident,{'sha256':''});atomic_json(p/'incident.json',incident)

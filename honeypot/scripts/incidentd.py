@@ -345,6 +345,7 @@ class Engine:
                 self.locations.remember(path, [event_id], evidenced=True)
                 evidence_commit(ipath,incident)
                 self.publish(path, incident, event)
+                self.prune(now)
                 return
             orphan_ids=set(durable)-set(incident['related_events'])
             if orphan_ids-{event_id}:
@@ -385,7 +386,11 @@ class Engine:
             signals[sk]={'id':incident_id,'seen':now}
         if LEVEL[event['severity']]>LEVEL[incident['severity']]: incident['severity']=event['severity']
         incident['confidence']=max(incident['confidence'],event['confidence'])
-        incident['timestamp_end']=max(incident['timestamp_end'],event['timestamp'])
+        source_time=dt.datetime.fromisoformat(event['timestamp'].replace('Z','+00:00'))
+        if source_time<dt.datetime.fromisoformat(incident['timestamp_start'].replace('Z','+00:00')):
+            incident['timestamp_start']=event['timestamp']
+        if source_time>dt.datetime.fromisoformat(incident['timestamp_end'].replace('Z','+00:00')):
+            incident['timestamp_end']=event['timestamp']
         incident['related_events'].append(event_id)
         for note in event['notes']:
             if note not in incident['notes']: incident['notes'].append(note)
@@ -436,7 +441,7 @@ class Engine:
         for name in ('pcap','artifacts'): (path/name).mkdir(exist_ok=True)
         mp=path/'metadata.json'
         meta=json.loads(mp.read_text()) if mp.exists() else {'created_at':utc(),'copies':[],'limitations':[],'pcap_snapshotted':False}
-        copied={r['source'] for r in meta['copies']}
+        copied={(r['source'],r['sha256']) for r in meta['copies'] if r.get('verified_stable') is True}
         # Max three closed segments per incident, max 350MB. Active capture is not copied.
         if not meta.get('pcap_snapshotted',False):
             candidates=sorted([p for p in self.captures.glob('*.pcap*') if p.is_file() and not p.is_symlink()],key=lambda p:p.stat().st_mtime)
@@ -456,12 +461,14 @@ class Engine:
                         p=self.artifacts/record['evidence_path']
                         try:
                             p.resolve().relative_to(self.artifacts.resolve())
-                            if str(p) not in copied: self.copy_evidence(p,path/'artifacts',meta,50*1024**2)
+                            if (str(p),record['sha256']) not in copied:
+                                self.copy_evidence(p,path/'artifacts',meta,50*1024**2,
+                                                   expected_sha256=record['sha256'])
                         except (ValueError,OSError): pass
         atomic_json(mp,meta)
         incident['evidence_paths'] += ['pcap/','artifacts/']
 
-    def copy_evidence(self,p,dest,meta,budget):
+    def copy_evidence(self,p,dest,meta,budget,expected_sha256=None):
         import stat
         signature=lambda value:(value.st_dev,value.st_ino,value.st_size,value.st_mtime_ns,value.st_ctime_ns)
         created=False;target=None;failure=None;digest=None;observed=None
@@ -486,6 +493,8 @@ class Engine:
                 if (signature(os.fstat(src.fileno()))!=signature(observed) or
                         signature(p.lstat())!=signature(observed)):
                     raise ValueError('Source changed before finite acquisition')
+                if expected_sha256 is not None and digest!=expected_sha256:
+                    raise ValueError('Requested artifact version unavailable; current SHA-256 differs from manifest')
                 target=dest/(digest+'.'+('pcapng' if dest.name=='pcap' else 'bin'))
                 if target.exists():return
                 src.seek(0)

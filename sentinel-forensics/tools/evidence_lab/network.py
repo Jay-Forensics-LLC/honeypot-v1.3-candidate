@@ -1,4 +1,5 @@
 """Stateless, bounded network metadata decoding; no resolution or reassembly."""
+# Modified for HoneyTrace on 2026-11-01: require valid TCP headers for rule metadata.
 import ipaddress
 import re
 import struct
@@ -419,10 +420,11 @@ def decode(packet):
             raise DecodeError('icmp_address_family_mismatch')
         if proto == 6:
             need(data, 20)
-            meta.update(sport=int.from_bytes(data[:2], 'big'), dport=int.from_bytes(data[2:4], 'big'), tcp_flags=data[13])
             length = (data[12] >> 4)*4
             if length < 20: raise DecodeError('tcp_header')
-            need(data, length); app = data[length:]
+            need(data, length)
+            meta.update(sport=int.from_bytes(data[:2], 'big'), dport=int.from_bytes(data[2:4], 'big'), tcp_flags=data[13])
+            app = data[length:]
             if app:
                 if meta['sport'] == 53 or meta['dport'] == 53:
                     need(app, 2)

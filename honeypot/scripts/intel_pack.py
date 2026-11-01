@@ -2,6 +2,7 @@
 """Sanitized intel pack. Never reads raw Cowrie logs, TTY, or secrets."""
 import datetime as dt
 import hashlib
+import ipaddress
 import json
 import re
 from pathlib import Path
@@ -125,11 +126,14 @@ def cluster(events):
             hit = {'bait_id': bait_id, 'assessment': 'OBSERVED', 'source_ip': key}
             if hit not in bucket['bait_hits']:
                 bucket['bait_hits'].append(hit)
-        stamp = event.get('timestamp') or ''
-        if stamp and (not bucket['first_seen'] or stamp < bucket['first_seen']):
-            bucket['first_seen'] = stamp
-        if stamp and (not bucket['last_seen'] or stamp > bucket['last_seen']):
-            bucket['last_seen'] = stamp
+        stamp = event.get('timestamp')
+        seen = _stamp(stamp)
+        if seen is not None:
+            first, last = _stamp(bucket['first_seen']), _stamp(bucket['last_seen'])
+            if first is None or seen < first:
+                bucket['first_seen'] = stamp
+            if last is None or seen > last:
+                bucket['last_seen'] = stamp
     by_user = {}
     for bucket in groups.values():
         for username in bucket['usernames']:
@@ -152,26 +156,29 @@ def stix_bundle(clusters):
         if ip == 'UNKNOWN':
             continue
         try:
-            ipaddress_ok = bool(__import__('ipaddress').ip_address(ip))
+            address = ipaddress.ip_address(ip)
         except ValueError:
-            ipaddress_ok = False
-        if not ipaddress_ok:
             continue
+        ip = str(address)
+        address_type = 'ipv4-addr' if address.version == 4 else 'ipv6-addr'
+        address_id = address_type + '--' + str(uuid.uuid5(uuid.NAMESPACE_OID, ip))
+        pattern = "[" + address_type + ":value = '" + ip + "']"
         created = _stix_time(cluster_row.get('first_seen'))
         indicator = uuid.uuid5(uuid.NAMESPACE_OID, 'indicator:' + ip + ':' + created)
         observed = uuid.uuid5(uuid.NAMESPACE_OID, 'observed:' + ip + ':' + created)
+        objects.append({'type': address_type, 'spec_version': '2.1', 'id': address_id, 'value': ip})
         objects.append({
             'type': 'indicator', 'spec_version': '2.1', 'id': 'indicator--' + str(indicator),
             'created': created, 'modified': created,
             'name': 'honeypot-src-' + ip, 'pattern_type': 'stix', 'valid_from': created,
-            'pattern': "[ipv4-addr:value = '" + ip + "']",
-            'labels': ['anonymized'],
+            'pattern': pattern,
+            'labels': ['honeypot-source', 'OBSERVED'],
         })
         objects.append({
             'type': 'observed-data', 'spec_version': '2.1', 'id': 'observed-data--' + str(observed),
             'created': created, 'modified': created, 'first_observed': created, 'last_observed': _stix_time(cluster_row.get('last_seen')),
             'number_observed': cluster_row['event_count'],
-            'object_refs': ['ipv4-addr--' + str(uuid.uuid5(uuid.NAMESPACE_OID, ip))],
+            'object_refs': [address_id],
             'note': 'password_present may be true; plaintext passwords are not included',
         })
         for hit in cluster_row['bait_hits']:
@@ -179,7 +186,7 @@ def stix_bundle(clusters):
             objects.append({
                 'type': 'indicator', 'spec_version': '2.1', 'id': 'indicator--' + str(bait),
                 'created': created, 'modified': created, 'pattern_type': 'stix', 'valid_from': created,
-                'name': hit['bait_id'], 'pattern': "[network-traffic:dst_ref.type = 'ipv4-addr']",
+                'name': hit['bait_id'], 'pattern': pattern,
                 'labels': ['honeytoken', 'OBSERVED'],
             })
     return {'type': 'bundle', 'id': 'bundle--' + str(uuid.uuid5(uuid.NAMESPACE_OID, json.dumps(clusters, sort_keys=True))), 'objects': objects}

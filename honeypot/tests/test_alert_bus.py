@@ -83,6 +83,26 @@ class AlertBusTests(unittest.TestCase):
             self.assertEqual(result['status'], 'FAILED')
             self.assertIn('FAILED', alert_bus.health_note(root))
 
+    def test_suppression_keeps_last_failed_delivery_visible_until_success(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'configs').mkdir()
+            (root / 'configs/alert-bus.yml').write_text('enabled: true\nmax_per_10min: 1\n')
+            cfg = alert_bus.load_config(root)
+            event = {'severity': 'HIGH', 'incident_id': 'synthetic'}
+            with patch.object(alert_bus, '_deliver', side_effect=OSError('synthetic offline failure')) as deliver:
+                failed = alert_bus.emit(event, root, cfg, now=1000)
+                saved = (root / 'state/alerts/last.json').read_bytes()
+                suppressed = alert_bus.emit(event, root, cfg, now=1001)
+            self.assertEqual(failed['status'], 'FAILED')
+            self.assertEqual(suppressed['status'], 'suppressed')
+            self.assertEqual(deliver.call_count, 1)
+            self.assertEqual((root / 'state/alerts/last.json').read_bytes(), saved)
+            self.assertIn('FAILED', alert_bus.health_note(root))
+            with patch.object(alert_bus, '_deliver', return_value='spool-only'):
+                self.assertEqual(alert_bus.emit(event, root, cfg, now=1601)['status'], 'sent')
+            self.assertIsNone(alert_bus.health_note(root))
+
 
 if __name__ == '__main__':
     unittest.main()

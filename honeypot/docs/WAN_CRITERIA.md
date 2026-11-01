@@ -1,5 +1,10 @@
 # WAN criteria
 
+Current startup is restricted to **127.0.0.1** by the runtime validator. These
+helpers describe preparation gates; passing them does not enable nonloopback
+startup. The future exposure window below is a proposal requiring separate
+implementation review, qualification and operational authorization.
+
 WAN criteria PASS means the source tree can prove the technical gates below.
 It is not live Internet exposure. These scripts do not create router rules, do not
 use UPnP/IGD, and do not change `DECOY_BIND` by themselves.
@@ -58,9 +63,12 @@ Source fidelity is recorded `NOT TESTED` with `scope=detector` unless fresh
 Readiness accepts `wan_source_fidelity` only when `status` is PASS, `scope` is
 `netns` or `observation`, and `live` is true. Non-loopback `ops.py start`
 uses that same `evidence_passes` predicate. A PASS file with `live` false,
-a detector scope, or a non-numeric epoch is rejected.
+a detector scope, or a non-numeric epoch is rejected. Saved
+`state/wan-fidelity-observation.json` requires the original observation `epoch`
+(Unix seconds); missing, future or 24-hour-old observations fail. Running
+`wan check` preserves that epoch rather than renewing the observation.
 
-## Future approved exposure window
+## Proposed future exposure window — currently blocked
 
 Do this only on the runtime tree (`/home/joe/honeypot-staging/honeypot` today),
 never by `compose up` from a second source tree. Still no automatic boot.
@@ -118,12 +126,13 @@ Rendering does not rebuild Cowrie. Copy the honeyfs fragment only under a
 separate change. Grafana panel "Bait hits" shows ids from `{source="normalized"}`.
 Indicator counts are the pack's cluster list, not a second password panel.
 
-`configs/alert-bus.yml.example` is disabled. Copy it to `configs/alert-bus.yml`
-and set `enabled: true` plus a webhook or SMTP target to page on HIGH, CRITICAL,
-and bait hits. Payloads carry `password_present` and never the password, TTY, or
-command text that contains a password or a bait token. Unconfigured is healthy.
-Configured plus `state/alerts/last.json` status FAILED is a health problem.
-There is no VirusTotal or other phone-home.
+`alert_bus.py` provides a disabled-by-default delivery helper. It is **not wired
+into incident ingestion**: copying `configs/alert-bus.yml.example` and enabling it
+alone does not page on events. Durable, bounded asynchronous delivery with replay
+deduplication remains follow-up work. Explicit helper callers may deliver HIGH,
+CRITICAL or bait summaries; payloads exclude passwords, TTY and command text.
+Health reports a configured helper's last actual delivery failure; suppression
+does not clear it. No VirusTotal or other enrichment service is contacted.
 
 ## Still open
 

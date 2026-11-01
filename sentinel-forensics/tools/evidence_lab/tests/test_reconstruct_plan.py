@@ -1,4 +1,5 @@
 """Deterministic whole-cohort page selection; invented metadata only."""
+# HoneyTrace local modification, 2026-11-01: cover permanent whole-page frame limits.
 from collections import OrderedDict
 import sqlite3
 from types import SimpleNamespace
@@ -6,6 +7,7 @@ import unittest
 
 from core import IngestError
 from reconstruct_plan import selection, plan, materialize_batch, release_batch
+from reconstruct_history import continuation_summary
 
 
 LIMITS={'batch_frames':10,'batch_bytes':10000,'batch_cohorts':4,
@@ -68,6 +70,21 @@ class WholeCohortPageTests(unittest.TestCase):
         self.assertEqual(first['selected_cohorts'],[1])
         self.assertEqual(first['reasons'],{2:'total_frame_selection_cap',3:'total_frame_selection_cap'})
         self.assertEqual(selection(observed,limits,[1])['selected_cohorts'],[2,3])
+
+    def test_cohort_larger_than_entire_page_never_advertises_an_empty_continuation(self):
+        observed=inventory([(3,1),(1,1)])
+        limits=dict(LIMITS,total_frames=2)
+        first=selection(observed,limits)
+        self.assertEqual(first['selected_cohorts'],[2])
+        self.assertEqual(first['permanent'],{1})
+        self.assertEqual(first['reasons'],{1:'whole_cohort_total_frame_cap'})
+        last=selection(observed,limits,[2])
+        self.assertEqual(last['selected_cohorts'],[])
+        summary=continuation_summary(observed,limits,[2],1,None,lambda:None)
+        self.assertEqual(summary['remaining_fitting_cohorts'],0)
+        self.assertFalse(summary['can_continue'])
+        with self.assertRaisesRegex(IngestError,'permanent_cohort_completed'):
+            selection(observed,limits,[1])
 
     def test_completed_ids_are_exact_bounded_known_unique_integers(self):
         observed=inventory([(2,1)])

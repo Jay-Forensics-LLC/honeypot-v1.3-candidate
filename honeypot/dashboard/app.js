@@ -21,7 +21,8 @@
     const genericModules = new Set(['spiderfoot', 'recon-ng', 'bbot', 'nmap', 'nuclei', 'cloudfox', 'bloodhound', 'awareness']);
     const MAX_FILE = 8 * 1024 * 1024;
     const MAX_CAPTURE = 64 * 1024 * 1024;
-    const ui = {token: '', data: null, page: 'overview', refreshing: false, filters: {query: '', plugin: '', assessment: ''}};
+    const ui = {token: '', data: null, page: 'overview', refreshing: false, stateRevision: 0, filters: {query: '', plugin: '', assessment: ''}};
+    let refreshPromise = null;
     const caseView = {selected: '', tab: 'overview', filters: null, request: 0, poll: null};
     const captureView = {file: null, tooBig: false, error: '', equipment_id: '', workflow: 'packet_squirrel'};
     const equipmentView = {query: '', category: '', status: '', equipment_class: ''};
@@ -144,6 +145,7 @@
         clearTimeout(caseView.poll);
         caseView.request++;
         ui.token = '';
+        ui.stateRevision++;
         ui.data = null;
         $('#app-shell').hidden = true;
         $('#auth-screen').hidden = false;
@@ -170,21 +172,29 @@
     }
 
     async function refresh(showToast = false) {
-        if (ui.refreshing || !ui.token) return;
+        if (!ui.token) return;
+        if (refreshPromise) {await refreshPromise; return refresh(showToast);}
+        const revision = ui.stateRevision, token = ui.token;
         ui.refreshing = true;
         $('#refresh-button').disabled = true;
         $('#refresh-button').classList.add('refreshing');
-        try {
-            ui.data = await api('/api/state');
-            renderPage();
-            updateRefreshTime();
-            if (showToast) toast('Workspace updated.');
-        } catch (error) { if (ui.token) toast(error.message, 'error'); }
-        finally {
-            ui.refreshing = false;
-            $('#refresh-button').disabled = false;
-            $('#refresh-button').classList.remove('refreshing');
-        }
+        refreshPromise = (async () => {
+            try {
+                const data = await api('/api/state');
+                if (token !== ui.token || revision !== ui.stateRevision) return;
+                ui.data = data;
+                renderPage();
+                updateRefreshTime();
+                if (showToast) toast('Workspace updated.');
+            } catch (error) { if (ui.token) toast(error.message, 'error'); }
+            finally {
+                refreshPromise = null;
+                ui.refreshing = false;
+                $('#refresh-button').disabled = false;
+                $('#refresh-button').classList.remove('refreshing');
+            }
+        })();
+        return refreshPromise;
     }
 
     function updateRefreshTime() {
@@ -405,7 +415,7 @@
         page.append(jobs, E('div', {class: 'case-layout'}, E('aside', {class: 'case-sidebar', 'aria-label': 'Saved forensic cases'},
             E('p', {class: 'eyebrow'}, 'YOUR CASES'), list), detail));
         const current = () => page.isConnected && ui.token && ui.page === 'cases' && revision === caseView.request;
-        let previousIds = '';
+        let previousIds = '', runningJobs = new Set();
         async function update(initial = false) {
             try {
                 const result = await api('/api/cases');
@@ -438,6 +448,12 @@
                     }
                     previousIds = ids;
                 }
+                const latestJobs = result.jobs?.jobs || [];
+                if (latestJobs.some(job => job.case_id === caseView.selected && job.status !== 'running' && runningJobs.has(job.id))) {
+                    detail.dataset.evidencePending = 'true';
+                    detail.refreshEvidence?.();
+                }
+                runningJobs = new Set(latestJobs.filter(job => job.status === 'running').map(job => job.id));
                 if ((result.jobs?.jobs || []).some(job => job.status === 'running')) {
                     clearTimeout(caseView.poll);
                     caseView.poll = setTimeout(() => {if (current()) update();}, 1200);
@@ -483,6 +499,7 @@
             const data = await api('/api/case', {case_id: id, ...(caseView.filters || caseFilters())});
             if (!current() || caseView.selected !== id) return;
             renderCaseDetail(host, data, current);
+            if (host.dataset.evidencePending === 'true') host.refreshEvidence();
         } catch (error) {
             if (current() && caseView.selected === id) host.replaceChildren(empty('This case could not be opened', error.message,
                 button('Try again', () => loadCaseDetail(host, id, current), 'secondary', 'refresh')));
@@ -557,7 +574,26 @@
             leads: E('section', {}, renderCaseLeads(data)),
             custody: E('section', {}, E('div', {class: 'loading-screen'}, E('span', {class: 'spinner'}), E('p', {}, 'Reading the custody record…')))
         };
-        let custodyLoaded = false;
+        let custodyLoaded = false, custodyRequest = 0;
+        const readCustody = () => {
+            custodyLoaded = true;
+            const request = ++custodyRequest;
+            loadCaseCustody(content.custody, summary.case_id, () => current() && request === custodyRequest);
+        };
+        let evidenceRequest = 0;
+        host.refreshEvidence = async () => {
+            const request = ++evidenceRequest;
+            try {
+                const result = await api('/api/case', {case_id: summary.case_id, ...(caseView.filters || caseFilters())});
+                if (!current() || caseView.selected !== summary.case_id || !content.overview.isConnected || request !== evidenceRequest) return;
+                // Finalization changes these panels; preserve timeline filters and draft review notes.
+                content.overview.replaceChildren(...[renderSessionEvidence(result.session_evidence), renderCoverage(result.coverage || []), renderCaseSources(result.sources || [], result.case)].filter(Boolean));
+                delete host.dataset.evidencePending;
+                custodyLoaded = false;
+                custodyRequest++;
+                if (caseView.tab === 'custody') readCustody();
+            } catch (error) {if (current()) toast(error.message, 'error');}
+        };
         const selectTab = (name, focus = false) => {
             caseView.tab = name;
             for (const control of $$('[role="tab"]', tabs)) {
@@ -566,7 +602,7 @@
                 if (selected && focus) control.focus();
             }
             for (const [key, panel] of Object.entries(content)) panel.hidden = key !== name;
-            if (name === 'custody' && !custodyLoaded) {custodyLoaded = true; loadCaseCustody(content.custody, summary.case_id, current);}
+            if (name === 'custody' && !custodyLoaded) readCustody();
         };
         for (const [name, label] of Object.entries({overview: 'Overview', timeline: 'Timeline', leads: `Leads (${(data.findings || []).length})`, custody: 'Custody'})) {
             const control = button(label, () => selectTab(name), 'case-tab', null, {id: `case-tab-${name}`, role: 'tab', 'data-case-tab': name, 'aria-controls': `case-panel-${name}`});
@@ -656,7 +692,7 @@
             !available ? notice('Review storage is unavailable. The original case remains readable.', 'warning') : null,
             E('details', {}, E('summary', {}, 'Review options and note'), field('Review status', statusInput), field('Review note', note),
                 button('Save review', () => save(statusInput.value, note.value), 'secondary small', 'check', {disabled: !available})), errorHost);
-        async function save(nextStatus, nextNote = '') {
+        async function save(nextStatus, nextNote = note.value) {
             setBusy(host, true); errorHost.replaceChildren();
             try {
                 const result = await api('/api/case-review', {case_id: caseId, finding_id: findingId, status: nextStatus, note: nextNote});
@@ -785,11 +821,11 @@
         if (typeof workflow !== 'string') workflow = 'packet_squirrel';
         captureView.workflow = workflow;
         const packetSquirrel = workflow === 'packet_squirrel';
-        const {dialog, body} = modal(packetSquirrel ? 'Packet Squirrel capture' : 'Analyze a capture', 'Choose a finished capture. HoneyTrace preserves a private copy and prepares the case locally.');
+        const {dialog, body, current} = modal(packetSquirrel ? 'Packet Squirrel capture' : 'Analyze a capture', 'Choose a finished capture. HoneyTrace preserves a private copy and prepares the case locally.');
         body.append(E('p', {class: 'muted'}, 'Checking local analysis and equipment…'));
         try {
             const results = await Promise.allSettled([api('/api/cases'), api('/api/equipment')]);
-            if (!dialog.open || !body.isConnected) return;
+            if (!current()) return;
             if (results[0].status !== 'fulfilled') throw results[0].reason;
             const available = results[0].value.jobs?.available;
             const equipment = results[1].status === 'fulfilled' ? results[1].value.equipment || [] : [];
@@ -846,15 +882,20 @@
                                 ...(selection.value ? {'X-Equipment-Id': selection.value} : {})}, body: captureView.file});
                         await readApiResponse(response);
                     }
-                    captureView.file = null; captureView.tooBig = false; captureView.error = '';
-                    dialog.close(); navigate('cases'); toast('Case preparation started. Follow its local progress in Forensic cases.');
+                    if (current()) {
+                        captureView.file = null; captureView.tooBig = false; captureView.error = '';
+                        dialog.close(); navigate('cases');
+                    }
+                    toast('Case preparation started. Follow its local progress in Forensic cases.');
                 } catch (error) {
-                    captureView.tooBig = error.code === 'capture_too_large' || error.status === 413;
-                    captureView.error = jobErrors[error.code] || error.message;
-                } finally {setBusy(form, false); drawError();}
+                    if (current()) {
+                        captureView.tooBig = error.code === 'capture_too_large' || error.status === 413;
+                        captureView.error = jobErrors[error.code] || error.message;
+                    } else toast(error.message, 'error');
+                } finally {setBusy(form, false); if (current()) drawError();}
             });
             drawError(); body.replaceChildren(form);
-        } catch (error) {if (dialog.open && body.isConnected) body.replaceChildren(notice(error.message, 'warning'));}
+        } catch (error) {if (current()) body.replaceChildren(notice(error.message, 'warning'));}
     }
 
     function renderDiagnostics(page) {
@@ -1069,7 +1110,7 @@
     }
 
     function openTriage(item, reload) {
-        const {dialog, body} = modal('Update operator review', item.source.indicator_value);
+        const {dialog, body, current} = modal('Update operator review', item.source.indicator_value);
         const status = E('select', {id: 'triage-status', value: item.triage.status}, Object.entries(triageStatuses).map(([value, label]) => E('option', {value}, label)));
         const note = E('textarea', {id: 'triage-note', rows: 4, maxlength: 512, value: item.triage.note || '', placeholder: 'Record your interpretation and follow-up.'});
         const form = E('form', {class: 'panel-stack'}, field('Review status', status), field('Operator note', note, 'Up to 512 characters. Source observations remain unchanged.'),
@@ -1078,7 +1119,7 @@
         form.addEventListener('submit', async event => {
             event.preventDefault(); setBusy(form, true);
             try {await api('/api/security-triage', {import_id: item.import_id, finding_id: item.source.finding_id, status: status.value, note: note.value.trim()});
-                dialog.close(); await reload(); toast('Operator review saved. Source evidence is unchanged.');}
+                if (current()) {dialog.close(); await reload();} toast('Operator review saved. Source evidence is unchanged.');}
             catch (error) {toast(error.message, 'error');}
             finally {setBusy(form, false);}
         });
@@ -1135,15 +1176,14 @@
                     if (!current() || $('dialog[open]')) return;
                     const previous = new Map(entries.map(entry => [entry.id, entry]));
                     entries = (latest.equipment || []).map(entry => Object.assign(previous.get(entry.id) || {}, entry));
-                    if (results.contains(document.activeElement)) {
-                        for (const item of results.querySelectorAll('[data-equipment-id]')) {
-                            const entry = entries.find(value => value.id === item.dataset.equipmentId);
-                            if (!entry) continue;
-                            const fresh = equipmentCard(entry);
-                            item.querySelector('.equipment-card-heading').replaceWith(fresh.querySelector('.equipment-card-heading'));
-                            item.querySelector('.equipment-observation').replaceWith(fresh.querySelector('.equipment-observation'));
-                        }
-                    } else draw();
+                    const focused = results.contains(document.activeElement) ? document.activeElement : null;
+                    const focusedId = focused?.closest('[data-equipment-id]')?.dataset.equipmentId;
+                    const focusedAction = focused?.textContent.trim();
+                    draw();
+                    if (focusedId) {
+                        const entry = [...results.querySelectorAll('[data-equipment-id]')].find(item => item.dataset.equipmentId === focusedId);
+                        ([...(entry?.querySelectorAll('button') || [])].find(control => control.textContent.trim() === focusedAction) || status).focus({preventScroll: true});
+                    }
                     const values = [entries.length, entries.filter(entry => entry.active).length,
                         entries.filter(entry => entry.active && ['degraded', 'offline', 'unknown'].includes(entry.operational?.status)).length];
                     host.querySelectorAll('.stats-grid .stat-number').forEach((element, index) => {element.textContent = count(values[index]);});
@@ -1176,7 +1216,7 @@
     }
 
     function openEquipment(entry = null) {
-        const {dialog, body} = modal(entry ? 'Edit equipment' : 'Add equipment', 'Keep a labeled inventory of the hardware, tools and sensors in your setup.');
+        const {dialog, body, current} = modal(entry ? 'Edit equipment' : 'Add equipment', 'Keep a labeled inventory of the hardware, tools and sensors in your setup.');
         const name = E('input', {id: 'equipment-name', type: 'text', required: true, maxlength: 80, value: entry?.name || '', placeholder: 'For example: Lab capture adapter'});
         const description = E('textarea', {id: 'equipment-description', rows: 3, maxlength: 500, value: entry?.description || '', placeholder: 'What it does and where it fits in your setup.'});
         const equipmentClass = E('input', {id: 'equipment-class', type: 'text', maxlength: 80, value: entry?.equipment_class || '', placeholder: 'For example: BLE Scanners', list: 'equipment-class-options'});
@@ -1196,7 +1236,7 @@
         form.addEventListener('submit', async event => {
             event.preventDefault(); setBusy(form, true);
             try {await api('/api/equipment-save', {name: name.value.trim(), description: description.value.trim(), category: category.value, equipment_class: equipmentClass.value.trim(), value: value.value.trim(), active: active.checked, tracking: tracking.value, ...(entry ? {id: entry.id} : {})});
-                dialog.close(); navigate('equipment'); toast('Equipment entry saved.');}
+                if (current()) {dialog.close(); navigate('equipment');} toast('Equipment entry saved.');}
             catch (error) {toast(error.message, 'error');}
             finally {setBusy(form, false);}
         });
@@ -1204,7 +1244,7 @@
     }
 
     function reportEquipment(entry) {
-        const {dialog, body} = modal('Report equipment status', entry.name);
+        const {dialog, body, current} = modal('Report equipment status', entry.name);
         const status = E('select', {id: 'equipment-report-status', value: entry.reported_status || 'unknown'},
             ['operational', 'degraded', 'offline', 'unknown'].map(value => E('option', {value}, human(value))));
         const form = E('form', {class: 'panel-stack'}, field('Observed status', status),
@@ -1212,7 +1252,7 @@
             E('div', {class: 'modal-footer'}, button('Cancel', () => dialog.close(), 'secondary'), E('button', {type: 'submit', class: 'button primary'}, icon('pulse'), 'Record status')));
         form.addEventListener('submit', async event => {
             event.preventDefault(); setBusy(form, true);
-            try {await api('/api/equipment-report', {id: entry.id, status: status.value}); dialog.close(); navigate('equipment'); toast('Status report recorded.');}
+            try {await api('/api/equipment-report', {id: entry.id, status: status.value}); if (current()) {dialog.close(); navigate('equipment');} toast('Status report recorded.');}
             catch (error) {toast(error.message, 'error');}
             finally {setBusy(form, false);}
         });
@@ -1220,10 +1260,10 @@
     }
 
     function removeEquipment(entry) {
-        const {dialog, body} = modal('Remove equipment entry?', entry.name);
+        const {dialog, body, current} = modal('Remove equipment entry?', entry.name);
         const confirm = button('Remove entry', async () => {
             confirm.disabled = true;
-            try {await api('/api/equipment-remove', {id: entry.id}); dialog.close(); navigate('equipment'); toast('Inventory entry removed.');}
+            try {await api('/api/equipment-remove', {id: entry.id}); if (current()) {dialog.close(); navigate('equipment');} toast('Inventory entry removed.');}
             catch (error) {toast(error.message, 'error'); if (confirm.isConnected) confirm.disabled = false;}
         }, 'danger', 'close');
         body.append(E('p', {class: 'muted'}, 'Only this inventory record is removed. The equipment and its saved telemetry remain unchanged.'),
@@ -1440,7 +1480,14 @@
                 assessment_approved: assessment.checked, awareness_approved: awareness.checked,
                 privacy_policy: privacy.value.trim()};
             setBusy(form, true);
-            try { await api('/api/policy', payload); await refresh(); toast(payload.enabled ? 'Workspace settings saved. Your selected modules are ready.' : 'Settings saved. Evidence is preserved while modules are disabled.'); }
+            try {
+                const result = await api('/api/policy', payload);
+                ui.stateRevision++;
+                ui.data.policy = result.policy || payload;
+                if (ui.page === 'settings') renderPage();
+                toast(payload.enabled ? 'Workspace settings saved. Your selected modules are ready.' : 'Settings saved. Evidence is preserved while modules are disabled.');
+                await refresh();
+            }
             catch (error) { toast(error.message, 'error'); }
             finally { setBusy(form, false); }
         });
@@ -1468,10 +1515,11 @@
         const dialog = $('#modal');
         if (dialog.open) dialog.close();
         const body = E('div', {class: 'modal-body'});
+        const token = ui.token;
         dialog.replaceChildren(E('div', {class: 'modal-header'}, E('div', {}, E('p', {class: 'eyebrow'}, 'LOCAL WORKSPACE'), E('h2', {id: 'modal-title'}, title), E('p', {class: 'muted'}, subtitle)),
             button('Close', () => dialog.close(), 'ghost small', 'close', {'aria-label': 'Close dialog'})), body);
         dialog.showModal();
-        return {dialog, body};
+        return {dialog, body, current: (requireOpen = true) => body.isConnected && ui.token === token && (!requireOpen || dialog.open)};
     }
 
     function chooseModuleNotice(id) {
@@ -1483,7 +1531,7 @@
     function openImport(preset = '') {
         if (preset === 'sentinel') return openSentinel();
         if (preset === 'imazing') return openBackup();
-        const {dialog, body} = modal('Import evidence', 'Bring an existing offline report into your private workspace.');
+        const {dialog, body, current} = modal('Import evidence', 'Bring an existing offline report into your private workspace.');
         const specs = (ui.data.integrations || []).filter(spec => genericModules.has(spec.identifier));
         if (!specs.length) {body.append(empty('No report modules available', 'Check your workspace configuration.')); return;}
         const selected = specs.find(spec => spec.identifier === preset) || specs.find(spec => enabled(spec.identifier)) || specs[0];
@@ -1522,10 +1570,12 @@
             try {
                 const encoded = await encodeFile(file.files[0], ui.data.policy?.max_bytes || MAX_FILE);
                 const result = await api('/api/import', {plugin: plugin.value, format: format.value, data: encoded});
-                dialog.close();
-                ui.filters = {query: '', plugin: '', assessment: ''};
-                await refresh();
-                navigate('evidence');
+                if (current()) {
+                    dialog.close();
+                    ui.filters = {query: '', plugin: '', assessment: ''};
+                    await refresh();
+                    if (current(false)) navigate('evidence');
+                }
                 toast(importMessage(result.manifest));
             } catch (error) {toast(error.message, 'error');}
             finally {setBusy(form, false);}
@@ -1557,7 +1607,7 @@
     }
 
     function openSentinel() {
-        const {dialog, body} = modal('Import a Sentinel case', 'Connect a completed local case while keeping its namespace and provenance.');
+        const {dialog, body, current} = modal('Import a Sentinel case', 'Connect a completed local case while keeping its namespace and provenance.');
         const folder = E('input', {type: 'text', placeholder: '/absolute/path/to/completed-case', required: true, spellcheck: false, id: 'sentinel-folder'});
         const form = E('form', {class: 'panel-stack'}, chooseModuleNotice('sentinel'),
             field('Local case folder', folder, 'Use a folder on the machine running this dashboard, containing the completed case and its SHA256SUMS file.'),
@@ -1566,7 +1616,7 @@
             E('div', {class: 'modal-footer'}, button('Cancel', () => dialog.close(), 'secondary'), E('button', {type: 'submit', class: 'button primary', disabled: !enabled('sentinel')}, icon('folder'), 'Verify & import case')));
         form.addEventListener('submit', async event => {
             event.preventDefault(); setBusy(form, true);
-            try {const result = await api('/api/sentinel', {bundle_path: folder.value.trim()}); dialog.close(); await refresh(); openCase(result.manifest.import_id); toast(importMessage(result.manifest));}
+            try {const result = await api('/api/sentinel', {bundle_path: folder.value.trim()}); if (current()) {dialog.close(); await refresh(); if (current(false)) openCase(result.manifest.import_id);} toast(importMessage(result.manifest));}
             catch (error) {toast(error.message, 'error');}
             finally {setBusy(form, false);}
         });
@@ -1574,7 +1624,7 @@
     }
 
     function openBackup() {
-        const {dialog, body} = modal('Import backup metadata', 'Review the metadata inventory of a finished, unencrypted Apple or iMazing backup.');
+        const {dialog, body, current} = modal('Import backup metadata', 'Review the metadata inventory of a finished, unencrypted Apple or iMazing backup.');
         const fields = new Map();
         const fileFields = ['Manifest.plist', 'Status.plist', 'Manifest.db'].map(name => {
             const input = E('input', {type: 'file', required: true, accept: name.endsWith('.db') ? '.db' : '.plist'});
@@ -1592,7 +1642,7 @@
                     if (!input.files[0] || input.files[0].name !== name) throw new Error(`Choose the file named ${name} from this backup.`);
                     files[name] = await encodeFile(input.files[0], name === 'Manifest.db' ? MAX_FILE : 1024 * 1024);
                 }
-                await api('/api/imazing', {files}); dialog.close(); await refresh(); navigate('evidence'); toast('Backup metadata imported. Original metadata files are preserved privately.');
+                await api('/api/imazing', {files}); if (current()) {dialog.close(); await refresh(); if (current(false)) navigate('evidence');} toast('Backup metadata imported. Original metadata files are preserved privately.');
             } catch (error) {toast(error.message, 'error');}
             finally {setBusy(form, false);}
         });
@@ -1600,7 +1650,7 @@
     }
 
     function openEnrichment() {
-        const {dialog, body} = modal('Explore threat intelligence', 'Use a local mock response to learn the enrichment workflow. No provider is contacted.');
+        const {dialog, body, current} = modal('Explore threat intelligence', 'Use a local mock response to learn the enrichment workflow. No provider is contacted.');
         const providers = [['otx', 'AlienVault OTX'], ['abuseipdb', 'AbuseIPDB'], ['greynoise', 'GreyNoise'], ['virustotal', 'VirusTotal'], ['threatfox', 'ThreatFox'], ['certificate-transparency', 'Certificate transparency']];
         const provider = E('select', {}, providers.map(([id, label]) => E('option', {value: id}, label)));
         const type = E('select', {}, [['ip', 'IP address'], ['domain', 'Domain'], ['url', 'URL'], ['file', 'File SHA-256']].map(([id, label]) => E('option', {value: id}, label)));
@@ -1618,6 +1668,7 @@
             setBusy(form, true);
             try {
                 const result = await api('/api/enrich', {provider: provider.value, type: type.value, value: value.value.trim(), response: parsed});
+                if (!current()) return;
                 output.replaceChildren(notice(`Mock result: ${human(result.status)}. This is contextual information for review, not proof.`, result.status === 'ok' ? 'success' : 'info'),
                     E('pre', {class: 'code-block'}, JSON.stringify(result, null, 2)));
             } catch (error) {toast(error.message, 'error');}
@@ -1627,7 +1678,7 @@
     }
 
     function openForensics() {
-        const {dialog, body} = modal('Prepare a local forensic handoff', 'Preserve a hash-linked copy for analysis in your own offline tools.');
+        const {dialog, body, current} = modal('Prepare a local forensic handoff', 'Preserve a hash-linked copy for analysis in your own offline tools.');
         const input = E('input', {type: 'file', required: true});
         const form = E('form', {class: 'panel-stack'}, chooseModuleNotice('forensics'),
             field('Source file', input, 'Initial handoffs are limited to 8 MiB. The source is retained privately by its hash.'),
@@ -1635,7 +1686,7 @@
             E('div', {class: 'modal-footer'}, button('Cancel', () => dialog.close(), 'secondary'), E('button', {type: 'submit', class: 'button primary', disabled: !enabled('forensics')}, icon('file'), 'Preserve handoff')));
         form.addEventListener('submit', async event => {
             event.preventDefault(); setBusy(form, true);
-            try {if (!input.files[0]) throw new Error('Choose a source file.'); await api('/api/forensics', {data: await encodeFile(input.files[0])}); dialog.close(); await refresh(); toast('Local handoff preserved with its source hash.');}
+            try {if (!input.files[0]) throw new Error('Choose a source file.'); await api('/api/forensics', {data: await encodeFile(input.files[0])}); if (current()) {dialog.close(); await refresh();} toast('Local handoff preserved with its source hash.');}
             catch (error) {toast(error.message, 'error');}
             finally {setBusy(form, false);}
         });
@@ -1678,11 +1729,20 @@
         try {await navigator.clipboard.writeText(String(value)); toast('Copied to clipboard.');}
         catch (_) {toast('Clipboard access is unavailable. Select and copy the displayed value.', 'error');}
     }
+    const mobileNavigation = window.matchMedia('(max-width: 760px)');
+    function syncNavigation() {
+        const sidebar = $('#sidebar');
+        const hidden = mobileNavigation.matches && !sidebar.classList.contains('is-open');
+        if (hidden && sidebar.contains(document.activeElement)) $('#mobile-menu').focus();
+        sidebar.inert = hidden;
+        if (hidden) sidebar.setAttribute('aria-hidden', 'true'); else sidebar.removeAttribute('aria-hidden');
+    }
     function closeNavigation(restoreFocus = false) {
         const wasOpen = $('#sidebar').classList.contains('is-open');
         $('#sidebar').classList.remove('is-open');
         $('#mobile-nav-backdrop').hidden = true;
         $('#mobile-menu').setAttribute('aria-expanded', 'false');
+        syncNavigation();
         if (restoreFocus && wasOpen) $('#mobile-menu').focus();
     }
 
@@ -1697,6 +1757,7 @@
         $('#sidebar').classList.toggle('is-open', open);
         $('#mobile-nav-backdrop').hidden = !open;
         $('#mobile-menu').setAttribute('aria-expanded', String(open));
+        syncNavigation();
         if (open) $('#sidebar .nav-button.active').focus();
     });
     $('#mobile-nav-backdrop').addEventListener('click', () => closeNavigation(true));
@@ -1708,7 +1769,8 @@
             : !event.shiftKey && document.activeElement === focusable.at(-1) ? focusable[0] : null;
         if (target) {event.preventDefault(); target.focus();}
     });
-    window.matchMedia('(min-width: 761px)').addEventListener('change', event => {if (event.matches) closeNavigation();});
+    mobileNavigation.addEventListener('change', () => closeNavigation());
+    syncNavigation();
     for (const dialog of $$('dialog')) dialog.addEventListener('click', event => {if (event.target === dialog) dialog.close();});
 
     const params = new URLSearchParams(window.location.hash.slice(1));

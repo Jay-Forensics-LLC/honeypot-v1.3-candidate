@@ -1,4 +1,5 @@
 """Bounded complete-tuple planning; no windows, deduplication or identity claims."""
+# HoneyTrace local modification, 2026-11-01: distinguish permanent page-budget exclusions.
 import hashlib
 import ipaddress
 import json
@@ -77,9 +78,9 @@ def record_size(row, source_sizes):
     return length
 
 
-PLANNER_VERSION='whole-cohort-first-fit/1'
+PLANNER_VERSION='whole-cohort-first-fit/2'
 PERMANENT_REASONS={'whole_cohort_frame_cap','whole_cohort_byte_cap',
-                   'whole_cohort_frame_and_byte_caps'}
+                   'whole_cohort_frame_and_byte_caps','whole_cohort_total_frame_cap'}
 
 
 def inventory(bound,limits,guard):
@@ -144,6 +145,7 @@ def selection(inventory,limits,completed=(),guard=lambda:None,*,cohort_id=None):
             permanent.add(cohort_id);reasons[cohort_id]='not_selected_by_profile';continue
         if item['frames']>limits['batch_frames']:reason='whole_cohort_frame_cap'
         if item['bytes']+24>limits['batch_bytes']:reason='whole_cohort_byte_cap' if reason is None else 'whole_cohort_frame_and_byte_caps'
+        if reason is None and item['frames']>limits['total_frames']:reason='whole_cohort_total_frame_cap'
         if reason is not None:
             require(cohort_id not in completed,'tls_continuation_permanent_cohort_completed')
             permanent.add(cohort_id)

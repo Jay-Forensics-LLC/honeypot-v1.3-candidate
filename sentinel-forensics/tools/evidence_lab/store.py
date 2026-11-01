@@ -1,8 +1,9 @@
 """Disk-backed normalized private index. All identifiers remain local."""
+# Modified for HoneyTrace on 2026-11-01: canonical exact summary timestamps.
 import hashlib
 import json
 import sqlite3
-from core import canonical, time_info
+from core import canonical, canonical_record_row
 from network import decode
 
 SCHEMA = '''
@@ -73,6 +74,9 @@ class Store:
         return base
 
     def add_record(self, source_id, row):
+        # This derivative column is comparable UTC; original spelling, ticks and
+        # precision remain in packet/observation time_json and source evidence.
+        row = canonical_record_row(row)
         previous = self.db.execute('SELECT source_id,ordinal FROM records WHERE sha256=? ORDER BY source_id,ordinal LIMIT 1', (row[3],)).fetchone()
         if previous:
             self.db.execute('INSERT INTO duplicates VALUES (?,?,?,?)', (source_id,row[0],*previous))

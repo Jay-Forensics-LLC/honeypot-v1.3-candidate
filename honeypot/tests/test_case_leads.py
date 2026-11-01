@@ -171,8 +171,18 @@ class CaseLeads(unittest.TestCase):
         self.assertIn('do not prove authorship', exported['export_scope']['authorship_statement'])
         self.assertTrue(exported['export_scope']['omissions'])
 
+    def test_supported_rule_versions_resolve_grounded_support(self):
+        for version in ('1.0.0', '1.0.1'):
+            with self.subTest(version=version):
+                rows = fixture()
+                for row in rows:
+                    if row['entity'] == 'finding':
+                        row['payload']['rule_version'] = version
+                leads = case_detail(self.store, self.save(rows))['lead_details']
+                self.assertTrue(all(lead['support']['status'] == 'resolved' for lead in leads))
+
     def test_unknown_rules_and_invalid_closed_selectors_remain_visible_but_unavailable(self):
-        mutations = [lambda p: p.update(rule='future_rule'), lambda p: p.update(rule_version='1.0.1'),
+        mutations = [lambda p: p.update(rule='future_rule'), lambda p: p.update(rule_version='1.0.2'),
                      lambda p: p['evidence']['selector'].update(sql='PRIVATE_TEST'),
                      lambda p: p['evidence']['selector'].update(context='p_' + 'd' * 32),
                      lambda p: p['evidence'].update(first_packet=True),

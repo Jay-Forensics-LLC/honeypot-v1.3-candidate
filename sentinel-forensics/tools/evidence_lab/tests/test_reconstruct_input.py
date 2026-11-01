@@ -1,4 +1,5 @@
 """Closed case input integrity and self-resealed index forgery regressions."""
+# Modified for HoneyTrace on 2026-11-01: producer-versioned exact timestamp reconciliation.
 from contextlib import closing
 import hashlib
 import json
@@ -94,6 +95,32 @@ class ReconstructInput(unittest.TestCase):
     def test_self_resealed_record_locations_and_extra_records_fail(self):
         case, sources = self.case()
         self.mutate_index(case, 'UPDATE records SET offset=offset+1 WHERE ordinal=1;')
+        with self.assertRaisesRegex(IngestError, 'reconstruct_record_differs_from_original'):
+            with validated_case(case, sources):
+                pass
+
+    def test_current_record_timestamp_spelling_is_exact(self):
+        case, sources = self.case()
+        # Same instant, different derivative spelling: current cases require
+        # the exact nine-digit producer representation, not arbitrary aliases.
+        self.mutate_index(case, "UPDATE records SET timestamp=substr(timestamp,1,length(timestamp)-4)||'Z';")
+        with self.assertRaisesRegex(IngestError, 'reconstruct_record_differs_from_original'):
+            with validated_case(case, sources):
+                pass
+
+    def test_legacy_microsecond_record_spelling_is_explicit_and_exact(self):
+        case, sources = self.case()
+        manifest = json.loads((case / 'manifest.json').read_text())
+        state = json.loads((case / 'state.json').read_text())
+        manifest['parser_version'] = state['version'] = '2.0.10'
+        (case / 'manifest.json').write_bytes(canonical(manifest))
+        (case / 'state.json').write_bytes(canonical(state))
+        # Synthetic compatibility fixture for the earlier record representation;
+        # it is not a qualification receipt from the historical implementation.
+        self.mutate_index(case, "UPDATE records SET timestamp=substr(timestamp,1,length(timestamp)-4)||'Z';")
+        with validated_case(case, sources) as bound:
+            self.assertTrue(bound.binding['original_sources_reconciled'])
+        self.mutate_index(case, "UPDATE records SET timestamp='1970-01-01T00:00:00.000000Z' WHERE ordinal=1;")
         with self.assertRaisesRegex(IngestError, 'reconstruct_record_differs_from_original'):
             with validated_case(case, sources):
                 pass

@@ -84,6 +84,7 @@ def _parent(path, create=False):
 
 
 def _write_policy(path, policy):
+    data = policy.serialize()
     parent, name = _parent(path, create=True)
     temporary = '.dashboard-' + secrets.token_hex(16)
     created = False
@@ -98,9 +99,8 @@ def _write_policy(path, policy):
         descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
                              0o600, dir_fd=parent)
         created = True
-        with os.fdopen(descriptor, 'w', encoding='utf-8') as stream:
-            json.dump(asdict(policy), stream, ensure_ascii=True, indent=2, allow_nan=False)
-            stream.write('\n')
+        with os.fdopen(descriptor, 'wb') as stream:
+            stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, name, src_dir_fd=parent, dst_dir_fd=parent)
@@ -297,20 +297,28 @@ class DashboardServer(ThreadingHTTPServer):
             return result
 
     def sensor_snapshot(self, row, source=None, synthetic=False):
-        entries = self.equipment_workspace()['equipment']
+        # Optional inventory must not prevent a case with an unknown sensor.
+        if row.get('equipment_id', False) is None:
+            return None
+        if 'equipment_id' not in row and (synthetic or source is None):
+            return None
+        if 'equipment_id' in row and not isinstance(row['equipment_id'], str):
+            raise Phase10Error('Choose an inventoried sensor')
+        try:
+            entries = self.equipment_workspace()['equipment']
+        except (OSError, Phase10Error):
+            if 'equipment_id' in row:
+                raise
+            return None
         if 'equipment_id' in row:
             identity = row['equipment_id']
-            if identity is None:
-                return None
-            if not isinstance(identity, str):
-                raise Phase10Error('Choose an inventoried sensor')
             matches = [entry for entry in entries if entry['id'] == identity]
             if len(matches) != 1:
                 raise Phase10Error('Choose an inventoried sensor')
             association = 'operator_selected'
         else:
             matches = [entry for entry in entries if entry['active'] and entry['tracking'] == source]
-            if synthetic or source is None or len(matches) != 1:
+            if len(matches) != 1:
                 return None
             association = 'unique_active_tracking'
         entry = matches[0]
@@ -767,9 +775,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
             result = self.server.mutate(path, row)
             status, result = result if isinstance(result, tuple) else (200, result)
             self._send(status, result)
-        except InputTooLarge:
-            self._send(413, {'code': 'capture_too_large', 'limit_bytes': MAX_CAPTURE_BYTES,
-                             'error': 'Capture exceeds 64 MiB. Split it locally; streaming is planned for later.'})
+        except InputTooLarge as exc:
+            capture = path in ('/api/capture-upload', '/api/jobs') and exc.max_bytes == MAX_CAPTURE_BYTES
+            self._send(413, {'code': 'capture_too_large' if capture else 'input_too_large',
+                             'limit_bytes': exc.max_bytes,
+                             'error': ('Capture exceeds 64 MiB. Split it locally; streaming is planned for later.'
+                                       if capture else 'This input exceeds the supported byte limit. Use a smaller input.')})
         except (Phase10Error, ValueError, TypeError, KeyError, RecursionError):
             self._send(400, {'code': 'invalid_input', 'error': 'This input could not be accepted. Check the format and module settings.'})
         except OSError:
