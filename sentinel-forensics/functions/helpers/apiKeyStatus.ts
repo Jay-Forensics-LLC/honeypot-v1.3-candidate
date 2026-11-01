@@ -31,9 +31,34 @@ export async function transitionApiKeyStatus(
   if (typeof apiKeyEntity?.updateMany !== 'function') {
     throw new Error('API key status transitions require atomic updateMany');
   }
+  if (typeof currentStatus !== 'string') {
+    return false;
+  }
   const result = await apiKeyEntity.updateMany(
     getApiKeyStatusTransitionFilter(keyFilter, currentStatus),
     { $set: { status: nextStatus } }
+  );
+  if (!result || typeof result !== 'object') {
+    return false;
+  }
+  for (const key of ['updatedCount', 'modifiedCount', 'nModified']) {
+    if (typeof result[key] === 'number') {
+      return result[key] === 1;
+    }
+  }
+  return false;
+}
+
+export async function revokeApiKeyStatus(apiKeyEntity, keyFilter, currentStatus) {
+  if (typeof apiKeyEntity?.updateMany !== 'function') {
+    throw new Error('API key status transitions require atomic updateMany');
+  }
+  if (typeof currentStatus !== 'string') {
+    return false;
+  }
+  const result = await apiKeyEntity.updateMany(
+    { ...keyFilter, status: currentStatus },
+    { $set: { status: 'revoked' } }
   );
   if (!result || typeof result !== 'object') {
     return false;

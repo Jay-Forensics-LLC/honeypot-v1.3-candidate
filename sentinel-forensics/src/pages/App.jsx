@@ -8,10 +8,10 @@
  * Use createPageUrl() from @/components/utils for navigation.
  */
 
-import React, { Suspense, lazy, useEffect, useTransition } from 'react';
+import { lazy, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import LoadingFallback from '../components/demo/LoadingFallback';
+import { RouteGate } from '../components/router/RouteGate';
 import GlobalErrorBoundary from '../components/errors/GlobalErrorBoundary';
 import StartupErrorBoundary from '../components/errors/StartupErrorBoundary';
 import { RouteErrorBoundary } from '../components/errors/RouteErrorBoundary';
@@ -292,7 +292,7 @@ export default function App() {
               <OfflineIndicator />
               <BackgroundProcessIndicator />
               <CodeSplitBoundary>
-              <Suspense fallback={<LoadingFallback />}>
+              <RouteGate>
                 <Routes>
                     <Route path="/" element={<Layout />}>
                       <Route index element={
@@ -594,7 +594,7 @@ export default function App() {
                     <Route path="WelcomeOnboarding" element={<WelcomeOnboarding />} />
                     <Route path="QuickStartWizard" element={<QuickStartWizard />} />
                 </Routes>
-              </Suspense>
+              </RouteGate>
             </CodeSplitBoundary>
 
             <NavigationPanicButton />

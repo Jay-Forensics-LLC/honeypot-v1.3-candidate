@@ -1,5 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { getOrganizationApiKeyFilter } from './helpers/apiKeyStatus.ts';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.30';
+import { getOrganizationApiKeyFilter, revokeApiKeyStatus } from './helpers/apiKeyStatus.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -30,9 +30,19 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'API key not found' }, { status: 404 });
     }
 
-    const updated = await base44.asServiceRole.entities.ApiKey.update(keys[0].id, {
-      status: 'revoked'
-    });
+    const apiKeys = base44.asServiceRole.entities.ApiKey;
+    const transitioned = await revokeApiKeyStatus(apiKeys, keyFilter, keys[0].status);
+    if (!transitioned) {
+      return Response.json({ error: 'API key status changed; reload and try again' }, { status: 409 });
+    }
+    const updatedKeys = await apiKeys.filter(keyFilter);
+    if (!updatedKeys.length) {
+      return Response.json({ error: 'API key not found' }, { status: 404 });
+    }
+    const updated = updatedKeys[0];
+    if (updated.status !== 'revoked') {
+      return Response.json({ error: 'API key status changed; reload and try again' }, { status: 409 });
+    }
 
     return Response.json({ 
       success: true, 

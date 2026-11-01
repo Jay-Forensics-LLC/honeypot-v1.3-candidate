@@ -1,4 +1,4 @@
-import React from 'react';
+import { useEffect, useRef } from 'react';
 import { Smartphone } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
@@ -6,13 +6,21 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 import DashboardMetricsStatus from './DashboardMetricsStatus';
 
 export default function DevicePostureWidget({ globalFilters, refreshKey }) {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['dashboard-metrics', globalFilters, refreshKey],
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['dashboard-metrics', globalFilters],
     queryFn: async () => {
       const result = await base44.functions.invoke('dashboardMetrics', globalFilters);
       return result.data;
     }
   });
+  const previousRefreshKey = useRef(refreshKey);
+
+  useEffect(() => {
+    if (previousRefreshKey.current !== refreshKey) {
+      previousRefreshKey.current = refreshKey;
+      refetch();
+    }
+  }, [refreshKey, refetch]);
 
   if (isLoading) {
     return <div className="h-48 bg-gray-100 rounded animate-pulse" />;
