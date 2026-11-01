@@ -294,19 +294,19 @@ class DashboardWorkflow(unittest.TestCase):
     def test_diagnostics_are_authenticated_sanitized_and_independent_of_import_policy(self):
         self.assertEqual(self.call('/api/diagnostics', auth=False)[0], 401)
         self.enable(['bbot'])
-        import_logged = threading.Event()
+        request_logged = threading.Event()
         log_event = self.server.log.event
 
-        def record_event(event_code, *args, **fields):
-            result = log_event(event_code, *args, **fields)
-            if event_code == 'http.request' and fields.get('route') == '/api/import':
-                import_logged.set()
+        def record_event(event, **fields):
+            result = log_event(event, **fields)
+            if event == 'http.request' and fields.get('route') == '/api/import':
+                request_logged.set()
             return result
 
-        # The response can arrive before the request thread finishes logging.
+        # The response can arrive before the handler's finally block logs it.
         with patch.object(self.server.log, 'event', side_effect=record_event):
             self.assertEqual(self.upload()[0], 200)
-            self.assertTrue(import_logged.wait(timeout=5), 'Import request logging did not finish')
+            self.assertTrue(request_logged.wait(5), 'Import request log did not complete')
         self.server.log.event('dashboard.test', operation='diagnostic_check',
                               password='PRIVATE_PASSWORD', path='/private/evidence',
                               token=self.server.session_token)
