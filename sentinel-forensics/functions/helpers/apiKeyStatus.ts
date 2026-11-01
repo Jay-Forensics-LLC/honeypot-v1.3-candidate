@@ -14,3 +14,10 @@ export function getToggleApiKeyStatus(currentStatus: string, enable: boolean): '
   }
   return enable ? 'active' : 'disabled';
 }
+
+export function getApiKeyStatusTransitionFilter(
+  keyFilter: { id: string; organization_id: string },
+  currentStatus: string
+): { id: string; organization_id: string; status: string } {
+  return { ...keyFilter, status: currentStatus };
+}

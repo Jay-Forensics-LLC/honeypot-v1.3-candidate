@@ -2,9 +2,10 @@ import React from 'react';
 import { Database, Lock } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
+import DashboardMetricsStatus from './DashboardMetricsStatus';
 
 export default function EvidenceIntegrityWidget({ globalFilters, refreshKey }) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['dashboard-metrics', globalFilters, refreshKey],
     queryFn: async () => {
       const result = await base44.functions.invoke('dashboardMetrics', globalFilters);
@@ -16,10 +17,15 @@ export default function EvidenceIntegrityWidget({ globalFilters, refreshKey }) {
     return <div className="h-24 bg-gray-100 rounded animate-pulse" />;
   }
 
+  if (isError && !data) {
+    return <DashboardMetricsStatus isError={isError} hasData={false} />;
+  }
+
   const evidence = data?.metrics?.evidence || {};
 
   return (
     <div className="text-center">
+      <DashboardMetricsStatus isError={isError} hasData={Boolean(data)} />
       <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mb-2">
         <Database className="w-6 h-6 text-blue-600" />
       </div>

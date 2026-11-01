@@ -4,7 +4,7 @@
  */
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { requireAuth, sanitizeError } from './helpers/security.js';
+import { requireAuth, sanitizeError } from './helpers/security.ts';
 
 // CRITICAL: Update these after uploading to R2/S3
 const AGENT_METADATA = {

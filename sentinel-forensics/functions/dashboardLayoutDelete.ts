@@ -4,7 +4,7 @@
  */
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { requireAuth, requireOrg, safeJson, sanitizeError } from './helpers/security.js';
+import { requireAuth, requireOrg, safeJson, sanitizeError } from './helpers/security.ts';
 
 Deno.serve(async (req) => {
   try {

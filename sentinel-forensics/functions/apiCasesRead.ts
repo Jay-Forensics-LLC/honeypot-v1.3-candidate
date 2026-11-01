@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { verifyApiKeyAndAuthorize } from './verifyApiKeyAndAuthorize.js';
+import { verifyApiKeyAndAuthorize } from './verifyApiKeyAndAuthorize.ts';
 
 /**
  * API ENDPOINT: GET /api/v1/cases

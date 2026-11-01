@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { getSafeUsageCostCents } from './helpers/usagePricing.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -32,7 +33,10 @@ Deno.serve(async (req) => {
     }
 
     const unitCost = costMap[usage_type];
-    const costCents = Math.round(quantity * unitCost);
+    const costCents = getSafeUsageCostCents(quantity, unitCost);
+    if (costCents === null) {
+      return Response.json({ error: 'Calculated charge exceeds safe integer range' }, { status: 400 });
+    }
 
     const usageLog = await base44.asServiceRole.entities.UsageLog.create({
       organization_id: user.organization_id,

@@ -2,9 +2,10 @@ import React from 'react';
 import { Activity } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
+import DashboardMetricsStatus from './DashboardMetricsStatus';
 
 export default function ActivityFeedWidget({ globalFilters, refreshKey }) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['dashboard-metrics', globalFilters, refreshKey],
     queryFn: async () => {
       const result = await base44.functions.invoke('dashboardMetrics', globalFilters);
@@ -19,12 +20,17 @@ export default function ActivityFeedWidget({ globalFilters, refreshKey }) {
     ))}</div>;
   }
 
+  if (isError && !data) {
+    return <DashboardMetricsStatus isError={isError} hasData={false} />;
+  }
+
   const audit = data?.metrics?.audit || {};
   const timeseries = data?.metrics?.timeseries || [];
   const recentActivity = timeseries.slice(-5).reverse();
 
   return (
     <div className="space-y-3">
+      <DashboardMetricsStatus isError={isError} hasData={Boolean(data)} />
       <div className="flex items-center justify-between text-sm">
         <span className="text-gray-600">Total Events</span>
         <span className="font-semibold">{audit.total_events || 0}</span>

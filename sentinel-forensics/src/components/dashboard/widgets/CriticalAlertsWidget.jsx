@@ -2,9 +2,10 @@ import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
+import DashboardMetricsStatus from './DashboardMetricsStatus';
 
 export default function CriticalAlertsWidget({ globalFilters, refreshKey }) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['dashboard-metrics', globalFilters, refreshKey],
     queryFn: async () => {
       const result = await base44.functions.invoke('dashboardMetrics', globalFilters);
@@ -12,8 +13,6 @@ export default function CriticalAlertsWidget({ globalFilters, refreshKey }) {
     },
     refetchInterval: 15000
   });
-
-  const criticalCount = data?.metrics?.alerts?.critical_count || 0;
 
   if (isLoading) {
     return (
@@ -23,8 +22,15 @@ export default function CriticalAlertsWidget({ globalFilters, refreshKey }) {
     );
   }
 
+  if (isError && !data) {
+    return <DashboardMetricsStatus isError={isError} hasData={false} />;
+  }
+
+  const criticalCount = data?.metrics?.alerts?.critical_count || 0;
+
   return (
     <div className="text-center">
+      <DashboardMetricsStatus isError={isError} hasData={Boolean(data)} />
       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-3">
         <AlertTriangle className="w-8 h-8 text-red-600" />
       </div>

@@ -6,11 +6,17 @@ import { Button } from '@/components/ui/button';
  * Route-level timeout protection
  * If route takes > maxMs, shows error with retry
  */
-export function RouteGate({ children, maxMs = 10000 }) {
+export function RouteGate({ children, maxMs = 10000, isPending = false }) {
   const [timedOut, setTimedOut] = useState(false);
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
+    if (!isPending) {
+      setTimedOut(false);
+      setElapsed(0);
+      return;
+    }
+
     const startTime = Date.now();
 
     const elapsedInterval = setInterval(() => {
@@ -26,9 +32,9 @@ export function RouteGate({ children, maxMs = 10000 }) {
       clearTimeout(timeout);
       clearInterval(elapsedInterval);
     };
-  }, [maxMs]);
+  }, [isPending, maxMs]);
 
-  if (timedOut) {
+  if (isPending && timedOut) {
     return (
       <div className="min-h-screen bg-[#0B0B0C] flex items-center justify-center p-6">
         <div className="max-w-md text-center">

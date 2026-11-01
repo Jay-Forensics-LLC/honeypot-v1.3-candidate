@@ -6,7 +6,7 @@ import { Shield, Loader2 } from 'lucide-react';
  * - Simple, fast loading state
  * - No state management
  */
-export default function LoadingFallback() {
+export function LoadingFallback() {
   return (
     <div className="min-h-screen bg-[#0B0B0C] flex items-center justify-center p-6">
       <div className="text-center">
@@ -20,3 +20,5 @@ export default function LoadingFallback() {
     </div>
   );
 }
+
+export default LoadingFallback;

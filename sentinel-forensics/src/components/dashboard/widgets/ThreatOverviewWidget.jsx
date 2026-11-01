@@ -2,9 +2,10 @@ import React from 'react';
 import { Shield, TrendingUp, TrendingDown } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
+import DashboardMetricsStatus from './DashboardMetricsStatus';
 
 export default function ThreatOverviewWidget({ globalFilters, refreshKey }) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['dashboard-metrics', globalFilters, refreshKey],
     queryFn: async () => {
       const result = await base44.functions.invoke('dashboardMetrics', globalFilters);
@@ -17,10 +18,15 @@ export default function ThreatOverviewWidget({ globalFilters, refreshKey }) {
     return <div className="h-32 bg-gray-100 rounded animate-pulse" />;
   }
 
+  if (isError && !data) {
+    return <DashboardMetricsStatus isError={isError} hasData={false} />;
+  }
+
   const threats = data?.metrics?.threats || {};
 
   return (
     <div className="space-y-4">
+      <DashboardMetricsStatus isError={isError} hasData={Boolean(data)} />
       <div className="flex items-center justify-between">
         <div>
           <div className="text-2xl font-bold">{threats.total || 0}</div>

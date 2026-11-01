@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { isCaseLinkedToLegalMatter } from './helpers/disclosure.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -8,14 +9,38 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { legal_case_id, disclosure_type, evidence_ids } = await req.json();
-    if (!Array.isArray(evidence_ids)) {
-      return Response.json({ error: 'Evidence IDs must be an array' }, { status: 400 });
+    if (typeof legal_case_id !== 'string' || !legal_case_id || !Array.isArray(evidence_ids)
+      || evidence_ids.some(evidenceId => typeof evidenceId !== 'string' || !evidenceId)) {
+      return Response.json({ error: 'A legal case ID and an array of evidence IDs are required' }, { status: 400 });
+    }
+    if (!user.organization_id) {
+      return Response.json({ error: 'Organization context required' }, { status: 403 });
+    }
+
+    const legalCases = await base44.entities.LegalCase.filter({
+      id: legal_case_id,
+      organization_id: user.organization_id
+    });
+    const legalCase = legalCases[0];
+    if (!legalCase) {
+      return Response.json({ error: 'Legal case not found' }, { status: 404 });
     }
 
     const evidenceItems = [];
     for (const evidenceId of evidence_ids) {
-      const evidence = await base44.entities.EvidenceV2.filter({ id: evidenceId });
-      if (!evidence[0]) {
+      const evidence = await base44.entities.EvidenceV2.filter({
+        id: evidenceId,
+        organization_id: user.organization_id
+      });
+      if (!evidence[0]
+        || !isCaseLinkedToLegalMatter(legalCase, evidence[0].case_id)) {
+        return Response.json({ error: 'Selected evidence is unavailable' }, { status: 404 });
+      }
+      const forensicCases = await base44.entities.Case.filter({
+        id: evidence[0].case_id,
+        organization_id: user.organization_id
+      });
+      if (!forensicCases[0]) {
         return Response.json({ error: 'Selected evidence is unavailable' }, { status: 404 });
       }
       evidenceItems.push({
