@@ -36,8 +36,10 @@ def main():
         (unit.stderr or unit.stdout).strip().splitlines()[-3] if (unit.stderr or unit.stdout) else 'no output')
 
     val = run([sys.executable, '-B', str(ROOT / 'scripts' / 'validate.py')])
+    summary = val.stdout.strip().splitlines()[-1] if val.stdout else val.stderr[-200:]
+    failures = [line for line in val.stdout.splitlines() if line.startswith('FAIL ')]
     add(results, 'Static validate.py', 'PASS' if val.returncode == 0 else 'FAIL',
-        val.stdout.strip().splitlines()[-1] if val.stdout else val.stderr[-200:])
+        '; '.join(failures + [summary]))
 
     if not args.runtime:
         add(results, 'Runtime nft/Compose/systemd', 'NOT RUN',
