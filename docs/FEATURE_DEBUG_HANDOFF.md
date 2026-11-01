@@ -9,7 +9,7 @@ This branch contains source changes for review; it does not merge or deploy them
 · [Feature review and remaining limits](FEATURE_REVIEW_2026-11-01.md)
 
 Extract the ZIP, open a terminal in the extracted folder containing `tools/`,
-and run as your normal Linux user with Python3.11+ and its SQLite module:
+and run as your normal Linux user with Python 3.11+ and its SQLite module:
 
 ```sh
 bash tools/launch-dashboard.sh --port 8765
@@ -52,9 +52,14 @@ Parent-controlled offline sandbox, synthetic data only, no external network:
 | Bundled EvidenceLab |443 tests;42 skipped |
 | Bundled sysdiagnose |31 tests passed |
 | Root source/tool tests |73 tests passed |
-| Stage7 offline tests |89 tests passed |
+| Stage 7 offline tests |89 tests passed |
 | Browser workflow and delayed-response checks |9 checks passed;0 console/page errors |
 | Exact upstream tree and local overlay manifest | PASS; original upstream tree retained |
+| Clean extracted source, Python site packages disabled |5 checks passed; native two-source case, custody and lead support |
+
+The clean-source check used commit `93b31be` without Git metadata, launched from
+another directory with a stale `HP_ROOT`, and completed the first synthetic case.
+Only this handoff text changed afterward.
 
 The full suite caught and drove corrections for timestamp/reconstruction and
 rule-version/dashboard integration mismatches. A separate source review also
@@ -65,4 +70,4 @@ containment, live hardware and WAN exposure are NOT TESTED. Read the review for
 six unconfirmed security leads, two blocked authority facts and the formal audit
 validator limitation. Passing offline tests does not qualify a running target.
 
-Milestone6 portable case handoff/real-world validation remains future work.
+Milestone 6 portable case handoff/real-world validation remains future work.
