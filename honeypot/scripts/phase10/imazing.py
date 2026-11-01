@@ -91,7 +91,8 @@ def _sqlite_summary(data, limit):
         try:
             db = sqlite3.connect(path.as_uri() + '?mode=ro&immutable=1', uri=True)
             try:
-                db.enable_load_extension(False)
+                if hasattr(db, 'enable_load_extension'):
+                    db.enable_load_extension(False)
                 db.execute('PRAGMA query_only=ON')
                 db.execute('PRAGMA trusted_schema=OFF')
                 ticks = 0

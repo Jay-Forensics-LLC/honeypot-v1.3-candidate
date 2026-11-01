@@ -285,7 +285,8 @@ def validated_case(case, source_map, guard=lambda: None, *, packet_rows=MAX_PACK
                              + '?mode=ro&immutable=1', uri=True)
         stack.callback(db.close)
         db.row_factory = sqlite3.Row
-        db.enable_load_extension(False)
+        if hasattr(db, 'enable_load_extension'):
+            db.enable_load_extension(False)
         db.execute('PRAGMA trusted_schema=OFF')
         db.execute('PRAGMA query_only=ON')
         db.execute('PRAGMA cache_size=-4096')

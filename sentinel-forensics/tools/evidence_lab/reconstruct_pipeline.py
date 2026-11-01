@@ -35,17 +35,23 @@ def require(value,code):
 
 def open_db(path,guard=lambda:None):
     db=sqlite3.connect(path,check_same_thread=False)
-    db.execute('PRAGMA journal_mode=OFF')
-    db.execute('PRAGMA synchronous=OFF')
-    db.execute('PRAGMA cache_size=-4096')
-    db.execute('PRAGMA temp_store=FILE')
-    db.execute('PRAGMA trusted_schema=OFF')
-    db.execute('PRAGMA max_page_count=16384')
-    db.enable_load_extension(False)
-    db.setlimit(sqlite3.SQLITE_LIMIT_LENGTH,MAX_RECORD)
-    db.setlimit(sqlite3.SQLITE_LIMIT_ATTACHED,0)
-    db.set_progress_handler(lambda:(guard() or 0),10000)
+    try:
+        db.execute('PRAGMA journal_mode=OFF')
+        db.execute('PRAGMA synchronous=OFF')
+        db.execute('PRAGMA cache_size=-4096')
+        db.execute('PRAGMA temp_store=FILE')
+        db.execute('PRAGMA trusted_schema=OFF')
+        db.execute('PRAGMA max_page_count=16384')
+        if hasattr(db, 'enable_load_extension'):
+            db.enable_load_extension(False)
+        db.setlimit(sqlite3.SQLITE_LIMIT_LENGTH,MAX_RECORD)
+        db.setlimit(sqlite3.SQLITE_LIMIT_ATTACHED,0)
+        db.set_progress_handler(lambda:(guard() or 0),10000)
+    except BaseException:
+        db.close()
+        raise
     return db
+
 
 PREFERENCES = {'tcp.desegment_tcp_streams':'TRUE','tcp.reassemble_out_of_order':'TRUE',
     'tcp.analyze_sequence_numbers':'TRUE','tcp.check_checksum':'FALSE',

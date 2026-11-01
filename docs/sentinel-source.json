@@ -2,13 +2,13 @@
   "schema_version": 1,
   "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
   "commit": "187bec14835fc9497b05594ca467a49259553d64",
-  "git_tree": "7fedacb9c3972a86f52de10ebb36a8984aa210ae",
+  "git_tree": "7e48c10443a0242a6c9ff8ec9e803b98795de803",
   "prefix": "sentinel-forensics",
   "files": 1444,
-  "bytes": 11527488,
+  "bytes": 11527950,
   "license": "AGPL-3.0",
   "license_sha256": "7f8f48e4266aa8fd3033dfaa4bb7f6e83a60c6e099f82d4959b81de90e67cd8f",
-  "import_method": "Complete committed upstream tree with 59 recorded replacements and 28 local additions; Git metadata/history and untracked files excluded.",
+  "import_method": "Complete committed upstream tree with 64 recorded replacements and 28 local additions; Git metadata/history and untracked files excluded.",
   "upstream_git_tree": "45e7025dd351732dfa0d321362891ff353f8b940",
   "upstream_bytes": 11448833,
   "patches": [
@@ -653,6 +653,46 @@
       "upstream_path": "src/components/docs/PHASE_SCAFFOLDING.md.jsx",
       "reason": "Rename Markdown stored with a JSX extension without changing its contents.",
       "sha256": "d61f94db12fa302fb826c9805ee39126e0e4ba52fceac0e5531d8355f87c4033"
+    },
+    {
+      "path": "tools/evidence_lab/adapters.py",
+      "operation": "replace",
+      "upstream_blob": "c5212cf99e8dc5a8bcb9a6be4ecb36bfc55e73eb",
+      "upstream_sha256": "a3eb233c13555dc8972e1d2f3664c2408d11c8577969655b4aa4256f306b19b7",
+      "sha256": "59c36b1d06f9820204c79d5eaf6399dbdb7638982ce1a9547faabeb71dc3cceb",
+      "reason": "Reviewed SQLite compatibility and resource-lifetime correction."
+    },
+    {
+      "path": "tools/evidence_lab/reconstruct_history.py",
+      "operation": "replace",
+      "upstream_blob": "f0315774667983d4052e095f3efab87aab2c0cc4",
+      "upstream_sha256": "8d94c7f8eb28d3de400caaa8a8463481f6df91115b44263e990b2ad43553f388",
+      "sha256": "73416965bb9ecfa6a8633fa6fc0c0e04ac12cc951cfcb335f1578b9d67a6e1dd",
+      "reason": "Reviewed SQLite compatibility and resource-lifetime correction."
+    },
+    {
+      "path": "tools/evidence_lab/reconstruct_input.py",
+      "operation": "replace",
+      "upstream_blob": "2aa18f968a4093ce84c3ded152202a6aeea116f5",
+      "upstream_sha256": "80d314ef382576d72b80887120d5616bfafe331c99dadd171ba5f78d30ae05de",
+      "sha256": "26590d9da0df4c49df27e9fe1e785248c57ce850fbfe519d93a39c6b55e19e7c",
+      "reason": "Reviewed SQLite compatibility and resource-lifetime correction."
+    },
+    {
+      "path": "tools/evidence_lab/reconstruct_pipeline.py",
+      "operation": "replace",
+      "upstream_blob": "6109a07953dd4013397aa2727de0a99d9f3160e2",
+      "upstream_sha256": "6976b8e5c57bb82d680ccb212d3917f1cd92150ac20657c54f80aaa069c19900",
+      "sha256": "ed6a966741c8f53ed1c1fc270247fc5b02d2e60d4938bb9a4d4649e4d9abc12e",
+      "reason": "Reviewed SQLite compatibility and resource-lifetime correction."
+    },
+    {
+      "path": "tools/evidence_lab/tests/test_reconstruct_history_io.py",
+      "operation": "replace",
+      "upstream_blob": "3301d750838635d92d727bb3381bc71dac0c62fd",
+      "upstream_sha256": "0ad19e918be71d90a02c8fb59e6122253c95ef1b687a70534cd064aba6f9257b",
+      "sha256": "cc6ba2b1c4ad91ea74126eb4a5605f07e04859b7127459d52ad7030d8ce9418e",
+      "reason": "Reviewed SQLite compatibility and resource-lifetime correction."
     }
   ]
 }

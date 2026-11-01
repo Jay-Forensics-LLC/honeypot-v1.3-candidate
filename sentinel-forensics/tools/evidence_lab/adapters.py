@@ -244,7 +244,8 @@ def sqlite_rows(snapshot, metadata):
     uri = snapshot.resolve().as_uri()+'?mode=ro&immutable=1'
     with closing(sqlite3.connect(uri, uri=True)) as db:
         db.execute('PRAGMA query_only=ON')
-        db.enable_load_extension(False)
+        if hasattr(db, 'enable_load_extension'):
+            db.enable_load_extension(False)
         db.setlimit(sqlite3.SQLITE_LIMIT_LENGTH, MAX_RECORD)
         db.execute('PRAGMA cache_size=-4096')
         version = db.execute('PRAGMA user_version').fetchone()[0]
