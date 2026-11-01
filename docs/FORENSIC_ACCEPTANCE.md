@@ -7,7 +7,7 @@ Target: managed Linux source workspace, unprivileged isolated synthetic tests.
 
 ## Delivered behavior
 
-- The full 1,416-file Sentinel source, bundled with its AGPL-3.0 license and one recorded demo-literal publication patch
+- The full 1,416-file Sentinel source, bundled with its AGPL-3.0 license and recorded publication patches
   and import manifest. Its exact upstream Git tree is
   `45e7025dd351732dfa0d321362891ff353f8b940`.
 - Automatically discovered Sentinel capture jobs with progress, cancellation, process
@@ -29,7 +29,7 @@ Focused case, job, logger, decoy-profile and dashboard regressions passed.
 The source baseline passed `tools/validate_baseline.py`, which includes repository
 tooling tests, `make -C honeypot test` and `make -C honeypot verify`. Application
 tests: 801 run, 794 passed, seven native-tool skips. Static validation: fourteen
-PASS and five NOT TESTED. Repository tooling tests: 71 passed. Native tshark and
+PASS and five NOT TESTED. Repository tooling tests: 72 passed. Native tshark and
 Docker-dependent tests remain skipped in this workspace.
 
 Both bundled offline suites passed: diagnostic ingestion 31/31; Evidence Lab
@@ -85,5 +85,7 @@ is required to finish the requested in-place publication.
 Publication note: GitHub push protection rejected a credential-shaped value in
 Sentinel's mocked code-audit input. That one demo literal is replaced by an
 explicit placeholder, with a modification notice. The source manifest records
-both effective and upstream tree identities and the one changed file. Snapshot
+both effective and upstream tree identities and each changed file. A second
+recorded patch closes test-owned descriptors on setup/diagnostic failure after PR
+review; production reconstruction behavior is unchanged. Snapshot
 validation verifies both trees; all 1,416 source files and the license remain.

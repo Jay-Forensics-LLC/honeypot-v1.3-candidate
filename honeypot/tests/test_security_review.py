@@ -121,8 +121,8 @@ class SecurityReview(unittest.TestCase):
         source = self.review.view({'import_ids': [identifier]})['items'][0]['source']
         projection = self.store.root / 'findings' / (identifier + '.jsonl')
         before = projection.read_bytes()
-        result = self.review.triage({'import_id': identifier, 'finding_id': source['finding_id'],
-                                    'status': 'accepted_risk', 'note': 'Local operator decision.'})
+        self.review.triage({'import_id': identifier, 'finding_id': source['finding_id'],
+                            'status': 'accepted_risk', 'note': 'Local operator decision.'})
         self.assertEqual(self.path.stat().st_mode & 0o777, 0o600)
         self.assertEqual(self.path.parent.stat().st_mode & 0o777, 0o700)
         restarted = ReviewWorkspace(self.store, self.path)

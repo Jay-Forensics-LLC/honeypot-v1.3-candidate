@@ -13,7 +13,7 @@ specifically `tools/evidence_lab/CONTRACT.md`, `contract.py`, `report.py`, and t
 completion/checksum behavior in `analyze.py` and `qualify.py`. Sentinel's repository
 has an AGPL-3.0 license, preserved in the bundled `sentinel-forensics/LICENSE`.
 The HoneyTrace bridge remains an independent consumer of the documented exchange
-format; the separately located analyzer implementation is now included with one recorded demo-literal publication patch
+format; the separately located analyzer implementation is now included with recorded publication patches
 in the unified source. See [unified source](../UNIFIED_SOURCE.md) and
 [third-party notices](../../THIRD_PARTY_NOTICES.md).
 
@@ -122,5 +122,7 @@ Stage 7/8, WAN, daemon-reload and deployment gates retain their own status.
 Publication note: GitHub push protection rejected a credential-shaped value in
 Sentinel's mocked code-audit input. That one demo literal is replaced by an
 explicit placeholder, with a modification notice. The source manifest records
-both effective and upstream tree identities and the one changed file. Snapshot
+both effective and upstream tree identities and each changed file. A second
+recorded patch closes test-owned descriptors on setup/diagnostic failure after PR
+review; production reconstruction behavior is unchanged. Snapshot
 validation verifies both trees; all 1,416 source files and the license remain.

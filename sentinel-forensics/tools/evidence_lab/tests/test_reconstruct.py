@@ -1,5 +1,6 @@
 """Invented TLS metadata/provenance tests; fake reference fields are not decoder validation."""
 from contextlib import closing
+# Modified by HoneyTrace on 2026-11-01: protect descriptor cleanup during test setup and diagnostics.
 import hashlib
 import importlib
 import io
@@ -557,8 +558,6 @@ class ReconstructionEndToEndTests(unittest.TestCase):
         unrelated = self.root/'unrelated-descriptor'
         sentinel = b'unrelated descriptor content must remain unchanged'
         unrelated.write_bytes(sentinel)
-        control = os.open(unrelated,os.O_RDWR)
-        before_identity = os.fstat(control)
         before_mask = next(line.split()[1] for line in Path('/proc/self/status').read_text().splitlines()
                            if line.startswith('Umask:'))
         before_environment = {name:os.environ.get(name) for name in ('TMPDIR','SQLITE_TMPDIR')}
@@ -573,7 +572,9 @@ class ReconstructionEndToEndTests(unittest.TestCase):
                 fault.update(original_fd=fd,replacement_fd=replacement)
                 raise OSError(errno.EIO,'invented error reported after successful close')
             return original_close(fd)
+        control = os.open(unrelated,os.O_RDWR)
         try:
+            before_identity = os.fstat(control)
             with patch.object(driver.os,'close',side_effect=close_then_error):
                 result,_ = self.invoke(case,source,output)
             self.assertTrue(fault)
@@ -600,14 +601,19 @@ class ReconstructionEndToEndTests(unittest.TestCase):
             self.assertEqual(self.output_descriptors(output),[])
             self.assertEqual(self.snapshot(case),before_case)
         finally:
-            for fd in {control,fault.get('replacement_fd')}|set(self.output_descriptors(output)):
-                if fd is not None:
+            try:
+                for fd in {control,fault.get('replacement_fd')}:
+                    if fd is not None:
+                        try:original_close(fd)
+                        except OSError:pass
+                for fd in self.output_descriptors(output):
                     try:original_close(fd)
                     except OSError:pass
-            os.umask(int(before_mask,8))
-            for name,value in before_environment.items():
-                if value is None:os.environ.pop(name,None)
-                else:os.environ[name]=value
+            finally:
+                os.umask(int(before_mask,8))
+                for name,value in before_environment.items():
+                    if value is None:os.environ.pop(name,None)
+                    else:os.environ[name]=value
 
     def test_runtime_failure_and_cancellation_cannot_publish_complete_outputs(self):
         for mode,want in [('failure','FAILED'),('cancel','CANCELLED')]:
