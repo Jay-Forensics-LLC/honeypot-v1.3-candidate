@@ -2,13 +2,13 @@
   "schema_version": 1,
   "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
   "commit": "187bec14835fc9497b05594ca467a49259553d64",
-  "git_tree": "3e7cd2935317dcc6d43135309243419f4f73e6ac",
+  "git_tree": "001b22149d46c2a04d5c38f0d1bf008335f1e9c6",
   "prefix": "sentinel-forensics",
-  "files": 1434,
-  "bytes": 11468685,
+  "files": 1435,
+  "bytes": 11495363,
   "license": "AGPL-3.0",
   "license_sha256": "7f8f48e4266aa8fd3033dfaa4bb7f6e83a60c6e099f82d4959b81de90e67cd8f",
-  "import_method": "Complete committed upstream tree with 34 recorded replacements and 18 local additions; Git metadata/history and untracked files excluded.",
+  "import_method": "Complete committed upstream tree with 43 recorded replacements and 19 local additions; Git metadata/history and untracked files excluded.",
   "upstream_git_tree": "45e7025dd351732dfa0d321362891ff353f8b940",
   "upstream_bytes": 11448833,
   "patches": [
@@ -63,7 +63,7 @@
     {
       "path": "functions/helpers/usage.ts",
       "operation": "add",
-      "sha256": "25f9685bdd5957f96ce406a78323a488f2666ab3d4f18d2561dc32c2481fc0b8",
+      "sha256": "08e701cb750119526ff89db0a0933c8a99ef699bb9b8ca19b87f704b9d3adc10",
       "reason": "Add allowlisted, finite positive usage-increment validation."
     },
     {
@@ -71,14 +71,14 @@
       "operation": "replace",
       "upstream_blob": "ad1408b84d948cfc2ba287c49ffb3a1c37194a89",
       "upstream_sha256": "1456fb844b46ed34bc226b7662a4b5969e85949b775041586af8d8752d46fe61",
-      "sha256": "58dc2fdf1815ad6af251cded359ccea90207b93f9e95c4f1d79919dee9c6fe49",
-      "reason": "Reject unsupported usage metrics and invalid increments."
+      "sha256": "9a5034d1fcc1421b34db8a16264e98b066ba08591bfe0130f84850ec6e9109c7",
+      "reason": "Reject unsupported usage metrics and invalid increments; update counters atomically."
     },
     {
       "path": "functions/tests/incrementUsage_test.ts",
       "operation": "add",
-      "sha256": "2708211a54b392c52c7591582b660f356e79b911ae3408da9ef190e46ba38033",
-      "reason": "Add regression coverage for accepted and rejected usage increments."
+      "sha256": "5c0462c17b6bb1f2657adcbfbee4f81165fd0fe72be9c4ba7b4e3e0c6c9a32e0",
+      "reason": "Add regression coverage for accepted and rejected usage increments and atomic counter updates."
     },
     {
       "path": "functions/tests/orgContext.test.mjs",
@@ -391,6 +391,84 @@
       "upstream_sha256": "cb41d9f92f4f900b9e3516e4462558fb844407722383ef0c70027033dbf9fc89",
       "sha256": "da7c8f5845c492ec12c0b458df2543a6c6951b19830ef563113cf3035055ca09",
       "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/cancelSubscription.ts",
+      "operation": "replace",
+      "upstream_blob": "57c88d80e19a17dd522a08bbb79c3651758b4da1",
+      "upstream_sha256": "c11ca18a8a715bddcb56139e4085f90ea1db0d227974a864c7f8f85d3b1fc0f3",
+      "sha256": "c09b8d1c59b1ab63f9aaeae2d62d1c9ea9ea88c503fb729f96e326ad70ae2535",
+      "reason": "Keep local subscription status aligned with Stripe cancellation state."
+    },
+    {
+      "path": "functions/enforceRBAC.ts",
+      "operation": "replace",
+      "upstream_blob": "678171af8e09751eaf7c7a540072cca23849aa16",
+      "upstream_sha256": "b8ac202d47c36bcf04a0194bda5b3ba28fc6b7db961726ed12d28d3ea12e263c",
+      "sha256": "dc2a6c811fd0b30ae788eaaad84d446df034a037cb77d935bc09d8ec784cf4b0",
+      "reason": "Expose RBAC request handling only when the module is executed directly."
+    },
+    {
+      "path": "functions/generateDisclosureLog.ts",
+      "operation": "replace",
+      "upstream_blob": "cb73a59ad08cf073262f589c4a7a89277c36d606",
+      "upstream_sha256": "29cc7dad8b19279994db777784983ae4ff0c35b2f8c26be63e6d64a81acdabd3",
+      "sha256": "33855f9017659b5513610c0bf0d2fe7fb4a65ee2be03d7578c4d86de58c4872e",
+      "reason": "Validate disclosure evidence selection and reject unavailable evidence."
+    },
+    {
+      "path": "functions/listApiKeys.ts",
+      "operation": "replace",
+      "upstream_blob": "db741a273827e1ef1a74eed7065d1430b002add5",
+      "upstream_sha256": "e669dc9e8e2bc148ee706b51608081daadf505f87976a7307db549860c6ede2a",
+      "sha256": "c00dbf5a9cb02246bb2a4fc7063ebcdef5533ac6ed34e6cc069904ff2cb5d7d6",
+      "reason": "Require organization context before listing API keys."
+    },
+    {
+      "path": "functions/tests/usageCounter.test.mjs",
+      "operation": "add",
+      "sha256": "c937e6644fdd8dff03f2e29c0887496946d28b1d85fefb50eb2ff6c58948925b",
+      "reason": "Add regression coverage for concurrent atomic usage counter updates."
+    },
+    {
+      "path": "package-lock.json",
+      "operation": "replace",
+      "upstream_blob": "e28a7cb245b5d7edec1ad6d0405680a5941eeb69",
+      "upstream_sha256": "077f802c65ebdbfd2216c4453ec15706c1525df8176e7c8636522351db4b92b0",
+      "sha256": "0b232501e7a8ddb7d02904f8cf7acd30397998aadb5af20b623d7f9342bbae8d",
+      "reason": "Record dependency lockfile changes required by the Sentinel package manifest."
+    },
+    {
+      "path": "package.json",
+      "operation": "replace",
+      "upstream_blob": "b7e996c001ace369ab2fcece76b578e2a2e09e03",
+      "upstream_sha256": "270a6c036c5494e840a9d48ede4a59fbeba77e0250313b465229c084a63ff39e",
+      "sha256": "2380dfb2e6aec62244c803bbdccff4db1b9f7086313bf8c48bfed07453cd0681",
+      "reason": "Record dependency and script changes for the Sentinel package."
+    },
+    {
+      "path": "src/components/analytics/ChartCard.jsx",
+      "operation": "replace",
+      "upstream_blob": "058d6d8e001447d4d9d265e33e376d61da60e272",
+      "upstream_sha256": "5ecc1406c4c5f032bc90ea0ef8742d8730ad41bea5c78034e4c08c74d9f06f3e",
+      "sha256": "310ec01a4e8b55f7c3b97f012c683ee03baadf87008d60ef88bba95a54e61797",
+      "reason": "Add accessible labels and expanded state to chart controls."
+    },
+    {
+      "path": "src/components/hooks/useCaseTriage.jsx",
+      "operation": "replace",
+      "upstream_blob": "0cbf6490a272bb562874ea5dfa567ca61b32d127",
+      "upstream_sha256": "a283b88a5c7eb18ca55ace8c39b5dde38f93615b8d14f08d1f0992b0efd5aac4",
+      "sha256": "ad6138c348de0c86383876878b1ee3de4078ffdc43658a65deef0f9170dfa5a3",
+      "reason": "Invalidate the triaged case and organization query after success."
+    },
+    {
+      "path": "src/lib/NavigationTracker.jsx",
+      "operation": "replace",
+      "upstream_blob": "44eb5f5d24ed4beaa2240cbf51e47f5ddf8dd618",
+      "upstream_sha256": "6f763bef5afe86616af979761bea5e6a57ddae5d893e84c1c87e164509b51329",
+      "sha256": "9a893d385b8aa1bb863c042ba5ec58e5a610fe80334f19a369a6f7d4fae8f157",
+      "reason": "Report only the relative pathname to the parent navigation tracker."
     }
   ]
 }
