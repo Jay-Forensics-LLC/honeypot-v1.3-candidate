@@ -1,0 +1,63 @@
+name: Sentinel API authorization offline
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  synthetic-authorization:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Run synthetic function tests in an offline OS sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          node_bin_dir="$(dirname "$(command -v node)")"
+          sandbox_root="$(mktemp -d "$RUNNER_TEMP/sentinel-auth.XXXXXX")"
+          # Toolchain setup is complete. Tests get no network, credentials,
+          # host home, writable source, or provider SDK/dependency installation.
+          timeout --kill-after=5s 240s sudo unshare --mount --net --ipc --pid --fork --kill-child \
+            bash -s -- "$GITHUB_WORKSPACE" "$node_bin_dir" "$sandbox_root" <<'SANDBOX'
+          set -euo pipefail
+          source_dir="$1"
+          node_dir="$2"
+          root_dir="$3"
+          mount --make-rprivate /
+          # Some existing offline checks use local client/server fixtures.
+          # This namespace has only loopback and no external interface or route.
+          ip link set lo up
+          mount -t tmpfs -o size=16m,mode=0755,nodev,nosuid tmpfs "$root_dir"
+          mkdir -p "$root_dir"/{usr,bin,lib,lib64,runtime,source,etc,dev,proc,scratch}
+          for dir in usr bin lib lib64; do
+            mount --bind "/$dir" "$root_dir/$dir"
+            mount -o remount,bind,ro "$root_dir/$dir"
+          done
+          mount --bind "$node_dir" "$root_dir/runtime"
+          mount -o remount,bind,ro "$root_dir/runtime"
+          mount --bind "$source_dir" "$root_dir/source"
+          mount -o remount,bind,ro "$root_dir/source"
+          for device in null urandom; do
+            touch "$root_dir/dev/$device"
+            mount --bind "/dev/$device" "$root_dir/dev/$device"
+            mount -o remount,bind,ro "$root_dir/dev/$device"
+          done
+          touch "$root_dir/etc/ld.so.cache"
+          mount --bind /etc/ld.so.cache "$root_dir/etc/ld.so.cache"
+          mount -o remount,bind,ro "$root_dir/etc/ld.so.cache"
+          mount -t proc -o ro,nosuid,nodev,noexec,hidepid=2 proc "$root_dir/proc"
+          mount -t tmpfs -o size=64m,mode=0700,uid=65534,gid=65534,nodev,nosuid,noexec tmpfs "$root_dir/scratch"
+          mount -o remount,ro "$root_dir"
+          cd /
+          exec chroot "$root_dir" /usr/bin/setpriv \
+            --reuid=65534 --regid=65534 --clear-groups --bounding-set=-all --no-new-privs \
+            /usr/bin/env -i PATH=/runtime:/usr/bin:/bin HOME=/scratch TMPDIR=/scratch XDG_CACHE_HOME=/scratch \
+            /usr/bin/prlimit --cpu=120 --as=4294967296 --nproc=64 --nofile=256 --fsize=16777216 --core=0 \
+            /bin/sh -c 'set -eu; cd /source; node --disable-wasm-trap-handler --max-old-space-size=256 --test --test-concurrency=1 sentinel-forensics/functions/tests/*.test.mjs; python3 -B tools/validate_sentinel_bundle.py; python3 -B -m unittest discover -s tools/tests -p test_sentinel_bundle.py -v; make -C honeypot test; make -C honeypot verify'
+          SANDBOX

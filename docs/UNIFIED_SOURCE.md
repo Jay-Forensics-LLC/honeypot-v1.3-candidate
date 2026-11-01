@@ -57,9 +57,9 @@ Sentinel source. Default completed-case storage is the ignored
 tree, inventory totals and license digest. `tools/validate_sentinel_bundle.py`
 reconstructs the Git tree from the bundled file bytes and Git file modes without
 requiring a nested Git checkout. The import includes the complete committed tree,
-with 34 recorded replacements and 18 local additions; upstream Git
-metadata/history and untracked files are not copied. The current bundle has 1,434
-files: the 1,416 pinned upstream files plus the 18 recorded additions.
+with 55 recorded replacements and 28 local additions; upstream Git
+metadata/history and untracked files are not copied. The current bundle has 1,444
+files: the 1,416 pinned upstream files plus the 28 recorded additions.
 
 The original license, source notices, upstream documentation and retained test
 fixtures stay with the imported source. See
