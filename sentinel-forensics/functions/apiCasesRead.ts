@@ -26,7 +26,10 @@ Deno.serve(async (req) => {
 
     // Get cases for organization
     const cases = await base44.asServiceRole.entities.Case.filter({
-      organization_id: apiKey.organization_id
+      organization_id: apiKey.organization_id,
+      ...(apiKey.case_id !== null && apiKey.case_id !== undefined
+        ? { case_id: apiKey.case_id }
+        : {})
     });
 
     return Response.json({
