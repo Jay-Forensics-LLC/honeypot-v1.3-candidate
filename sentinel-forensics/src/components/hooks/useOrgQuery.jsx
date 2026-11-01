@@ -42,7 +42,7 @@ export function useOrgQuery(
         return results || [];
       } catch (error) {
         console.error(`Failed to query ${entityName}:`, error.message);
-        return [];
+        throw error;
       }
     },
     enabled: !!user?.organization_id && (options.enabled !== undefined ? options.enabled : true),
