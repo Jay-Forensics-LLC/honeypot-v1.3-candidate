@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+import { isValidUsageIncrement, VALID_USAGE_METRICS } from './helpers/usage.ts';
 
 /**
  * Increment usage counter for current period
@@ -16,6 +17,13 @@ Deno.serve(async (req) => {
 
         if (!metricType) {
             return Response.json({ error: 'Metric type required' }, { status: 400 });
+        }
+
+        if (!isValidUsageIncrement(metricType, amount)) {
+            return Response.json({
+                error: 'Invalid usage increment',
+                valid_metrics: VALID_USAGE_METRICS
+            }, { status: 400 });
         }
 
         const currentUsage = user.usage_current_period || {};
