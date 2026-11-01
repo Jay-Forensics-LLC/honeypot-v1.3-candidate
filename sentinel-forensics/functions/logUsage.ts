@@ -8,14 +8,14 @@ Deno.serve(async (req) => {
 
     const { case_id, usage_type, quantity, unit, metadata } = await req.json();
 
-    if (!case_id || !usage_type || !quantity || !unit) {
+    if (typeof case_id !== 'string' || !case_id || typeof usage_type !== 'string' || typeof unit !== 'string' || !unit) {
       return Response.json({ 
         error: 'Missing required fields: case_id, usage_type, quantity, unit' 
       }, { status: 400 });
     }
 
     // Calculate cost based on usage type (simplified pricing model)
-    const costMap = {
+    const costMap: Record<string, number> = {
       storage: 1, // $0.01 per GB/month, stored in cents
       export: 500, // $5.00 per export
       certified_export: 2500, // $25.00 per certified export
@@ -24,7 +24,14 @@ Deno.serve(async (req) => {
       report_generation: 500 // $5.00 per report
     };
 
-    const unitCost = costMap[usage_type] || 0;
+    if (!Object.prototype.hasOwnProperty.call(costMap, usage_type)) {
+      return Response.json({ error: 'Unsupported usage type' }, { status: 400 });
+    }
+    if (typeof quantity !== 'number' || !Number.isFinite(quantity) || quantity <= 0) {
+      return Response.json({ error: 'Quantity must be a positive finite number' }, { status: 400 });
+    }
+
+    const unitCost = costMap[usage_type];
     const costCents = Math.round(quantity * unitCost);
 
     const usageLog = await base44.asServiceRole.entities.UsageLog.create({

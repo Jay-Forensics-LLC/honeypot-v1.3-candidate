@@ -55,38 +55,41 @@ def _directory(path, create=False):
 
 
 def _usage(descriptor):
+    """Count regular files without retaining every sibling directory."""
     total = entries = 0
-    pending = [os.dup(descriptor)]
-    try:
-        while pending:
-            current = pending.pop()
+
+    def walk(current):
+        nonlocal total, entries
+        names = []
+        with os.scandir(current) as children:
+            for child in children:
+                entries += 1
+                if entries > 10000:
+                    raise Phase10Error('Private job workspace is full')
+                try:
+                    info = child.stat(follow_symlinks=False)
+                except FileNotFoundError:
+                    continue  # The companion atomically replaces its progress files.
+                if info.st_uid != os.geteuid() or info.st_mode & 0o077:
+                    raise Phase10Error('Unsupported job workspace entry')
+                if stat.S_ISDIR(info.st_mode):
+                    names.append(child.name)
+                elif stat.S_ISREG(info.st_mode) and info.st_nlink == 1:
+                    total += info.st_size
+                else:
+                    raise Phase10Error('Unsupported job workspace entry')
+        for name in names:
             try:
-                with os.scandir(current) as children:
-                    for child in children:
-                        entries += 1
-                        if entries > 10000:
-                            raise Phase10Error('Private job workspace is full')
-                        try:
-                            info = child.stat(follow_symlinks=False)
-                        except FileNotFoundError:
-                            continue  # The companion atomically replaces its progress files.
-                        if info.st_uid != os.geteuid() or info.st_mode & 0o077:
-                            raise Phase10Error('Unsupported job workspace entry')
-                        if stat.S_ISDIR(info.st_mode):
-                            try:
-                                pending.append(os.open(child.name, _DIRECTORY, dir_fd=current))
-                            except FileNotFoundError:
-                                continue
-                        elif stat.S_ISREG(info.st_mode) and info.st_nlink == 1:
-                            total += info.st_size
-                        else:
-                            raise Phase10Error('Unsupported job workspace entry')
+                child = os.open(name, _DIRECTORY, dir_fd=current)
+            except FileNotFoundError:
+                continue
+            try:
+                walk(child)
             finally:
-                os.close(current)
-        return total
-    finally:
-        for descriptor in pending:
-            os.close(descriptor)
+                os.close(child)
+
+    walk(descriptor)
+    return total
 
 
 def _stop(process):

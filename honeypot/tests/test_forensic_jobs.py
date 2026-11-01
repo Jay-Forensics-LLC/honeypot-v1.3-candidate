@@ -12,7 +12,7 @@ from unittest.mock import patch
 from unittest.mock import Mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from phase10.jobs import JobManager
+from phase10.jobs import JobManager, _usage, _directory
 from phase10.model import Phase10Error
 
 
@@ -30,6 +30,37 @@ class ForensicJobs(unittest.TestCase):
         self.manager = JobManager(self.companion, self.root / 'private-jobs', self.accept)
         self.addCleanup(self.manager.close)
         self.stub()
+
+    def test_workspace_usage_keeps_one_child_directory_open(self):
+        workspace = self.root / 'usage-jobs'
+        workspace.mkdir(mode=0o700)
+        wide = workspace / 'wide'
+        wide.mkdir(mode=0o700)
+        for index in range(40):
+            child = wide / f'd{index:02d}'
+            child.mkdir(mode=0o700)
+            blob = child / 'f'
+            blob.write_bytes(b'x')
+            blob.chmod(0o600)
+        root = _directory(workspace)
+        self.addCleanup(os.close, root)
+        open_count = {'now': 0, 'max': 0}
+        real_open, real_close = os.open, os.close
+
+        def counting_open(*args, **kwargs):
+            descriptor = real_open(*args, **kwargs)
+            open_count['now'] += 1
+            open_count['max'] = max(open_count['max'], open_count['now'])
+            return descriptor
+
+        def counting_close(descriptor):
+            open_count['now'] -= 1
+            return real_close(descriptor)
+
+        with patch('phase10.jobs.os.open', counting_open), patch('phase10.jobs.os.close', counting_close):
+            self.assertEqual(_usage(root), 40)
+        self.assertLessEqual(open_count['max'], 2)
+        self.assertEqual(open_count['now'], 0)
 
     def accept(self, path):
         self.assertEqual(json.loads((path / 'state.json').read_text())['status'], 'COMPLETE')
