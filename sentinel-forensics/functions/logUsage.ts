@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
 
     // Calculate cost based on usage type (simplified pricing model)
     const costMap = {
-      storage: 1, // 1 cent per GB/month
+      storage: 1, // $0.01 per GB/month, stored in cents
       export: 500, // $5.00 per export
       certified_export: 2500, // $25.00 per certified export
       api_call: 10, // $0.10 per API call

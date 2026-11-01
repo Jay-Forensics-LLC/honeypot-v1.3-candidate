@@ -75,6 +75,23 @@ class SentinelSnapshot(unittest.TestCase):
         with self.assertRaises(ValueError):
             check(self.root)
 
+    def test_recorded_addition_preserves_upstream_identity(self):
+        (self.source / 'overlay.txt').write_bytes(b'Local overlay\n')
+        receipt = self.root / 'docs/sentinel-source.json'
+        manifest = json.loads(receipt.read_text())
+        manifest.update(upstream_git_tree=manifest['git_tree'],
+                        git_tree='e496bb89c547fe059f9f9f4ef6e72617dbc41f39',
+                        files=3, bytes=46,
+                        patches=[{'path': 'overlay.txt', 'operation': 'add',
+                                  'sha256': '869e5800630cf2513e2d826d6e6be63abf0ade969bb9975531d965f0096ca0d6',
+                                  'reason': 'Add a local overlay file.'}])
+        receipt.write_text(json.dumps(manifest))
+        self.assertEqual(check(self.root)['recorded_patches'], 1)
+        manifest['patches'][0]['upstream_blob'] = '0' * 40
+        receipt.write_text(json.dumps(manifest))
+        with self.assertRaises(ValueError):
+            check(self.root)
+
 
 if __name__ == '__main__':
     unittest.main()

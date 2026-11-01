@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { findApiKeyInOrganization, getApiKeyToggleStatus } from './helpers/apiKeyScope.ts';
+import { getOrganizationApiKeyFilter, getToggleApiKeyStatus } from './helpers/apiKeyStatus.ts';
 
 Deno.serve(async (req) => {
   try {
@@ -20,17 +20,22 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Missing apiKeyId or enable flag' }, { status: 400 });
     }
 
-    const apiKey = await findApiKeyInOrganization(base44, apiKeyId, user.organization_id);
-    if (!apiKey) {
+    const keyFilter = getOrganizationApiKeyFilter(user, apiKeyId);
+    if (!keyFilter) {
+      return Response.json({ error: 'Organization context required' }, { status: 403 });
+    }
+
+    const keys = await base44.asServiceRole.entities.ApiKey.filter(keyFilter);
+    if (!keys.length) {
       return Response.json({ error: 'API key not found' }, { status: 404 });
     }
 
-    const status = getApiKeyToggleStatus(apiKey, enable);
+    const status = getToggleApiKeyStatus(keys[0].status, enable);
     if (!status) {
       return Response.json({ error: 'Only active or disabled API keys can be toggled' }, { status: 409 });
     }
 
-    const updated = await base44.asServiceRole.entities.ApiKey.update(apiKey.id, { status });
+    const updated = await base44.asServiceRole.entities.ApiKey.update(keys[0].id, { status });
 
     return Response.json({ 
       success: true, 

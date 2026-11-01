@@ -1,5 +1,8 @@
-export function serializeCsv(rows) {
-  return rows
-    .map(row => row.map(value => `"${String(value ?? '').replace(/"/g, '""')}"`).join(','))
-    .join('\r\n');
+export function encodeCsvRow(values: unknown[]): string {
+  return values.map(value => {
+    const field = String(value ?? '');
+    return /[",\r\n]/.test(field)
+      ? `"${field.replace(/"/g, '""')}"`
+      : field;
+  }).join(',');
 }

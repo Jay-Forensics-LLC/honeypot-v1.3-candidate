@@ -87,7 +87,7 @@ export async function enhancedQuery({
 /**
  * Enhanced mutation wrapper
  */
-export function enhancedMutation({
+export async function enhancedMutation({
   mutationFn,
   invalidatePatterns = [],
   enableCircuitBreaker = true,

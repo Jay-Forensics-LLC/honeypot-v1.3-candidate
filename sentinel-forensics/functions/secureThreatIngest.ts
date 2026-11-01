@@ -1,27 +1,12 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { checkRateLimit as checkThreatIngestRateLimit } from './securityMiddleware.ts';
-import { requireAuth, requireOrg, safeJson } from './helpers/security.ts';
+import { checkRateLimit, requireOrganization, sanitizeInput } from './securityMiddleware.ts';
+import { safeJson } from './helpers/security.ts';
 import { applySecurityHeaders } from './helpers/securityHeaders.ts';
 import { sanitizeCVEInput } from './helpers/cveInput.ts';
 
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
-    const user = await requireAuth(base44);
-    const organizationId = requireOrg(user);
-    try {
-      await checkThreatIngestRateLimit(
-        base44,
-        `secureThreatIngest:${organizationId}:${user.id || user.email || 'unknown'}`,
-        100,
-        60000
-      );
-    } catch (error) {
-      if (error.message !== 'Rate limit exceeded') throw error;
-      return applySecurityHeaders(Response.json({
-        error: 'Rate limit exceeded',
-      }, { status: 429 }));
-    }
+    const { user, base44 } = await requireOrganization(req);
+    await checkRateLimit(base44, user.organization_id, 100, 60000);
 
     const payload = await safeJson(req);
     const { sanitized, isValid, errors } = sanitizeCVEInput(payload);
@@ -32,10 +17,16 @@ Deno.serve(async (req) => {
       }, { status: 400 }));
     }
 
-    sanitized.organization_id = organizationId;
+    for (const field of ['vulnerability_name', 'description', 'severity', 'exploitation_status']) {
+      if (typeof sanitized[field] === 'string') {
+        sanitized[field] = sanitizeInput(sanitized[field]);
+      }
+    }
+
+    sanitized.organization_id = user.organization_id;
     const vulnerability = await base44.entities.VulnerabilityAssessment.create(sanitized);
     await base44.entities.AuditLog.create({
-      organization_id: organizationId,
+      organization_id: user.organization_id,
       user_email: user.email,
       action: 'threat_ingested',
       resource_type: 'vulnerability',
@@ -47,12 +38,24 @@ Deno.serve(async (req) => {
         cvss_score: sanitized.cvss_score
       }
     });
-    return applySecurityHeaders(Response.json({ success: true, vulnerability }));
+
+    return applySecurityHeaders(Response.json({
+      success: true,
+      vulnerability
+    }));
   } catch (error) {
     if (error instanceof Response) {
       return applySecurityHeaders(error);
     }
+
+    const message = error?.message || '';
+    const status = message === 'Rate limit exceeded' ? 429
+      : message.startsWith('Unauthorized') ? 401
+      : message.startsWith('Forbidden') ? 403
+      : 500;
     console.error('Threat ingestion failed:', error);
-    return applySecurityHeaders(Response.json({ error: 'Threat ingestion failed' }, { status: 500 }));
+    return applySecurityHeaders(Response.json({
+      error: status === 500 ? 'Threat ingestion failed' : message
+    }, { status }));
   }
 });

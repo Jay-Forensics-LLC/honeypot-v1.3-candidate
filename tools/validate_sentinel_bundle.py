@@ -22,10 +22,16 @@ def check(root=ROOT):
     patches = {}
     for patch in manifest.get('patches', []):
         name = patch['path']
+        operation = patch.get('operation', 'replace')
         if (not isinstance(name, str) or Path(name).is_absolute() or '..' in Path(name).parts or
-                name in patches or not re.fullmatch('[a-f0-9]{40}', patch['upstream_blob']) or
+                name in patches or operation not in ('replace', 'add') or
                 not re.fullmatch('[a-f0-9]{64}', patch['sha256'])):
             raise ValueError('Invalid recorded Sentinel source patch')
+        if operation == 'add':
+            if patch.get('upstream_blob') is not None or patch.get('upstream_sha256') is not None:
+                raise ValueError('Invalid recorded Sentinel source addition')
+        elif not re.fullmatch('[a-f0-9]{40}', patch.get('upstream_blob', '')):
+            raise ValueError('Invalid recorded Sentinel source replacement')
         patches[name] = patch
     observed_patches = set()
 
@@ -51,12 +57,14 @@ def check(root=ROOT):
                     patch = patches[relative]
                     if hashlib.sha256(raw).hexdigest() != patch['sha256']:
                         raise ValueError('Recorded Sentinel patch bytes differ')
-                    upstream = bytes.fromhex(patch['upstream_blob'])
+                    upstream = (None if patch.get('operation', 'replace') == 'add' else
+                                bytes.fromhex(patch['upstream_blob']))
                     observed_patches.add(relative)
             else:
                 raise ValueError('Unsupported Sentinel source object')
             entries.append((key, mode + b' ' + path.name.encode() + b'\0' + digest))
-            upstream_entries.append((key, mode + b' ' + path.name.encode() + b'\0' + upstream))
+            if upstream is not None:
+                upstream_entries.append((key, mode + b' ' + path.name.encode() + b'\0' + upstream))
         return (_object('tree', b''.join(data for _, data in sorted(entries))),
                 _object('tree', b''.join(data for _, data in sorted(upstream_entries))))
 
