@@ -19,6 +19,7 @@ import shutil
 import time
 from urllib.parse import urlsplit
 from hp_common import ROOT, atomic_json, append_json, runtime_path, sha256, utc, redact
+from operational_log import SuiteLog
 
 from evidence_store import records as evidence_records, append as evidence_append, commit as evidence_commit, EvidenceIntegrityError, sync_directory, MAX_INCIDENT_BYTES
 from evidence_store import EventLocations, ReplayIndexPending, zero_tail_ids, scan_directory
@@ -578,10 +579,13 @@ class Engine:
 
 if __name__=='__main__':
     os.umask(0o027)
+    suite_log = SuiteLog(ROOT, 'incidentd')
+    suite_log.event('incidentd.started')
     engine=Engine()
     while True:
         try: engine.poll()
         except Exception as exc:
-            append_json(ROOT/'logs/system/incidentd-errors.jsonl',{'timestamp':utc(),'error':type(exc).__name__,'detail':str(exc)[:500]},rotate=True)
+            suite_log.event('incidentd.failed', level='ERROR', error_type=type(exc).__name__)
+            append_json(ROOT/'logs/system/incidentd-errors.jsonl',{'timestamp':utc(),'error':type(exc).__name__},rotate=True)
             raise
         time.sleep(1 if time.time()<engine.fast_poll_until else 5)

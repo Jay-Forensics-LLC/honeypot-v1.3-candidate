@@ -15,6 +15,7 @@ DETAIL_KEYS = frozenset(('ports', 'services', 'status', 'template_id', 'severity
                          'note', 'namespace', 'workspace', 'scan_id', 'campaign_id',
                          'counts', 'provenance', 'limitations', 'time_status', 'source_time'))
 _SECRET = re.compile(r'password|passwd|secret|token|credential|cookie|authorization|private.?key|raw|session', re.I)
+_PROTOCOL_CODE = re.compile(r'[A-Za-z0-9_.:-]{1,128}')
 
 
 class Phase10Error(ValueError):
@@ -128,7 +129,7 @@ def timestamp(value, optional=False):
         raise Phase10Error('Invalid timestamp') from exc
 
 
-def _detail(value, depth=0):
+def _detail(value, depth=0, path=()):
     if depth > 4:
         raise Phase10Error('Detail nesting limit exceeded')
     if value is None or type(value) is bool:
@@ -140,15 +141,21 @@ def _detail(value, depth=0):
     if isinstance(value, str):
         return _text(value)
     if isinstance(value, list) and len(value) <= 100:
-        return [_detail(item, depth + 1) for item in value]
-    if isinstance(value, dict) and len(value) <= 100:
+        return [_detail(item, depth + 1, path + ('[]',)) for item in value]
+    # IP's protocol byte alone permits 256 groups. Only this numeric histogram
+    # gets a larger bound; arbitrary detail dictionaries remain limited to 100.
+    protocol_counts = path == ('metrics', 'protocol_distribution')
+    if isinstance(value, dict) and len(value) <= (512 if protocol_counts else 100):
         result = {}
         for key, item in value.items():
-            key = _text(key, 64)
+            key = _text(key, 128 if protocol_counts else 64)
+            if protocol_counts and (not _PROTOCOL_CODE.fullmatch(key) or
+                                    type(item) is not int or not 0 <= item <= 10**15):
+                raise Phase10Error('Invalid protocol count')
             aggregate_sessions = key == 'sessions' and type(item) is int and 0 <= item <= 10**15
-            if _SECRET.search(key) and not aggregate_sessions:
+            if _SECRET.search(key) and (protocol_counts or not aggregate_sessions):
                 raise Phase10Error('Secret-bearing detail fields are unsupported')
-            result[key] = _detail(item, depth + 1)
+            result[key] = _detail(item, depth + 1, path + (key,))
         return result
     raise Phase10Error('Invalid detail value')
 

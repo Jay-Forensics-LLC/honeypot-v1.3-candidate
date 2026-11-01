@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+from operational_log import get_log
 
 from .model import Phase10Error
 
@@ -35,6 +36,8 @@ def dispatch(args, root):
     from .registry import PLUGINS
 
     action = args.integration_action
+    log = get_log('imports')
+    log.event('import.operation_started', operation=action)
     policy_path = args.policy or Path(root) / 'configs/phase10.json'
     store = args.store or Path(root) / 'state/phase10'
     try:
@@ -75,8 +78,11 @@ def dispatch(args, root):
         else:
             raise Phase10Error('Unknown integration action')
         print(json.dumps(result, ensure_ascii=True, allow_nan=False, indent=2))
+        log.event('import.operation_completed', operation=action)
         return 0
-    except (Phase10Error, OSError, ValueError):
+    except (Phase10Error, OSError, ValueError) as exc:
+        log.event('import.operation_rejected', level='WARNING', operation=action,
+                  error_type=type(exc).__name__)
         # Never echo a report, credential, URL or private source path in errors.
         print(json.dumps({'status': 'error', 'error': 'Integration operation rejected'}))
         return 1

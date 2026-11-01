@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import stat
+from operational_log import get_log
 from .io import parse_json, parse_jsonl
 from .model import MAX_BYTES, Phase10Error, make_finding, timestamp
 
@@ -240,6 +241,8 @@ class Store:
             for old in self._manifests(root):
                 if old['import_id'] == identifier:
                     self._verify(root, old)
+                    get_log('store').event('store.deduplicated', plugin=plugin_id,
+                                           import_id=identifier, records=len(rows), deduplicated=True)
                     return {**old, 'deduplicated': True}
             total, count = self._usage(root)
             if count >= MAX_IMPORTS or total + len(raw) + len(projection) + len(encoded) + len(audit_line) > MAX_STORE_BYTES:
@@ -281,6 +284,8 @@ class Store:
             finally:
                 os.close(audit)
             os.fsync(root)
+        get_log('store').event('store.committed', plugin=plugin_id, import_id=identifier,
+                               records=len(rows), bytes=len(raw), deduplicated=False)
         return {**manifest, 'deduplicated': False}
 
     def manifests(self):
@@ -291,6 +296,28 @@ class Store:
                 return self._manifests(root)
         except FileNotFoundError:
             return []
+
+    def read_import(self, import_id):
+        """Verify one committed import without exporting unrelated evidence."""
+        if not isinstance(import_id, str) or not re.fullmatch('[a-f0-9]{64}', import_id):
+            raise Phase10Error('Invalid import identifier')
+        if not self.policy.enabled:
+            raise Phase10Error('Phase 10 integrations are disabled')
+        try:
+            with self._open() as root:
+                directory = _child(root, 'imports')
+                try:
+                    manifest = parse_json(_read(directory, import_id + '.json', 1024 * 1024))
+                finally:
+                    os.close(directory)
+                if not isinstance(manifest, dict) or manifest.get('import_id') != import_id:
+                    raise Phase10Error('Invalid import manifest')
+                if not isinstance(manifest.get('plugin_id'), str):
+                    raise Phase10Error('Invalid stored integration')
+                self.policy.require(manifest.get('plugin_id'))
+                return {'manifest': manifest, 'findings': self._verify(root, manifest)}
+        except FileNotFoundError as exc:
+            raise Phase10Error('Import is unavailable') from exc
 
     def export(self):
         if not self.policy.enabled:
@@ -304,6 +331,7 @@ class Store:
                         if total > MAX_BYTES or len(rows) + manifest['normalized']['records'] > self.policy.max_records:
                             raise Phase10Error('Export quota exceeded; select a narrower store')
                         rows.extend(self._verify(root, manifest))
+                get_log('store').event('store.exported', records=len(rows), bytes=total)
                 return rows
         except FileNotFoundError:
             return []

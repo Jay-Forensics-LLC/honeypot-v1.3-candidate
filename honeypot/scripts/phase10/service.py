@@ -8,6 +8,8 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
+from operational_log import get_log
 
 from .io import parse_json, read_regular
 from .model import MAX_BYTES, Phase10Error
@@ -19,7 +21,7 @@ def utc():
     return dt.datetime.now(dt.timezone.utc).isoformat().replace('+00:00', 'Z')
 
 
-def parse_report(plugin_id, format_name, raw, context, timeout_seconds):
+def _parse_report(plugin_id, format_name, raw, context, timeout_seconds):
     if os.geteuid() == 0:
         raise Phase10Error('Report workers must run as an unprivileged operator')
     if type(timeout_seconds) is not int or not 1 <= timeout_seconds <= 30:
@@ -54,6 +56,23 @@ def parse_report(plugin_id, format_name, raw, context, timeout_seconds):
     findings = parse_json(result.stdout)
     if not isinstance(findings, list) or len(findings) > context['max_records']:
         raise Phase10Error('Invalid worker result')
+    return findings
+
+
+def parse_report(plugin_id, format_name, raw, context, timeout_seconds):
+    log, started = get_log('imports'), time.monotonic()
+    log.event('worker.started', plugin=plugin_id, format=format_name,
+              bytes=len(raw) if isinstance(raw, bytes) else 0)
+    try:
+        findings = _parse_report(plugin_id, format_name, raw, context, timeout_seconds)
+    except (OSError, ValueError, TypeError, subprocess.SubprocessError) as exc:
+        log.event('worker.failed', level='WARNING', plugin=plugin_id, format=format_name,
+                  error_type=type(exc).__name__,
+                  error_code='worker_timeout' if isinstance(exc.__cause__, subprocess.TimeoutExpired) else 'worker_rejected',
+                  duration_ms=(time.monotonic() - started) * 1000)
+        raise
+    log.event('worker.completed', plugin=plugin_id, format=format_name, records=len(findings),
+              duration_ms=(time.monotonic() - started) * 1000)
     return findings
 
 

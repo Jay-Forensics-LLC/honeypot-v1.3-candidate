@@ -23,7 +23,8 @@ class DashboardWorkflow(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.root = Path(tmp.name)
-        self.server = dashboard.create_server(self.root, port=0)
+        self.server = dashboard.create_server(
+            self.root, port=0, sentinel_root=self.root / 'missing-companion')
         assets = self.root / 'web'
         assets.mkdir()
         (assets / 'index.html').write_text('<!doctype html><title>HoneyTrace</title>')
@@ -74,6 +75,7 @@ class DashboardWorkflow(unittest.TestCase):
         self.assertIn(b'HoneyTrace', shell)
         self.assertEqual(headers['Cache-Control'], 'no-store')
         self.assertIn("script-src 'self'", headers['Content-Security-Policy'])
+        self.assertNotIn('Server', headers)
         self.assertNotIn(self.server.session_token.encode(), shell)
         self.assertEqual(self.call('/api/state', auth=False)[0], 401)
         self.assertEqual(self.call('/api/state', headers={'Authorization': 'Bearer expired'})[0], 401)
@@ -143,14 +145,14 @@ class DashboardWorkflow(unittest.TestCase):
                                            ('b', '2026-11-01T10:30:00Z'),
                                            ('c', '2026-11-01T11:00:00Z')]]
         with patch.object(dashboard.Store, 'manifests', return_value=manifests), \
-                patch.object(dashboard.Store, 'export', return_value=[]):
+                patch.object(dashboard.Store, 'read_import', return_value={'findings': []}):
             status, snapshot, _ = self.call('/api/state')
         self.assertEqual(status, 200)
         self.assertEqual([row['import_id'] for row in snapshot['imports']],
                          ['c' * 64, 'a' * 64, 'b' * 64])
         manifests[0]['imported_at'] = 'invalid-saved-time'
         with patch.object(dashboard.Store, 'manifests', return_value=manifests), \
-                patch.object(dashboard.Store, 'export', return_value=[]):
+                patch.object(dashboard.Store, 'read_import', return_value={'findings': []}):
             status, snapshot, _ = self.call('/api/state')
         self.assertEqual(status, 200)
         self.assertEqual(snapshot['store_status'], 'unavailable')
@@ -242,6 +244,144 @@ class DashboardWorkflow(unittest.TestCase):
         self.assertNotIn('PRIVATE_TOKEN', json.dumps(result))
         self.assertTrue(self.call('/api/enrich', request)[1]['cached'])
 
+    def test_verified_case_timeline_export_and_disabled_visibility(self):
+        from test_phase9_sentinel import RUN, encode, exchange_rows
+
+        self.assertEqual(self.call('/api/cases', auth=False)[0], 401)
+        self.assertEqual(self.call('/api/cases')[1]['cases'], [])
+        self.enable(['sentinel'])
+        bundle = self.root / 'completed-case'
+        (bundle / 'export').mkdir(parents=True)
+        files = {'index.sqlite': b'SYNTHETIC private index',
+                 'pseudonym.key': b'PRIVATE_CASE_KEY',
+                 'state.json': json.dumps({'status': 'COMPLETE', 'version': '2.0.10'}).encode(),
+                 'manifest.json': json.dumps({'schema': 'evidence-lab/2', 'status': 'COMPLETE',
+                                              'parser_version': '2.0.10', 'run_id': RUN}).encode(),
+                 'export/exchange.jsonl': encode(exchange_rows())}
+        for name, raw in files.items():
+            (bundle / name).write_bytes(raw)
+        (bundle / 'SHA256SUMS').write_text(''.join(
+            hashlib.sha256(raw).hexdigest() + '  ' + name + '\n' for name, raw in files.items()))
+        status, result, _ = self.call('/api/sentinel', {'bundle_path': str(bundle)})
+        self.assertEqual(status, 200, result)
+        case_id = result['manifest']['import_id']
+        status, workspace, _ = self.call('/api/cases')
+        self.assertEqual(status, 200, workspace)
+        self.assertEqual(workspace['cases'][0]['case_id'], case_id)
+        status, detail, _ = self.call('/api/case', {'case_id': case_id, 'limit': 1})
+        self.assertEqual(status, 200, detail)
+        self.assertEqual(detail['timeline']['total'], 1)
+        self.assertIsNone(detail['timeline']['items'][0]['details']['source_time']['utc_ns'])
+        status, exported, _ = self.call('/api/case-export', {'case_id': case_id})
+        self.assertEqual(status, 200, exported)
+        self.assertEqual(len(exported['findings']), 8)
+        self.assertNotIn('PRIVATE_CASE_KEY', json.dumps(exported))
+        self.assertNotIn('private index', json.dumps(workspace) + json.dumps(detail))
+        self.assertEqual(self.call('/api/case', {'case_id': '../escape'})[0], 400)
+        self.enable([])
+        self.assertEqual(self.call('/api/cases')[1]['cases'], [])
+        self.assertEqual(self.call('/api/case-export', {'case_id': case_id})[0], 400)
+
+    def test_analysis_requires_module_and_configured_companion(self):
+        self.assertEqual(self.call('/api/jobs', {'input_path': '/private/capture.pcap'})[0], 409)
+        self.enable(['sentinel'])
+        status, result, _ = self.call('/api/jobs', {'input_path': '/private/capture.pcap'})
+        self.assertEqual(status, 409, result)
+        self.assertEqual(result['code'], 'analysis_unavailable')
+        self.assertNotIn('/private/capture.pcap', json.dumps(result))
+        self.assertFalse(self.call('/api/cases')[1]['jobs']['available'])
+
+    def test_diagnostics_are_authenticated_sanitized_and_independent_of_import_policy(self):
+        self.assertEqual(self.call('/api/diagnostics', auth=False)[0], 401)
+        self.enable(['bbot'])
+        self.assertEqual(self.upload()[0], 200)
+        self.server.log.event('dashboard.test', operation='diagnostic_check',
+                              password='PRIVATE_PASSWORD', path='/private/evidence',
+                              token=self.server.session_token)
+        status, result, _ = self.call('/api/diagnostics')
+        self.assertEqual(status, 200, result)
+        self.assertEqual(result['logging']['status'], 'available')
+        self.assertTrue(any(row['event'] == 'dashboard.test' for row in result['entries']))
+        requests = [row for row in result['entries'] if row['event'] == 'http.request']
+        self.assertTrue(any(row.get('route') == '/api/import' and row.get('status_code') == 200
+                            and len(row.get('correlation_id', '')) == 32 for row in requests))
+        status, exported, _ = self.call('/api/diagnostics-export', {})
+        self.assertEqual(status, 200)
+        self.assertEqual(exported['scope'], 'sanitized_operational_diagnostics')
+        text = json.dumps(exported)
+        for value in ('PRIVATE_PASSWORD', '/private/evidence', self.server.session_token,
+                      'asset.example.org'):
+            self.assertNotIn(value, text)
+        self.assertEqual(self.call('/api/diagnostics', {'limit': 201})[0], 400)
+        self.assertEqual(self.call('/api/diagnostics-export', {}, auth=False)[0], 401)
+
+    def test_decoy_profiles_prepare_source_without_changing_sensors(self):
+        self.assertEqual(self.call('/api/decoys', auth=False)[0], 401)
+        status, info, _ = self.call('/api/decoys')
+        self.assertEqual(status, 200)
+        self.assertFalse(info['privacy']['server_header'])
+        self.assertEqual({item['id'] for item in info['profiles']}, {'fileserver', 'webserver'})
+        status, result, _ = self.call('/api/decoy-profile', {'profile_id': 'webserver'})
+        self.assertEqual(status, 200, result)
+        self.assertEqual(result['status'], 'prepared')
+        self.assertEqual(len(result['files']), 2)
+        self.assertFalse((self.root / 'configs/cowrie').exists())
+        self.assertEqual(self.call('/api/decoy-profile', {'profile_id': 'unknown'})[0], 400)
+
+    def test_equipment_inventory_custom_class_value_and_observed_status(self):
+        self.assertEqual(self.call('/api/equipment', auth=False)[0], 401)
+        self.assertEqual(self.call('/api/equipment')[1]['equipment'], [])
+
+        payload = {'name': 'Lab scanner', 'description': 'Synthetic desk receiver',
+                   'category': 'sensor', 'active': True, 'tracking': 'heartbeat',
+                   'equipment_class': 'BLE Scanners', 'value': '$49.99'}
+        status, result, _ = self.call('/api/equipment-save', payload)
+        self.assertEqual(status, 200, result)
+        identifier = result['equipment']['id']
+        status, state, _ = self.call('/api/equipment')
+        entry = state['equipment'][0]
+        self.assertEqual(entry['equipment_class'], 'BLE Scanners')
+        self.assertEqual(entry['value'], '$49.99')
+        self.assertEqual(entry['operational']['status'], 'unknown')
+        self.assertEqual(self.call('/api/equipment-report', {'id': identifier, 'status': 'operational'})[0], 200)
+        entry = self.call('/api/equipment')[1]['equipment'][0]
+        self.assertEqual(entry['operational']['status'], 'operational')
+        self.assertEqual(entry['operational']['source'], 'heartbeat')
+        self.assertTrue(entry['operational']['observed_at'])
+        self.assertFalse(self.call('/api/state')[1]['policy']['enabled'])
+        self.assertEqual(self.call('/api/equipment-remove', {'id': identifier})[0], 200)
+        self.assertEqual(self.call('/api/equipment')[1]['equipment'], [])
+
+    def test_security_review_prioritizes_and_keeps_operator_decisions_separate(self):
+        self.assertEqual(self.call('/api/review-imports', auth=False)[0], 401)
+        self.assertFalse(self.call('/api/review-imports')[1]['available'])
+        self.enable(['nuclei'], assessment_approved=True, scope=['198.51.100.10'])
+        raw = (json.dumps({'template-id': 'synthetic-tls-review',
+                           'info': {'severity': 'high'}, 'type': 'http',
+                           'host': 'https://198.51.100.10',
+                           'matched-at': 'https://198.51.100.10/'}) + '\n').encode()
+        status, imported, _ = self.call('/api/import', {'plugin': 'nuclei', 'format': 'jsonl',
+                                                       'data': base64.b64encode(raw).decode()})
+        self.assertEqual(status, 200, imported)
+        identifier = imported['manifest']['import_id']
+        selection = {'import_ids': [identifier]}
+        status, view, _ = self.call('/api/security-review', selection)
+        self.assertEqual(status, 200, view)
+        item = view['items'][0]
+        original = item['source']
+        self.assertEqual(item['priority'], 'high')
+        status, decision, _ = self.call('/api/security-triage', {
+            'import_id': identifier, 'finding_id': original['finding_id'],
+            'status': 'in_review', 'note': 'Synthetic operator follow-up'})
+        self.assertEqual(status, 200, decision)
+        item = self.call('/api/security-review', selection)[1]['items'][0]
+        self.assertEqual(item['source'], original)
+        self.assertEqual(item['triage']['status'], 'in_review')
+        status, report, _ = self.call('/api/security-report', selection)
+        self.assertEqual(status, 200, report)
+        self.assertEqual(report['report_type'], 'honeytrace.security-review')
+        self.enable(['nuclei'], assessment_approved=True, scope=['203.0.113.10'])
+        self.assertEqual(self.call('/api/security-review', selection)[1]['items'], [])
     def test_help_and_request_errors_keep_the_workflow_local(self):
         self.assertEqual(len(self.call('/api/guide')[1]['steps']), 3)
         self.assertEqual(self.call('/not-a-dashboard-file')[0], 404)
@@ -249,6 +389,7 @@ class DashboardWorkflow(unittest.TestCase):
         self.assertEqual(self.call('/api/policy', {}, headers={'Content-Type': 'text/plain'})[0], 400)
         self.assertEqual(self.call('/api/policy', {}, headers={'Content-Length': str(2 * dashboard.MAX_BYTES + 1)})[0], 413)
         self.assertEqual(self.call('/api/state', method='OPTIONS')[0], 405)
+        self.assertNotIn('Server', self.call('/api/state', method='TRACE')[2])
 
 
 if __name__ == '__main__':

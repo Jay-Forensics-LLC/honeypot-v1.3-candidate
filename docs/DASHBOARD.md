@@ -1,8 +1,9 @@
-# HoneyTrace dashboard
+# HoneyTrace Forensic Dashboard
 
-The local dashboard brings the free honeypot core, saved telemetry and optional
-offline analysis into one workspace. Start with one report: enable its module,
-import the file, review the findings and export what you need.
+The local dashboard brings the free honeypot core, saved telemetry, offline
+analysis, verified cases and diagnostics into one workspace. Its forensic engine
+is included in the same checkout. Start with a report or capture, review its
+findings and provenance, then export what you need.
 
 ## Open the dashboard
 
@@ -58,6 +59,10 @@ results by their SHA-256 hash. Dashboard export contains normalized findings.
 | --- | --- |
 | **Overview** | See real import counts, recent activity and the next useful action |
 | **Evidence & Analysis** | Search findings, inspect provenance and export results |
+| **Forensic cases** | Analyze local captures, follow jobs, search case timelines and review coverage |
+| **Diagnostics** | Search structured suite operations and export sanitized diagnostics |
+| **My equipment** | Label hardware/tools/sensors, record class/value and follow sourced status |
+| **Security review** | Prioritize approved Nmap/Nuclei observations, record triage and export reports |
 | **Telemetry** | Review available saved health observations and source activity |
 | **Honeypot** | Understand the free core and its recorded posture |
 | **Integrations** | Import supported reports and use the available offline tools |
@@ -72,10 +77,12 @@ running a fresh Docker, firewall or capture check.
 
 **Sentinel cases:** import a completed local Sentinel case folder. Folder paths
 refer to the computer running the dashboard. The importer checks the case's
-completion state and checksum ledger before accepting its exchange. Raw PCAP,
-Packet Squirrel and supported radio-data analysis remain in the companion
-Sentinel workflow; this dashboard imports its completed small-case results.
-See the [Sentinel bridge guide](phase9/IMPLEMENTATION.md).
+completion state and checksum ledger before accepting its exchange.
+**Forensic cases → Analyze a capture** uses the bundled engine automatically
+for local PCAP/PCAPNG, including Packet Squirrel captures. You can optionally
+select a separate trusted checkout with `--sentinel-root` at launch.
+See the [forensic workflow guide](FORENSIC_WORKFLOWS.md) and
+[Sentinel bridge guide](phase9/IMPLEMENTATION.md).
 
 **iMazing/Apple backups:** provide `Manifest.plist`, `Status.plist` and
 `Manifest.db` from a finished, unencrypted backup. This feature summarizes
@@ -109,7 +116,8 @@ later forensic, live-integration and hardware work.
 The dashboard MVP is source-complete on `codex/dashboard-mvp-20261101` in
 `/workspace/work/honeytrace`, based on HoneyWatch commit
 `bce3d92c608202db20a51c00cd8ee2c64093bf9e` plus the preceding foundation work.
-Changes remain local and uncommitted.
+The MVP was published as commit `77a04369922333a514db43d3a729c639f8271b8f` on
+`codex/dashboard-mvp-20261101`. The forensic backbone builds on that publication.
 
 - Full source baseline passed, including `make -C honeypot test` and
   `make -C honeypot verify`: 736 tests run, 729 passed and 7 native-tool skips.
@@ -133,3 +141,10 @@ verified.
 This milestone adds a local browser workflow. Runtime collection and operational
 deployment retain their existing status. Live provider clients, active scans,
 large-case streaming and hardware capture remain later work.
+
+The forensic increment adds **Forensic cases**, **Diagnostics** and **Honeypot →
+Decoy identity**. The source now includes the complete tracked Sentinel tree;
+its legacy React/Base44 pages are retained source, while this dashboard is the
+active integrated interface. See [unified source](UNIFIED_SOURCE.md) for that
+boundary and [suite logging](SUITE_LOGGING.md) for diagnostics and the optional
+separate operator log root.

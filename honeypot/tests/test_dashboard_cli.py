@@ -1,6 +1,7 @@
 """The dashboard uses the operator entry point without starting sensor services."""
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -10,6 +11,17 @@ import hp
 
 
 class DashboardEntryPoint(unittest.TestCase):
+    def test_bundled_companion_is_discovered_from_source_independent_of_runtime_root(self):
+        bundled = Path(dashboard.__file__).resolve().parents[2] / 'sentinel-forensics'
+        with tempfile.TemporaryDirectory() as folder:
+            server = dashboard.create_server(Path(folder), port=0)
+            try:
+                self.assertEqual(server.sentinel_root, bundled)
+                self.assertTrue(server.jobs.available())
+                self.assertEqual(server.snapshot()['app']['name'], 'HoneyTrace Forensic Dashboard')
+            finally:
+                server.server_close()
+
     def test_launch_passes_operator_options_to_dashboard_only(self):
         argv = ['hp', 'dashboard', '--port', '8766', '--policy', '/private/policy.json',
                 '--store', '/private/cases', '--sentinel-root', '/private/sentinel']

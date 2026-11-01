@@ -5,9 +5,11 @@ import json
 import os
 import subprocess
 from guard_policy import inspect_guard
-from hp_common import audit, require_root, run
+from hp_common import ROOT, audit, require_root, run
+from operational_log import SuiteLog
 
 def check(stop_decoys=False):
+    log = SuiteLog(ROOT, 'guard')
     report = inspect_guard()
     report['would_stop_decoys'] = not report['ok']
     if not report['ok']:
@@ -24,6 +26,9 @@ def check(stop_decoys=False):
                   approval_flags=['--stop-decoys'] if stop_decoys else [],
                   observed=report['observed'], expected=report['expected'],
                   decision='stop-decoys' if stop_decoys else 'would-stop-decoys')
+    log.event('guard.checked', level='INFO' if report['ok'] else 'WARNING',
+              success=report['ok'], stopped=report.get('decoys_stopped', False),
+              operation='stop_decoys' if stop_decoys else 'preview')
     return report
 
 def main():

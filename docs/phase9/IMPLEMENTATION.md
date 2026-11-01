@@ -1,23 +1,28 @@
 # Phase 9: Sentinel offline exchange bridge
 
-This milestone connects HoneyTrace's optional offline report store to the separate
-Sentinel-Forensics analyzer. It does not copy the analyzer, run it, or alter its
-source. The owner identified Sentinel as the continuation of the original Phase 9
-work. Its analysis and qualification status remain independent of HoneyTrace.
+This milestone connects HoneyTrace's optional offline report store and case/job
+workspace to Sentinel-Forensics. The full tracked Sentinel source is now bundled
+at the repository root under `sentinel-forensics/`, imported from its recorded
+upstream revision. Dashboard jobs discover that engine automatically; a separate
+trusted checkout remains an optional `--sentinel-root` override. The owner
+identified Sentinel as the continuation of the original Phase 9 work.
 
 The source contract inspected is
 [Sentinel commit 187bec1](https://github.com/Jay-Forensics-LLC/sentinel-forensics/tree/187bec14835fc9497b05594ca467a49259553d64),
 specifically `tools/evidence_lab/CONTRACT.md`, `contract.py`, `report.py`, and the
 completion/checksum behavior in `analyze.py` and `qualify.py`. Sentinel's repository
-has an AGPL-3.0 license; this bridge is an independent consumer of its documented
-exchange format and includes no copied analyzer implementation. Keep Sentinel's
-license and notices with any separately distributed copy of that project.
+has an AGPL-3.0 license, preserved in the bundled `sentinel-forensics/LICENSE`.
+The HoneyTrace bridge remains an independent consumer of the documented exchange
+format; the separately located analyzer implementation is now included with one recorded demo-literal publication patch
+in the unified source. See [unified source](../UNIFIED_SOURCE.md) and
+[third-party notices](../../THIRD_PARTY_NOTICES.md).
 
 ## Implemented handoff
 
 An operator first creates a completed private case using Sentinel's existing
-offline workflow. HoneyTrace accepts that case only through the opt-in `sentinel`
-plugin and its dedicated command:
+offline workflow, or creates it through **Forensic cases → Analyze a capture**
+in the HoneyTrace Forensic Dashboard. The opt-in `sentinel` plugin accepts an
+existing completed case through its dedicated command:
 
 ```sh
 python3 honeypot/scripts/hp.py integrations sentinel --bundle /absolute/private-case
@@ -99,10 +104,23 @@ and small case bundles. It checks all entity envelopes, source references,
 completion and checksum coverage, deterministic occurrence IDs, case isolation,
 unknown/exact times, minimized identifiers, duplicate occurrences and finite
 budgets. No genuine case, live sensor, network service or Sentinel process is
-used by these tests. Passing these checks is structural interoperability evidence,
-not independent qualification of Sentinel or a release decision.
+used by these bridge tests. Passing these checks is structural interoperability
+evidence, not independent qualification of Sentinel or a release decision.
+
+Bundled source identity is recorded in `docs/sentinel-source.json` and checked
+against the upstream Git tree by `tools/validate_sentinel_bundle.py`. This is
+source provenance, not inherited runtime qualification. Upstream's native
+`qualify.py` expects its own Git root; inside this bundle its unchanged guard
+reports `workspace_mismatch`. Normal offline analysis and the unified workflow
+are checked separately in the [forensic receipt](../FORENSIC_ACCEPTANCE.md).
 
 Later work includes representative authorized real-export validation, bounded
 large-case streaming, operator review, independent acceptance and expanded
 forensic capabilities beyond the dashboard MVP. Existing beta,
 Stage 7/8, WAN, daemon-reload and deployment gates retain their own status.
+
+Publication note: GitHub push protection rejected a credential-shaped value in
+Sentinel's mocked code-audit input. That one demo literal is replaced by an
+explicit placeholder, with a modification notice. The source manifest records
+both effective and upstream tree identities and the one changed file. Snapshot
+validation verifies both trees; all 1,416 source files and the license remain.

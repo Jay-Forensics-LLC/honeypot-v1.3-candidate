@@ -119,8 +119,8 @@ def _shape(row):
     return entity, ident, payload
 
 
-def _count_map(value):
-    _require(isinstance(value, dict) and len(value) <= 100)
+def _count_map(value, max_entries=100):
+    _require(isinstance(value, dict) and len(value) <= max_entries)
     result = {}
     for key, number in value.items():
         _require(isinstance(key, str) and _CODE.fullmatch(key) and type(number) is int
@@ -243,7 +243,11 @@ def parse_sentinel(data, format_name, context):
             else:
                 metrics['source_severity'] = payload['severity']
         elif entity == 'coverage':
-            _require(not coverage_seen and payload['name'] == 'supported_subset')
+            # Sentinel v1 minimizes every field named "name", including this
+            # structural label. The envelope ID identifies coverage; never use
+            # its case-scoped pseudonym as an assertion about analyzed scope.
+            _require(not coverage_seen and ident == 'coverage' and
+                     (payload['name'] == 'supported_subset' or _PSEUDONYM.fullmatch(payload['name'])))
             coverage_seen = True
             cov = payload['details']
             _require(_COUNTS <= set(cov.get('counts', {})))
@@ -251,9 +255,29 @@ def parse_sentinel(data, format_name, context):
             for original, normalized in (('decoding_losses', 'decoding_losses'),
                                          ('capture_blocks', 'capture_blocks'),
                                          ('protocol_distribution', 'protocol_distribution')):
-                metrics[normalized] = _count_map(cov.get(original, {}))
+                metrics[normalized] = _count_map(cov.get(original, {}),
+                                                 512 if original == 'protocol_distribution' else 100)
             _require(cov.get('filtered_packets') == 0 and cov.get('payload_retention') is False)
             metrics.update(filtered_packets=0, payload_retention=False)
+            if 'rules' in cov:
+                rules = cov['rules']
+                _require(isinstance(rules, list) and len(rules) <= 100)
+                metrics['rules'] = []
+                for rule in rules:
+                    _require(isinstance(rule, dict) and
+                             all(isinstance(rule.get(key), str) and _CODE.fullmatch(rule[key])
+                                 for key in ('rule', 'version', 'status')))
+                    counts = _count_map({key: rule.get(key) for key in ('eligible', 'findings')})
+                    metrics['rules'].append({key: rule[key] for key in ('rule', 'version', 'status')} | counts)
+            if 'reassembly' in cov:
+                _require(cov['reassembly'] == 'none')
+                metrics['reassembly'] = 'none'
+            # Describe consumer limits ourselves; arbitrary report prose can
+            # contain identifiers even in an otherwise minimized exchange.
+            details['limitations'] = [
+                'Supported metadata only; encrypted content and unsupported formats remain unexamined.',
+                'No stream reassembly, payload recovery or device health verdict.',
+                'Pseudonyms are scoped to this case; timestamps and hashes remain linkable.']
         elif entity == 'error':
             _require(_CODE.fullmatch(payload['code']))
             _require(payload['source_id'] is None or payload['source_id'] in sources)

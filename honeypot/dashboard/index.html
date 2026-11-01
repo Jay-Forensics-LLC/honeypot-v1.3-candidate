@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
-    <meta name="description" content="HoneyTrace Security Suite: a local workspace for evidence, telemetry and optional security tools.">
-    <title>HoneyTrace · Security Suite</title>
+    <meta name="description" content="HoneyTrace Forensic Dashboard: a local security-suite workspace for evidence, telemetry and optional security tools.">
+    <title>HoneyTrace Forensic Dashboard</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23ef4444'/%3E%3Cpath d='M11 10v20m18-20v20M11 20h18' stroke='white' stroke-width='4'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="/styles.css">
     <script src="/app.js" defer></script>
@@ -40,9 +40,9 @@
     <a class="skip-link" href="#main">Skip to content</a>
     <section id="auth-screen" class="auth-screen" aria-labelledby="auth-title">
         <div class="auth-card">
-            <div class="auth-brand"><span class="brand-mark" aria-hidden="true">HT<span>//</span></span><div><strong>HoneyTrace</strong><span>SECURITY SUITE</span></div></div>
+            <div class="auth-brand"><span class="brand-mark" aria-hidden="true">HT<span>//</span></span><div><strong>HoneyTrace</strong><span>FORENSIC DASHBOARD</span></div></div>
             <p class="eyebrow">YOUR LOCAL WORKSPACE</p>
-            <h1 id="auth-title">A clearer view of your security data.</h1>
+            <h1 id="auth-title">HoneyTrace Forensic Dashboard</h1>
             <p class="lead">Evidence, telemetry and security tools, brought together in a workspace that stays on this machine.</p>
             <form id="auth-form" class="auth-form">
                 <label class="field-label" for="access-token">Session access token</label>
@@ -58,14 +58,18 @@
     <div id="app-shell" class="app-shell" hidden>
         <div id="mobile-nav-backdrop" class="mobile-nav-backdrop" hidden></div>
         <aside id="sidebar" class="sidebar" aria-label="Main navigation">
-            <a class="brand" href="#overview" data-nav="overview" aria-label="HoneyTrace overview"><span class="brand-mark" aria-hidden="true">HT<span>//</span></span><span class="brand-copy"><strong>HoneyTrace</strong><span>SECURITY SUITE</span></span></a>
+            <a class="brand" href="#overview" data-nav="overview" aria-label="HoneyTrace Forensic Dashboard overview"><span class="brand-mark" aria-hidden="true">HT<span>//</span></span><span class="brand-copy"><strong>HoneyTrace</strong><span>FORENSIC DASHBOARD</span></span></a>
             <p class="nav-section-label">WORKSPACE</p>
             <nav class="nav-list">
                 <button class="nav-button active" data-page="overview" aria-current="page"><svg class="nav-icon" aria-hidden="true"><use href="#i-grid"/></svg><span>Overview</span></button>
                 <button class="nav-button" data-page="evidence"><svg class="nav-icon" aria-hidden="true"><use href="#i-folder"/></svg><span>Evidence &amp; analysis</span></button>
+                <button class="nav-button" data-page="cases"><svg class="nav-icon" aria-hidden="true"><use href="#i-clock"/></svg><span>Forensic cases</span></button>
+                <button class="nav-button" data-page="security"><svg class="nav-icon" aria-hidden="true"><use href="#i-search"/></svg><span>Security review</span></button>
                 <button class="nav-button" data-page="telemetry"><svg class="nav-icon" aria-hidden="true"><use href="#i-pulse"/></svg><span>Telemetry</span></button>
+                <button class="nav-button" data-page="equipment"><svg class="nav-icon" aria-hidden="true"><use href="#i-plug"/></svg><span>My equipment</span></button>
                 <button class="nav-button" data-page="honeypot"><svg class="nav-icon" aria-hidden="true"><use href="#i-shield"/></svg><span>Honeypot</span><span class="nav-free">FREE</span></button>
                 <button class="nav-button" data-page="integrations"><svg class="nav-icon" aria-hidden="true"><use href="#i-plug"/></svg><span>Integrations</span></button>
+                <button class="nav-button" data-page="diagnostics"><svg class="nav-icon" aria-hidden="true"><use href="#i-file"/></svg><span>Diagnostics</span></button>
                 <button class="nav-button" data-page="settings"><svg class="nav-icon" aria-hidden="true"><use href="#i-settings"/></svg><span>Settings</span></button>
             </nav>
             <div class="sidebar-footer">

@@ -4,7 +4,9 @@
 
 The owner authorized local Phase 9/10 source implementation and a phased
 HoneyTrace Security Suite. The optional offline foundation and local dashboard
-MVP are source-complete. Expanded forensic workflows follow. See the
+MVP are source-complete. The forensic backbone now adds verified case workspaces,
+precise timelines, coverage, offline capture jobs, structured suite diagnostics
+and reviewable decoy identity profiles. See the
 [delivery roadmap](SECURITY_SUITE_ROADMAP.md) and
 [source validation report](phase10/ACCEPTANCE_REPORT.md).
 This source work supersedes the earlier Phase 10 planning hold for implementation;
