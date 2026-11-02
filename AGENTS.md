@@ -8,6 +8,21 @@ application directory, resolve them against the Git root before running them.
 The repository root and application directory have separate README and security
 context; inspect the relevant files for the requested change.
 
+## Strategic project direction (planning only)
+
+Read [project-wide instructions](docs/HONEYTRACE_PROJECT_INSTRUCTIONS.md) and the
+[2026-2032 solo-first roadmap](docs/roadmap/HONEYTRACE_2026_2032.md) before
+planning multi-phase work, new architecture, release proposals or agent handoffs.
+Those files define the free, open-source, local-first mission and the ordered
+Phase 7 bridge through Phase 13 vision. They do not supersede
+`docs/CURRENT_PHASE_STATUS.md`, `honeypot/docs/BETA_ACCEPTANCE.md`, security
+rules, preserved evidence, or target-specific operational approvals.
+
+Do not convert future phases into implementation without separate authorization.
+First reconcile PR #53/#56, source/image qualification and current safety/custody
+gates. Work in small branches, preserve Sentinel's source provenance, and never
+use passing offline CI as an independent release acceptance decision.
+
 ## Scope and working copy
 
 HoneyTrace is a portable defensive honeypot with decoy services,
