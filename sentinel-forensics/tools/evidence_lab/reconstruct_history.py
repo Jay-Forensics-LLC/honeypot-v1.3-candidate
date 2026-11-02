@@ -90,7 +90,9 @@ def sql_open(path,guard,opener=source_file):
         uri=(Path('/proc/self/fd')/str(held.fileno())).as_uri()+'?mode=ro&immutable=1'
         db=sqlite3.connect(uri,uri=True)
         try:
-            db.row_factory=sqlite3.Row;db.enable_load_extension(False)
+            db.row_factory=sqlite3.Row
+            if hasattr(db, 'enable_load_extension'):
+                db.enable_load_extension(False)
             db.execute('PRAGMA trusted_schema=OFF');db.execute('PRAGMA query_only=ON')
             db.execute('PRAGMA mmap_size=0');db.execute('PRAGMA cache_size=-4096');db.execute('PRAGMA temp_store=FILE')
             db.setlimit(sqlite3.SQLITE_LIMIT_LENGTH,MAX_RECORD);db.setlimit(sqlite3.SQLITE_LIMIT_ATTACHED,0)

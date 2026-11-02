@@ -1,4 +1,5 @@
 """Invented file/directory lifetimes only; no capture, key or decoder input."""
+from contextlib import closing
 import errno
 import os
 from pathlib import Path
@@ -127,7 +128,7 @@ class FamilyFilesTests(unittest.TestCase):
         database = self.page / 'index.sqlite'
         outside = self.root / 'unrelated.sqlite'
         for path, value in ((database, 'original'), (outside, 'outside')):
-            with sqlite3.connect(path) as db:
+            with closing(sqlite3.connect(path)) as db, db:
                 db.execute('CREATE TABLE observation(value TEXT)')
                 db.execute('INSERT INTO observation VALUES(?)', (value,))
         with self.assertRaises(IngestError):
@@ -250,11 +251,13 @@ class FamilyFilesTests(unittest.TestCase):
             if fd == target and not fired:
                 fired = True
                 foreign.append(os.open(self.root / 'unrelated-output', os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
-                self.assertEqual(foreign[0], fd)
                 raise OSError(errno.EIO, 'invented uncertain close')
         try:
             with patch.object(io.os, 'close', side_effect=close), self.assertRaises(IngestError):
                 self.files.close()
+            self.assertTrue(fired)
+            self.assertEqual(len(foreign), 1)
+            self.assertEqual(foreign[0], target)
             os.write(foreign[0], b'preserved')
             self.assertEqual((self.root / 'unrelated-output').read_bytes(), b'preserved')
             self.files.close()
