@@ -2,13 +2,13 @@
   "schema_version": 1,
   "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
   "commit": "187bec14835fc9497b05594ca467a49259553d64",
-  "git_tree": "699a73e1c5c4bcc8c11a944c0fb9d3f68a1d2109",
+  "git_tree": "5bf9248c258ec6690414a3e9500a02ddcb22e671",
   "prefix": "sentinel-forensics",
-  "files": 1449,
-  "bytes": 11532346,
+  "files": 1450,
+  "bytes": 11536144,
   "license": "AGPL-3.0",
   "license_sha256": "7f8f48e4266aa8fd3033dfaa4bb7f6e83a60c6e099f82d4959b81de90e67cd8f",
-  "import_method": "Complete committed upstream tree with 66 recorded replacements and 33 local additions; Git metadata/history and untracked files excluded.",
+  "import_method": "Complete committed upstream tree with 68 recorded replacements and 34 local additions; Git metadata/history and untracked files excluded.",
   "upstream_git_tree": "45e7025dd351732dfa0d321362891ff353f8b940",
   "upstream_bytes": 11448833,
   "patches": [
@@ -739,6 +739,28 @@
       "upstream_sha256": "711a0eec65d9210510d4e1a0af6e5b64f70c1a10acc20d19d0b152a15b5aa2d0",
       "sha256": "eb63dfd400d49103a658b90deadb6a372ffb8abe730cace75142d12bdd5564e0",
       "reason": "Exclude retained Markdown documents with JSX suffixes from JavaScript linting."
+    },
+    {
+      "path": "functions/sendNotification.ts",
+      "operation": "replace",
+      "upstream_blob": "f2545d95150f5d7268644228e52244ec06ea994e",
+      "upstream_sha256": "cf22303a4eafb0b7c9a3687942b7095b4c552a36a02caf0f6ef7a4485ed90864",
+      "sha256": "6015cc2cd6e25d15d8c345038cc13d774fce52bf9c69fc564ac19b4fff1f6944",
+      "reason": "Restrict notification recipient resolution to the authenticated organization."
+    },
+    {
+      "path": "functions/tests/sendNotification.test.mjs",
+      "operation": "add",
+      "sha256": "4b323a64776b7bc554521daca83e9cab5af1b6bc7d64452cd0af0b695ce43879",
+      "reason": "Add synthetic regression coverage for notification recipient authorization."
+    },
+    {
+      "path": "src/components/ui/slider.jsx",
+      "operation": "replace",
+      "upstream_blob": "6062ce5e4b36a90b148d55eb0cb080ac3f47330c",
+      "upstream_sha256": "1761bfaa0a06480b76b31511e4a5c24903b407732e027fc11ad615dd3d93a562",
+      "sha256": "56342edd46149f4c65ac2d221fe47e3b82fa69089aca9178283e455239a1658a",
+      "reason": "Support Radix sliders configured with multiple values."
     }
   ]
 }
