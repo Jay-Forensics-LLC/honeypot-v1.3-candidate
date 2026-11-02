@@ -2,13 +2,13 @@
   "schema_version": 1,
   "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
   "commit": "187bec14835fc9497b05594ca467a49259553d64",
-  "git_tree": "7e48c10443a0242a6c9ff8ec9e803b98795de803",
+  "git_tree": "699a73e1c5c4bcc8c11a944c0fb9d3f68a1d2109",
   "prefix": "sentinel-forensics",
-  "files": 1444,
-  "bytes": 11527950,
+  "files": 1449,
+  "bytes": 11532346,
   "license": "AGPL-3.0",
   "license_sha256": "7f8f48e4266aa8fd3033dfaa4bb7f6e83a60c6e099f82d4959b81de90e67cd8f",
-  "import_method": "Complete committed upstream tree with 64 recorded replacements and 28 local additions; Git metadata/history and untracked files excluded.",
+  "import_method": "Complete committed upstream tree with 66 recorded replacements and 33 local additions; Git metadata/history and untracked files excluded.",
   "upstream_git_tree": "45e7025dd351732dfa0d321362891ff353f8b940",
   "upstream_bytes": 11448833,
   "patches": [
@@ -169,8 +169,8 @@
     {
       "path": "functions/helpers/apiKeyUsageFilters.ts",
       "operation": "add",
-      "sha256": "9d35d1ae1379ce9c29c126b5c0077d7ddf14028e78974757744aff40a449de6e",
-      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+      "sha256": "7dc200734e39e54e700b94fa3d0b6e934817a354f6f466c0e79ff1f294294d39",
+      "reason": "Reject invalid API-key usage pagination limits before querying logs."
     },
     {
       "path": "functions/helpers/boundedFetch.ts",
@@ -229,8 +229,8 @@
     {
       "path": "functions/tests/apiKeyUsageFilters.test.mjs",
       "operation": "add",
-      "sha256": "71aa94b8bd9aaafc0835d30285e281ae743f8a9905503d42d2dc36d8a7403788",
-      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+      "sha256": "e7de3211c651a2471142e4a33602bd5a2ea27e4e0d3c4eb2a0ee98ad08277027",
+      "reason": "Cover rejection of invalid and unsafe API-key usage limits."
     },
     {
       "path": "functions/tests/boundedFetch.test.mjs",
@@ -693,6 +693,52 @@
       "upstream_sha256": "0ad19e918be71d90a02c8fb59e6122253c95ef1b687a70534cd064aba6f9257b",
       "sha256": "cc6ba2b1c4ad91ea74126eb4a5605f07e04859b7127459d52ad7030d8ce9418e",
       "reason": "Reviewed SQLite compatibility and resource-lifetime correction."
+    },
+    {
+      "path": "functions/verifyGuardianToken.ts",
+      "operation": "replace",
+      "upstream_blob": "72b419b56cf121f0718a0f568069f0a5ea446bd8",
+      "upstream_sha256": "e030be5f3c2fbcffb8a84601fda7346d8f613ed920e5cb8980b490fd183658bc",
+      "sha256": "700da89ec034263664551d88eabe12521d169d490870bb6cdd4e2cb09256ff1b",
+      "reason": "Reject malformed guardian token and case inputs before querying service-role entities."
+    },
+    {
+      "path": "functions/enforceRBAC.js",
+      "operation": "add",
+      "sha256": "c588d655e05023ffa4efb387259ef1b0cbfc8fa2f884ce7674c6af10a8e0492e",
+      "reason": "Provide the missing JavaScript import path as a re-export of the tracked TypeScript RBAC helper."
+    },
+    {
+      "path": "functions/helpers/guardianTokenInput.ts",
+      "operation": "add",
+      "sha256": "ff5ac04754beaba6d6ef26d0f07478b1ce64db8376066380c5e238f922e88e39",
+      "reason": "Validate guardian token and case inputs as non-empty strings."
+    },
+    {
+      "path": "functions/tests/guardianTokenInput.test.mjs",
+      "operation": "add",
+      "sha256": "69851df2beb2e1e8966d71fd970203c47ed3e709f874d43cfe492236673a6761",
+      "reason": "Test rejection of non-string and empty guardian capability inputs."
+    },
+    {
+      "path": "functions/tests/featureFlags.test.mjs",
+      "operation": "add",
+      "sha256": "486d4ca4b346b24c8c0c3ed5c9d026e11208812a2aad43a86ae1b839a9290b5e",
+      "reason": "Verify the demo compatibility exports remain authentication-safe by default."
+    },
+    {
+      "path": "src/components/config/featureFlags.js",
+      "operation": "add",
+      "sha256": "28e2547024f19e52ad84c50cc3ae31f0de304fe4e54006d0c5820351dfc8afba",
+      "reason": "Restore feature-flag and demo compatibility exports used by retained frontend pages."
+    },
+    {
+      "path": "eslint.config.js",
+      "operation": "replace",
+      "upstream_blob": "07f28af9f8e6deab5c04cd5d371d4eaa15bf5003",
+      "upstream_sha256": "711a0eec65d9210510d4e1a0af6e5b64f70c1a10acc20d19d0b152a15b5aa2d0",
+      "sha256": "eb63dfd400d49103a658b90deadb6a372ffb8abe730cace75142d12bdd5564e0",
+      "reason": "Exclude retained Markdown documents with JSX suffixes from JavaScript linting."
     }
   ]
 }

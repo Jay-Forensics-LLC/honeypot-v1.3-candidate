@@ -1,21 +1,19 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.7.1';
+import { findGuardianTokens } from './helpers/guardianTokenInput.ts';
 
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
 
-        const { token, case_id } = await req.json();
-
-        if (!token || !case_id) {
+        const result = await findGuardianTokens(
+            await req.json(),
+            base44.asServiceRole.entities.GuardianAccessToken
+        );
+        if (!result) {
             return Response.json({ valid: false, reason: 'Missing parameters' });
         }
-
-        // Verify token exists and is valid
-        const tokens = await base44.asServiceRole.entities.GuardianAccessToken.filter({ 
-            token_hash: token,
-            case_id,
-            revoked: false
-        });
+        const { input, tokens } = result;
+        const { token, case_id } = input;
 
         if (tokens.length === 0) {
             return Response.json({ valid: false, reason: 'Invalid token' });

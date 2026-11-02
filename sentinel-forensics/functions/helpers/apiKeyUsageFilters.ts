@@ -23,10 +23,24 @@ export function parseApiKeyUsageFilters(
     return null;
   }
 
+  const rawLimit = body.limit ?? searchParams.get('limit') ?? '100';
+  let parsedLimit: number;
+  if (typeof rawLimit === 'number') {
+    parsedLimit = rawLimit;
+  } else if (typeof rawLimit === 'string' && /^\d+$/.test(rawLimit)) {
+    parsedLimit = Number(rawLimit);
+  } else {
+    return null;
+  }
+
+  if (!Number.isSafeInteger(parsedLimit) || parsedLimit <= 0) {
+    return null;
+  }
+
   return {
     ...(apiKeyId ? { apiKeyId } : {}),
     ...(parsedStatusCode !== undefined ? { statusCode: parsedStatusCode } : {}),
     ...(rateLimitAction ? { rateLimitAction } : {}),
-    limit: Number.parseInt(String(body.limit ?? searchParams.get('limit') ?? '100'), 10)
+    limit: parsedLimit
   };
 }
