@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.30';
 import { getTrustedClientIp, isClientIpAllowed } from './helpers/apiKeyIp.ts';
 
 /**
@@ -142,43 +142,104 @@ export async function verifyApiKeyAndAuthorize(req, requiredScope, connectionInf
 
 async function checkRateLimit(apiKey, base44) {
   try {
-    // Get current bucket state
-    const states = await base44.asServiceRole.entities.ApiKeyRateLimitState.filter({
-      api_key_id: apiKey.id
-    });
+    const entity = base44.asServiceRole.entities.ApiKeyRateLimitState;
 
-    if (states.length === 0) {
+    // Never fall back to a non-atomic read/write.
+    if (typeof entity?.updateMany !== 'function') {
       return { allowed: false, unavailable: true };
     }
 
-    const state = states[0];
-    const now = new Date();
-    const lastRefill = new Date(state.bucket.last_refill_at);
-    const secondsSinceRefill = (now - lastRefill) / 1000;
+    // Bounded retries for concurrent conditional-update conflicts.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const states = await entity.filter({
+        api_key_id: apiKey.id
+      });
 
-    // Refill tokens
-    const refillAmount = secondsSinceRefill * state.bucket.refill_per_sec;
-    const newTokens = Math.min(state.bucket.capacity, state.bucket.tokens + refillAmount);
+      if (!Array.isArray(states) || states.length !== 1) {
+        return { allowed: false, unavailable: true };
+      }
 
-    // Check if enough tokens
-    if (newTokens < 1) {
-      return { allowed: false };
+      const state = states[0];
+      const bucket = state?.bucket;
+
+      if (
+        !state?.id ||
+        !bucket ||
+        !Number.isFinite(bucket.capacity) ||
+        bucket.capacity <= 0 ||
+        !Number.isFinite(bucket.tokens) ||
+        bucket.tokens < 0 ||
+        bucket.tokens > bucket.capacity ||
+        !Number.isFinite(bucket.refill_per_sec) ||
+        bucket.refill_per_sec < 0 ||
+        typeof bucket.last_refill_at !== 'string'
+      ) {
+        return { allowed: false, unavailable: true };
+      }
+
+      const lastRefill = Date.parse(bucket.last_refill_at);
+
+      if (!Number.isFinite(lastRefill)) {
+        return { allowed: false, unavailable: true };
+      }
+
+      const now = new Date();
+      const elapsed = Math.max(
+        0,
+        (now.getTime() - lastRefill) / 1000
+      );
+
+      const available = Math.min(
+        bucket.capacity,
+        bucket.tokens + elapsed * bucket.refill_per_sec
+      );
+
+      if (available < 1) {
+        return { allowed: false };
+      }
+
+      // Compare the original balance and timestamp.
+      // Only a confirmed matching update authorizes access.
+      const result = await entity.updateMany(
+        {
+          id: state.id,
+          api_key_id: apiKey.id,
+          'bucket.tokens': bucket.tokens,
+          'bucket.last_refill_at': bucket.last_refill_at
+        },
+        {
+          $set: {
+            'bucket.tokens': available - 1,
+            'bucket.last_refill_at': now.toISOString()
+          }
+        }
+      );
+
+      // The SDK 0.8.30 contract uses success, updated, has_more.
+      if (
+        result?.success !== true ||
+        !Number.isInteger(result.updated) ||
+        result.updated < 0 ||
+        result.updated > 1 ||
+        result.has_more !== false
+      ) {
+        return { allowed: false, unavailable: true };
+      }
+
+      if (result.updated === 1) {
+        return { allowed: true };
+      }
+
+      // updated === 0: another request may have changed
+      // the bucket. Reread state before retrying.
     }
 
-    // Consume 1 token
-    await base44.asServiceRole.entities.ApiKeyRateLimitState.update(state.id, {
-      bucket: {
-        ...state.bucket,
-        tokens: newTokens - 1,
-        last_refill_at: now.toISOString()
-      }
-    });
-
-    return { allowed: true };
+    // Never authorize when contention cannot be resolved.
+    return { allowed: false, unavailable: true };
 
   } catch (error) {
     console.error('Rate limit check failed:', error);
-    return { allowed: false, unavailable: true }; // Fail closed if rate-limit storage is unavailable
+    return { allowed: false, unavailable: true };
   }
 }
 
