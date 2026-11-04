@@ -2,13 +2,13 @@
   "schema_version": 1,
   "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
   "commit": "187bec14835fc9497b05594ca467a49259553d64",
-  "git_tree": "e54c83e2d18208f0944604a280c867532c5c4b98",
+  "git_tree": "e66bec8559b2e6a58d8cd250154ba99c584fa4c1",
   "prefix": "sentinel-forensics",
-  "files": 1451,
-  "bytes": 11555206,
+  "files": 1452,
+  "bytes": 11572424,
   "license": "AGPL-3.0",
   "license_sha256": "7f8f48e4266aa8fd3033dfaa4bb7f6e83a60c6e099f82d4959b81de90e67cd8f",
-  "import_method": "Complete committed upstream tree with 69 recorded replacements and 35 local additions; Git metadata/history and untracked files excluded.",
+  "import_method": "Complete committed upstream tree with 70 recorded replacements and 36 local additions; Git metadata/history and untracked files excluded.",
   "upstream_git_tree": "45e7025dd351732dfa0d321362891ff353f8b940",
   "upstream_bytes": 11448833,
   "patches": [
@@ -775,6 +775,20 @@
       "operation": "add",
       "sha256": "5801409ffe7dc082186b33bacd5cb22393eff8346b2b0cfef03be051976740de",
       "reason": "Use the real deletion endpoint, RBAC and validator with a synthetic SDK to check refusal, evidence preservation, retained preconditions and read-failure behavior."
+    },
+    {
+      "path": "functions/monitorEvidenceIntegrity.ts",
+      "operation": "replace",
+      "upstream_blob": "a4df4464d8cbc5e6f88e50f22973a63bb5070b42",
+      "upstream_sha256": "5a74a75b44aacfdcd46f4237ae4d4252f70107d29845e49c615d704905d3bcda",
+      "sha256": "e5e76249505d4b75adf6c0a17061662147928b0951a00effdace1d2a7e738932",
+      "reason": "Use the notification endpoint recipient/severity fields and record alert_sent only after an explicit successful acknowledgment; preserve the integrity mismatch when notification is unconfirmed."
+    },
+    {
+      "path": "functions/tests/monitorEvidenceIntegrity.test.mjs",
+      "operation": "add",
+      "sha256": "92f7d3008752c7f7a90f241a010cd763a1a6a0bf8b45f9d2ce89e1796dcf3cfb",
+      "reason": "Exercise the actual integrity monitor and notification endpoint with synthetic SDK/network boundaries; verify request mapping, acknowledged success, rejection, malformed responses, per-item state and preserved evidence."
     }
   ]
 }
