@@ -2,13 +2,13 @@
   "schema_version": 1,
   "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
   "commit": "187bec14835fc9497b05594ca467a49259553d64",
-  "git_tree": "cef8e9ad84dd2614e0f7794aea7fbef4ccaeb30b",
+  "git_tree": "e54c83e2d18208f0944604a280c867532c5c4b98",
   "prefix": "sentinel-forensics",
-  "files": 1450,
-  "bytes": 11547879,
+  "files": 1451,
+  "bytes": 11555206,
   "license": "AGPL-3.0",
   "license_sha256": "7f8f48e4266aa8fd3033dfaa4bb7f6e83a60c6e099f82d4959b81de90e67cd8f",
-  "import_method": "Complete committed upstream tree with 68 recorded replacements and 34 local additions; Git metadata/history and untracked files excluded.",
+  "import_method": "Complete committed upstream tree with 69 recorded replacements and 35 local additions; Git metadata/history and untracked files excluded.",
   "upstream_git_tree": "45e7025dd351732dfa0d321362891ff353f8b940",
   "upstream_bytes": 11448833,
   "patches": [
@@ -761,6 +761,20 @@
       "upstream_sha256": "1761bfaa0a06480b76b31511e4a5c24903b407732e027fc11ad615dd3d93a562",
       "sha256": "56342edd46149f4c65ac2d221fe47e3b82fa69089aca9178283e455239a1658a",
       "reason": "Support Radix sliders configured with multiple values."
+    },
+    {
+      "path": "functions/deleteEvidence.ts",
+      "operation": "replace",
+      "upstream_blob": "edc1a1093bf03b43bc5ff47a618583497284dfe4",
+      "upstream_sha256": "32fc43c323485f320904adc717dbb3d65662ac18d25b6308cfb96220ebc7543b",
+      "sha256": "dd1b0710212c325913a1924acbb0707fd80091f3c94642907f53a0a6a7b764fb",
+      "reason": "Disable permanent evidence-record deletion to preserve full custody history; retain access and legal-hold checks and use the tracked validation and RBAC modules."
+    },
+    {
+      "path": "functions/tests/deleteEvidence.test.mjs",
+      "operation": "add",
+      "sha256": "5801409ffe7dc082186b33bacd5cb22393eff8346b2b0cfef03be051976740de",
+      "reason": "Use the real deletion endpoint, RBAC and validator with a synthetic SDK to check refusal, evidence preservation, retained preconditions and read-failure behavior."
     }
   ]
 }
