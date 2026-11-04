@@ -178,12 +178,13 @@ async function checkRateLimit(apiKey, base44) {
       }
 
       const lastRefill = Date.parse(bucket.last_refill_at);
+      const now = new Date();
 
-      if (!Number.isFinite(lastRefill)) {
+      // Do not rewind refill timestamps when clocks disagree.
+      if (!Number.isFinite(lastRefill) || lastRefill > now.getTime()) {
         return { allowed: false, unavailable: true };
       }
 
-      const now = new Date();
       const elapsed = Math.max(
         0,
         (now.getTime() - lastRefill) / 1000
