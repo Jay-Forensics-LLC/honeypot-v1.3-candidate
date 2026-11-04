@@ -13,12 +13,27 @@ Deno.serve(async (req, connectionInfo) => {
     // Verify API key and authorize
     const authResult = await verifyApiKeyAndAuthorize(req, 'cases:read', connectionInfo);
     if (!authResult.authorized) {
-      return Response.json({ 
-        type: 'https://sentinel.forensics/errors/unauthorized',
-        title: 'Unauthorized',
-        status: 401,
+      const status = authResult.status === 503 ? 503
+        : authResult.status === 429 ? 429 : 401;
+
+      const titles = {
+        401: 'Unauthorized',
+        429: 'Too Many Requests',
+        503: 'Service Unavailable'
+      };
+
+      const errorTypes = {
+        401: 'unauthorized',
+        429: 'rate-limited',
+        503: 'service-unavailable'
+      };
+
+      return Response.json({
+        type: `https://sentinel.forensics/errors/${errorTypes[status]}`,
+        title: titles[status],
+        status,
         detail: authResult.error
-      }, { status: 401 });
+      }, { status });
     }
 
     const { apiKey } = authResult;

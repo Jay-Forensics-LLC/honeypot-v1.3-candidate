@@ -103,12 +103,21 @@ export async function verifyApiKeyAndAuthorize(req, requiredScope, connectionInf
     // Rate limiting (token bucket)
     const rateLimitResult = await checkRateLimit(apiKey, base44);
     if (!rateLimitResult.allowed) {
+      if (rateLimitResult.unavailable) {
+        authResult = 'rate_limit_unavailable';
+        rateLimitAction = 'unavailable';
+        statusCode = 503;
+        errorMessage = 'Rate limit service unavailable';
+        await logRequestUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
+        return { authorized: false, error: 'Service unavailable', status: 503 };
+      }
+
       authResult = 'ok'; // Auth was OK, but rate limited
       rateLimitAction = 'throttled';
       statusCode = 429;
       errorMessage = 'Rate limit exceeded';
       await logRequestUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
-      return { authorized: false, error: 'Rate limit exceeded' };
+      return { authorized: false, error: 'Rate limit exceeded', status: 429 };
     }
 
     // Success
@@ -169,7 +178,7 @@ async function checkRateLimit(apiKey, base44) {
 
   } catch (error) {
     console.error('Rate limit check failed:', error);
-    return { allowed: true }; // Fail open
+    return { allowed: false, unavailable: true }; // Fail closed if rate-limit storage is unavailable
   }
 }
 

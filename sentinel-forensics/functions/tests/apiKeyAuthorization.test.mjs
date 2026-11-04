@@ -168,3 +168,70 @@ test('prior revocation, disabled, expiry, scope and secret checks remain enforce
   assert.equal((await request({ token: 'wrong-synthetic-key' })).response.status, 401);
   assert.deepEqual(fixture.queries, []);
 });
+
+test('rate-limit database read failure denies access', async () => {
+  setup();
+
+  fixture.client.asServiceRole.entities.ApiKeyRateLimitState.filter =
+    async () => {
+      throw new Error('Synthetic rate-limit database read failure');
+    };
+
+  const { response } = await request();
+
+  assert.equal(response.status, 503);
+  assert.equal(fixture.usage.at(-1).rate_limit_action, 'unavailable');
+  assert.deepEqual(fixture.queries, []);
+  assert.deepEqual(fixture.updates, []);
+});
+
+test('rate-limit token update failure denies access', async () => {
+  setup();
+
+  const state = {
+    id: 'synthetic-bucket',
+    bucket: {
+      capacity: 5,
+      tokens: 5,
+      refill_per_sec: 1,
+      last_refill_at: new Date().toISOString()
+    }
+  };
+
+  fixture.client.asServiceRole.entities.ApiKeyRateLimitState.filter =
+    async () => [state];
+
+  fixture.client.asServiceRole.entities.ApiKeyRateLimitState.update =
+    async () => {
+      throw new Error('Synthetic token update failure');
+    };
+
+  const { response } = await request();
+
+  assert.equal(response.status, 503);
+  assert.equal(fixture.usage.at(-1).rate_limit_action, 'unavailable');
+  assert.deepEqual(fixture.queries, []);
+  assert.deepEqual(fixture.updates, []);
+});
+
+test('exhausted rate-limit bucket returns HTTP 429', async () => {
+  setup();
+
+  fixture.client.asServiceRole.entities.ApiKeyRateLimitState.filter =
+    async () => [{
+      id: 'synthetic-exhausted-bucket',
+      bucket: {
+        capacity: 1,
+        tokens: 0,
+        refill_per_sec: 0,
+        last_refill_at: new Date().toISOString()
+      }
+    }];
+
+  const { response, body } = await request();
+
+  assert.equal(response.status, 429);
+  assert.equal(body.status, 429);
+  assert.deepEqual(fixture.queries, []);
+  assert.equal(fixture.usage.at(-1).rate_limit_action, 'throttled');
+});
