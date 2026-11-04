@@ -148,7 +148,7 @@ async function checkRateLimit(apiKey, base44) {
     });
 
     if (states.length === 0) {
-      return { allowed: true }; // No state = allow
+      return { allowed: false, unavailable: true };
     }
 
     const state = states[0];

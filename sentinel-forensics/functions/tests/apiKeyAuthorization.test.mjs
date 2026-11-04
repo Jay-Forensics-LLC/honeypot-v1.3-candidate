@@ -39,12 +39,34 @@ function setup(overrides = {}) {
   const key = { id: 'key-a', organization_id: 'org-a', case_id: 'case-a', status: 'active',
     scopes: ['cases:read'], ip_allowlist: ['192.0.2.1'], key_hash_sha256: keyHash, ...overrides };
   fixture = { key, queries: [], usage: [], updates: [], rateChecks: 0 };
+
+  fixture.rateLimitState = {
+    id: 'synthetic-default-bucket',
+    bucket: {
+      capacity: 1000,
+      tokens: 1000,
+      refill_per_sec: 1000 / 60,
+      last_refill_at: new Date().toISOString()
+    }
+  };
+
   fixture.client = { asServiceRole: { entities: {
     ApiKey: {
       async filter(query) { return query.key_hash_sha256 === keyHash ? [key] : []; },
       async update(id, value) { fixture.updates.push({ id, value }); }
     },
-    ApiKeyRateLimitState: { async filter() { fixture.rateChecks++; return []; } },
+    ApiKeyRateLimitState: {
+      async filter(query) {
+        fixture.rateChecks++;
+        return query.api_key_id === key.id
+          ? [fixture.rateLimitState]
+          : [];
+      },
+      async update(id, value) {
+        assert.equal(id, fixture.rateLimitState.id);
+        fixture.rateLimitState.bucket = value.bucket;
+      }
+    },
     ApiKeyUsageLog: { async create(value) { fixture.usage.push(value); } },
     Case: { async filter(query) {
       fixture.queries.push(query);
@@ -234,4 +256,30 @@ test('exhausted rate-limit bucket returns HTTP 429', async () => {
   assert.equal(body.status, 429);
   assert.deepEqual(fixture.queries, []);
   assert.equal(fixture.usage.at(-1).rate_limit_action, 'throttled');
+});
+
+test('missing rate-limit state denies API access', async () => {
+  setup();
+
+  // Simulate a valid API key whose rate-limit state is missing.
+  fixture.client.asServiceRole.entities.ApiKeyRateLimitState.filter =
+    async () => [];
+
+  const { response, body } = await request();
+
+  assert.equal(response.status, 503);
+  assert.equal(body.status, 503);
+
+  // The protected case data must never be queried.
+  assert.deepEqual(fixture.queries, []);
+
+  // No successful API-key usage update should occur.
+  assert.deepEqual(fixture.updates, []);
+
+  // Telemetry must classify this as unavailable,
+  // rather than ordinary throttling.
+  assert.equal(
+    fixture.usage.at(-1).rate_limit_action,
+    'unavailable'
+  );
 });
