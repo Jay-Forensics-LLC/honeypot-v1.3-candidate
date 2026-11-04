@@ -162,3 +162,7 @@ observation time, and supporting report where available.
 Use concise imperative commit subjects when committing is requested.
 PR descriptions identify the working copy, behavior change, validation,
 and remaining lab checks. Include screenshots for dashboard changes.
+
+## Jay Forensics LLC — CEDW operating standard
+
+For authorized development, follow [CEDW SOP v1.1](docs/operations/Jay_Forensics_CEDW_SOP_v1.1.md) with rigor proportional to risk. Preserve this repository's existing instructions, frozen checklists, evidence rules, and qualification gates; stricter project-specific controls take precedence. The Jay Forensics ChatGPT Project provides portfolio administration, not automatic technical acceptance or permission to merge, deploy, or release.
