@@ -2,10 +2,10 @@
   "schema_version": 1,
   "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
   "commit": "187bec14835fc9497b05594ca467a49259553d64",
-  "git_tree": "5bf9248c258ec6690414a3e9500a02ddcb22e671",
+  "git_tree": "cef8e9ad84dd2614e0f7794aea7fbef4ccaeb30b",
   "prefix": "sentinel-forensics",
   "files": 1450,
-  "bytes": 11536144,
+  "bytes": 11547879,
   "license": "AGPL-3.0",
   "license_sha256": "7f8f48e4266aa8fd3033dfaa4bb7f6e83a60c6e099f82d4959b81de90e67cd8f",
   "import_method": "Complete committed upstream tree with 68 recorded replacements and 34 local additions; Git metadata/history and untracked files excluded.",
@@ -33,8 +33,8 @@
       "operation": "replace",
       "upstream_blob": "cc336ed7ad91bcc2d26222339cfb70584264864d",
       "upstream_sha256": "b98a09780435c52fa9f8220cebc988f43cce82af6e90cc62745f39a24734b45e",
-      "sha256": "e045f42d197446558ef61773379fa92247629df0e3433f842357656b91c64524",
-      "reason": "Preserve Case.id and organization restrictions, pass runtime connection metadata and reject malformed tenant/case scopes."
+      "sha256": "8938b1d2d936ce5216cf9069d436fe3d1d0ca2c303746c8cef9795ae7ae48e2f",
+      "reason": "Preserve Case.id and organization restrictions, pass runtime connection metadata and reject malformed tenant/case scopes. Distinguish unavailable rate-limit storage (HTTP 503) from exhausted tokens (HTTP 429)."
     },
     {
       "path": "functions/calculateFileHash.ts",
@@ -521,8 +521,8 @@
     {
       "path": "functions/tests/apiKeyAuthorization.test.mjs",
       "operation": "add",
-      "reason": "Add offline API-key authorization regression coverage and document the direct-connection trust contract.",
-      "sha256": "a0a5ff545bc92b7e70c7ce3ca341708485c76f7cd4266113bde5b0c26988de42"
+      "reason": "Add offline API-key authorization regression coverage and document the direct-connection trust contract. Add synthetic storage-failure, missing-state, concurrency, and adversarial rate-limit regression coverage.",
+      "sha256": "7a89df8862146b82d8b8ae505e1a3fe976025a63373b0fc6c468c12d71300492"
     },
     {
       "path": "functions/tests/apiKeyIp.test.mjs",
@@ -547,8 +547,8 @@
       "operation": "replace",
       "upstream_blob": "f8d5154fbb5c67ac0ac41e50cbced0ee719f36d2",
       "upstream_sha256": "b475f7e1a000f6d31d94ce6cf7becf3e075805d2cceb2ed69572d47b8255dc18",
-      "reason": "Use runtime TCP peer metadata and exact normalized IP matching; reject untrusted forwarding and malformed policies; log only trusted client addresses.",
-      "sha256": "564d5ab277edb2e4345748343b8c1056ee0ea6e6e85f0a6ecb1344f7a50aa77d"
+      "reason": "Use runtime TCP peer metadata and exact normalized IP matching; reject untrusted forwarding and malformed policies; log only trusted client addresses. Fail closed on unavailable rate-limit state and use bounded conditional token updates. Actual backend nested-field atomicity remains unverified.",
+      "sha256": "8c95798120517e4e0e7d6766595bbc3c57a565bcfa23a65940ee566779447765"
     },
     {
       "path": "src/components/dashboard/widgets/ActivityFeedWidget.jsx",
