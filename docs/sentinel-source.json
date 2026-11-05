@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
+  "commit": "187bec14835fc9497b05594ca467a49259553d64",
+  "git_tree": "fdb1b09647d39fc95fbd81eb28d257699a3d11ce",
+  "prefix": "sentinel-forensics",
+  "files": 1416,
+  "bytes": 11448928,
+  "license": "AGPL-3.0",
+  "license_sha256": "7f8f48e4266aa8fd3033dfaa4bb7f6e83a60c6e099f82d4959b81de90e67cd8f",
+  "import_method": "complete committed tree with one recorded demo-literal sanitization; Git metadata, history and untracked files excluded",
+  "upstream_git_tree": "45e7025dd351732dfa0d321362891ff353f8b940",
+  "upstream_bytes": 11448833,
+  "patches": [
+    {
+      "path": "functions/runCodebaseAudit.ts",
+      "upstream_blob": "399ccc3d16d869828bb99f11001b402735d097ec",
+      "upstream_sha256": "5900463418863db90035791a294c439ac3ddbdce71b14e0fda9264e226735c7e",
+      "sha256": "7f53dcb35ac0917eee35fb333e54702ccb632782a50689192a7cc0a1167d25db",
+      "reason": "Replace one credential-shaped demo value with an explicit placeholder after GitHub push protection rejected publication; no credential was used or tested."
+    }
+  ]
+}

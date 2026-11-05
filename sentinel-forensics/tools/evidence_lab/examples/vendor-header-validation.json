@@ -1,0 +1,178 @@
+{
+  "dataset": {
+    "bytes": 297151107,
+    "demonstrates_30gb_scale": false,
+    "files": 3,
+    "format": "classic PCAP",
+    "independent_packets": 591565,
+    "original_approximately_30gb_estimate_corrected": true,
+    "owner_confirmed_complete": true
+  },
+  "implementation": {
+    "analysis_runtime": "Python standard library and SQLite; no decoder/plugin required",
+    "capinfos_version": "4.6.4",
+    "commit": "7547e4ff93fd499320e9f87134d8abe0a21a8d2e",
+    "header_profile": "broadcom_event_v2_common/1",
+    "local_python": "3.14.4",
+    "local_sqlite": "3.46.1",
+    "numeric_fields": [
+      "version",
+      "flags",
+      "event_type",
+      "status",
+      "reason",
+      "auth_type",
+      "datalen",
+      "ifidx",
+      "bsscfgidx"
+    ],
+    "observation": "bcm.event_header",
+    "ordinary_oracle_version": "2.0.9",
+    "parser_version": "2.0.10",
+    "protocol": "broadcom_event"
+  },
+  "independent_header_validation": {
+    "all_coarse_vendor_losses_retained": true,
+    "all_nine_fields_match": true,
+    "both_closed_indexes_and_sources_unchanged": true,
+    "complete_system_cpu_seconds": 2.21,
+    "complete_user_cpu_seconds": 7.31,
+    "complete_wall_seconds": 9.42,
+    "conservative_own_plus_child_lifetime_peak_rss_bytes": 218611712,
+    "extra_header_coverage_and_privacy_shapes_source_verified": 729,
+    "invalid_reference_fields": 0,
+    "keys_opened": false,
+    "limits": {
+      "decoder_seconds": 60,
+      "receipt_bytes": 1048576,
+      "rss_bytes": 536870912,
+      "scratch_bytes": 67108864,
+      "total_seconds": 60
+    },
+    "missing_reference_fields": 0,
+    "numeric_field_comparisons": 6561,
+    "original_records": 729,
+    "record_hash_locator_framing_original_time_context_and_provenance_verified": true,
+    "reference_code_commit": "8dcb879ad1870ad0741237948c6238c308010316",
+    "reference_diagnostics": 0,
+    "reference_lua_shipped_or_globally_installed": false,
+    "reference_tool": "TShark 4.6.4 with an unchanged pinned external development Lua reference",
+    "resource_snapshot_scope": "Producer RSS and scratch peaks are preterminal snapshots before serialization/cleanup; final guards remain enforced and can only downgrade. Complete wall and CPU measurements include startup and finalization.",
+    "sampled_combined_tree_peak_rss_bytes": 215072768,
+    "scratch_peak_including_trusted_lua_reserve_bytes": 94208,
+    "status": "PASS",
+    "stored_observations_verified_across_two_cases": 1458
+  },
+  "limitations": [
+    "Only the guarded version-2 numeric common header is supported; station address, interface name, event body and trailing bytes are unexamined.",
+    "Outer-length relations do not establish padding, FCS, packet completeness or source authenticity.",
+    "Raw losses remain explicit; neither header validation nor independently matching fields establish device identity, successful operation or compromise.",
+    "Ordinary qualification remains QUALIFIED_LIMITATIONS and full-decoding GOAL_PASS is unmet. This candidate qualification and numeric comparison each ran once under their declared budgets; earlier failed experiments remain preserved.",
+    "Memory/disk sampling and conservative lifetime maxima are measured gates, not hard OS quotas. Complete-process time includes helper startup/finalization.",
+    "Initial USB hashes matched before copying; no original-media after-check, cold-cache or 30 GB-scale claim.",
+    "Optional TLS continuation actual evidence remains pinned to a60feb9; no changed-code chain qualification is implied.",
+    "The first full-suite log is preserved; its old LLC boundary diagnostic expectation was corrected before the passing suite."
+  ],
+  "ordinary_qualification": {
+    "analyses": 2,
+    "applicable_checks_passed": 14,
+    "complete_worker_wall_seconds": [
+      107.19619878400408,
+      124.5559422419974
+    ],
+    "completed_worker_output_bytes": [
+      2725074302,
+      2725074302
+    ],
+    "filtered_packets": 0,
+    "framing_errors": 0,
+    "inapplicable_check": "fixture_count:false is N/A for real profile",
+    "limits": {
+      "ordinary_free_space_reserve_bytes": 15271301824,
+      "preflight_combined_reserve_bytes": 17418785472,
+      "worker_rss_bytes": 536870912,
+      "worker_seconds": 14400
+    },
+    "new_header_observations_each": 729,
+    "normalized_minimized_exports_match": true,
+    "observations_each": 93894,
+    "packets_each": 591565,
+    "private_deterministic_content_matches": true,
+    "qualification_child_system_cpu_seconds": 8.759722,
+    "qualification_child_user_cpu_seconds": 102.01070800000001,
+    "qualification_parent_cpu_seconds": 51.390522784,
+    "raw_decoding_losses": {
+      "tls_reassembly_required": 1094,
+      "unsupported_ethertype": 729,
+      "unsupported_llc_control": 2
+    },
+    "raw_limited_packets": 1825,
+    "sampled_qualification_parent_peak_rss_bytes": [
+      29241344,
+      35459072
+    ],
+    "sampled_worker_tree_rss_bytes": [
+      46477312,
+      46325760
+    ],
+    "source_hashes_before_after_and_closed_inventory_verified": true,
+    "status": "QUALIFIED_LIMITATIONS",
+    "total_qualification_wall_seconds": 282.0939412059961,
+    "worker_cpu_seconds": [
+      55.229455608,
+      55.400254449
+    ]
+  },
+  "other_supported_independent_profiles": [
+    {
+      "complete_source_verified": 3,
+      "field_comparisons": 5774468,
+      "mismatches": 0,
+      "packets": 591565,
+      "profile": "actual_owner_capture"
+    },
+    {
+      "complete_source_verified": 8,
+      "field_comparisons": 1122,
+      "mismatches": 0,
+      "packets": 109,
+      "profile": "pinned_upstream"
+    },
+    {
+      "complete_source_verified": 2,
+      "field_comparisons": 120,
+      "mismatches": 0,
+      "packets": 12,
+      "profile": "wholly_synthetic_network"
+    },
+    {
+      "complete_source_verified": 2,
+      "field_comparisons": 440,
+      "mismatches": 0,
+      "packets": 24,
+      "profile": "wholly_synthetic_igmp"
+    },
+    {
+      "complete_source_verified": 2,
+      "field_comparisons": 292,
+      "mismatches": 0,
+      "packets": 16,
+      "profile": "wholly_synthetic_llc_xid"
+    }
+  ],
+  "schema": "sentinel.vendor-event-header-validation/1",
+  "status": "REAL_DATA_VALIDATED_SUPPORTED_HEADER_SUBSET",
+  "synthetic_validation": {
+    "diagnostic_tests": 31,
+    "exact_implementation_ci_run": 40031236241,
+    "lab_tests": 397,
+    "local_tests": 428,
+    "private_numeric_validator_source_free_tests_separate": 19,
+    "python_ci": [
+      "3.11",
+      "3.14"
+    ],
+    "schema_reproducibility": true,
+    "skips": 0
+  }
+}
