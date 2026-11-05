@@ -73,8 +73,10 @@ export async function verifyApiKeyAndAuthorize(req, requiredScope, connectionInf
       return { authorized: false, error: 'API key disabled' };
     }
 
-    // Check expiration
-    if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) {
+    // Null or absent expiry means no expiration; present values must be valid.
+    const expiresAt = apiKey.expires_at;
+    const expiryTime = typeof expiresAt === 'string' ? Date.parse(expiresAt) : NaN;
+    if (expiresAt != null && (!Number.isFinite(expiryTime) || expiryTime <= Date.now())) {
       authResult = 'expired';
       statusCode = 401;
       errorMessage = 'API key has expired';
