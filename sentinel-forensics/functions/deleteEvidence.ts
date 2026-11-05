@@ -1,4 +1,4 @@
-import { enforceRBAC } from './enforceRBAC.ts';
+import { enforceRBAC } from './enforceRBAC.js';
 import { validateRequest } from './validateInput.ts';
 
 /**

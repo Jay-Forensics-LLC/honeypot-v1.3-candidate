@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
   "commit": "187bec14835fc9497b05594ca467a49259553d64",
-  "git_tree": "e66bec8559b2e6a58d8cd250154ba99c584fa4c1",
+  "git_tree": "d7d2e12d2a6d5605ddcb2cd21b49b3e2f54a5712",
   "prefix": "sentinel-forensics",
   "files": 1452,
   "bytes": 11572424,
@@ -767,7 +767,7 @@
       "operation": "replace",
       "upstream_blob": "edc1a1093bf03b43bc5ff47a618583497284dfe4",
       "upstream_sha256": "32fc43c323485f320904adc717dbb3d65662ac18d25b6308cfb96220ebc7543b",
-      "sha256": "dd1b0710212c325913a1924acbb0707fd80091f3c94642907f53a0a6a7b764fb",
+      "sha256": "44f938f80e71d378a66f3a1b2def64e54ac86a6dad3fab86f57c9fc01318ad90",
       "reason": "Disable permanent evidence-record deletion to preserve full custody history; retain access and legal-hold checks and use the tracked validation and RBAC modules."
     },
     {
