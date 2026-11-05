@@ -501,6 +501,44 @@ test('atomic rate limiter denies access after repeated conflicts', async () => {
   assert.deepEqual(fixture.updates, []);
 });
 
+
+test('atomic rate limiter rejects future refill timestamps', async () => {
+  setup();
+
+  fixture.rateLimitState.bucket = {
+    capacity: 10,
+    tokens: 5,
+    refill_per_sec: 1,
+    last_refill_at: new Date(
+      Date.now() + 24 * 60 * 60 * 1000
+    ).toISOString()
+  };
+
+  const { response, body } = await request();
+
+  assert.equal(response.status, 503);
+  assert.equal(body.status, 503);
+
+  // Future clock state is malformed/unavailable,
+  // not ordinary bucket exhaustion.
+  assert.equal(
+    fixture.usage.at(-1).rate_limit_action,
+    'unavailable'
+  );
+
+  // No protected read or successful key usage update
+  // may occur from a future-dated bucket.
+  assert.deepEqual(fixture.queries, []);
+  assert.deepEqual(fixture.updates, []);
+
+  // The malformed bucket must be rejected before
+  // any token mutation attempt.
+  assert.equal(
+    fixture.rateLimitState.bucket.tokens,
+    5
+  );
+});
+
 test('atomic rate limiter rejects malformed and duplicate states', async () => {
   const invalidStates = [
     state => { state.bucket = null; },
