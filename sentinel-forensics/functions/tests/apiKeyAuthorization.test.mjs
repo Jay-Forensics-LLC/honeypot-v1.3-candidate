@@ -219,6 +219,39 @@ test('prior revocation, disabled, expiry, scope and secret checks remain enforce
   assert.deepEqual(fixture.queries, []);
 });
 
+test('only active API key status is authorized', async () => {
+  const invalidStatuses = [
+    'pending',
+    'expired',
+    '',
+    null,
+    { unexpected: true }
+  ];
+
+  for (const status of invalidStatuses) {
+    setup({ status });
+
+    const { response } = await request();
+
+    assert.equal(
+      response.status,
+      401,
+      `API key status ${JSON.stringify(status)} must fail closed`
+    );
+
+    // Invalid state must be rejected before protected data,
+    // rate-limit consumption, or successful key usage updates.
+    assert.deepEqual(fixture.queries, []);
+    assert.deepEqual(fixture.updates, []);
+    assert.equal(fixture.rateChecks, 0);
+
+    assert.equal(
+      fixture.usage.at(-1).auth_result,
+      'invalid_status'
+    );
+  }
+});
+
 test('rate-limit database read failure denies access', async () => {
   setup();
 

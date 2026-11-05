@@ -73,6 +73,14 @@ export async function verifyApiKeyAndAuthorize(req, requiredScope, connectionInf
       return { authorized: false, error: 'API key disabled' };
     }
 
+    if (apiKey.status !== 'active') {
+      authResult = 'invalid_status';
+      statusCode = 401;
+      errorMessage = 'API key is not active';
+      await logRequestUsage(apiKey, req, requestId, authResult, rateLimitAction, statusCode, Date.now() - startTime, errorMessage, requiredScope);
+      return { authorized: false, error: 'API key not active' };
+    }
+
     // Null or absent expiry means no expiration; present values must be valid.
     const expiresAt = apiKey.expires_at;
     const expiryTime = typeof expiresAt === 'string' ? Date.parse(expiresAt) : NaN;
