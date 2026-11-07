@@ -1,0 +1,199 @@
+{
+  "allocation_metric_scope": "Sampled cumulative qualification-tree allocated bytes as measured; run2 includes run1. Completed worker output is separate; neither metric claims the final private recipe footprint.",
+  "analysis_commit": "a60feb9a2a8defc3f85e92d6a85347e98f39da8e",
+  "analysis_parser_version": "2.0.9",
+  "budgets": {
+    "additional_ssd_available_bytes": 322385444864,
+    "additional_ssd_bytes_per_packet_per_run": 12000,
+    "additional_ssd_required_bytes": 15271301824,
+    "disk_reserve_bytes": 1073741824,
+    "ordinary_plus_two_max16page_families_required_free_bytes": 17418785472,
+    "per_worker_seconds": 14400,
+    "rss_bytes": 536870912,
+    "runner_disk_estimate_bytes_per_packet_per_run": 6000
+  },
+  "checks": {
+    "complete_dataset_accounting": true,
+    "dataset_inventory_unchanged": true,
+    "implementation_unchanged": true,
+    "independent_count": true,
+    "independent_memory_budget": true,
+    "memory_budget": true,
+    "nonempty_capture": true,
+    "parent_memory_budget": true,
+    "pinned_real_code": true,
+    "reproducible_minimized_export": true,
+    "reproducible_records": true,
+    "source_hashes_match": true,
+    "source_unchanged": true,
+    "time_budget": true
+  },
+  "coverage": {
+    "decoding_loss_counts": {
+      "tls_reassembly_required": 1094,
+      "unsupported_ethertype": 729,
+      "unsupported_llc_control": 2
+    },
+    "filtered_packets": 0,
+    "framing_parse_errors": 0,
+    "optional_derived_receipt": "examples/tls-continuation-validation.json",
+    "ordinary_reassembly": "none",
+    "raw_payload_retention": false
+  },
+  "independent_comparison": {
+    "code_commit": "a60feb9a2a8defc3f85e92d6a85347e98f39da8e",
+    "comparisons": 5774468,
+    "complete_source_verifications": 3,
+    "configuration": {
+      "decoder_chunk_bytes": 1048576,
+      "decoder_timeout_seconds": 60,
+      "decoder_transport": "bounded_local_pipes",
+      "ip_reassembly": false,
+      "tcp_reassembly": false,
+      "tcp_sequence_analysis": false
+    },
+    "files": 3,
+    "metrics": {
+      "memory_budget_passed": true,
+      "peak_process_tree_rss_bytes": 392179712,
+      "rss_budget_bytes": 536870912,
+      "time_budget_passed": true,
+      "timeout_seconds": 14400,
+      "wall_seconds": 17.299538526000106
+    },
+    "mismatches": 0,
+    "oracle_version": "2.0.9",
+    "packets": 591565,
+    "status": "PASS",
+    "tool_version": "TShark (Wireshark) 4.6.4."
+  },
+  "independent_fixture_rechecks": [
+    {
+      "complete_source_verified": 8,
+      "field_comparisons": 1122,
+      "files": 8,
+      "mismatch_count": 0,
+      "packets": 109,
+      "profile": "pinned_upstream",
+      "source_hashes_match_expected": true,
+      "status": "PASS"
+    },
+    {
+      "complete_source_verified": 2,
+      "field_comparisons": 120,
+      "files": 2,
+      "mismatch_count": 0,
+      "packets": 12,
+      "profile": "wholly_synthetic_network",
+      "source_hashes_match_expected": true,
+      "status": "PASS"
+    },
+    {
+      "complete_source_verified": 2,
+      "field_comparisons": 440,
+      "files": 2,
+      "mismatch_count": 0,
+      "packets": 24,
+      "profile": "wholly_synthetic_igmp",
+      "source_hashes_match_expected": true,
+      "status": "PASS"
+    },
+    {
+      "complete_source_verified": 2,
+      "field_comparisons": 292,
+      "files": 2,
+      "mismatch_count": 0,
+      "packets": 16,
+      "profile": "wholly_synthetic_llc_xid",
+      "source_hashes_match_expected": true,
+      "status": "PASS"
+    }
+  ],
+  "independent_packets": 591565,
+  "integrated_candidate_commit": "a60feb9a2a8defc3f85e92d6a85347e98f39da8e",
+  "ios_parser_version": "0.2.1",
+  "limitations": [
+    "QUALIFIED_LIMITATIONS is not GOAL_PASS or full decoding; all1825 raw losses remain explicit.",
+    "The complete owner-confirmed dataset is three classic PCAPs; no30GB-scale or actual PCAPNG claim.",
+    "No original USB media after-check; local full source hashes and closed inventory are verified.",
+    "RSS/disk samples can miss brief peaks and are measured gates, not OS quotas; caches were not flushed.",
+    "Ordinary export files are not claimed byte-identical; only the documented run UUID is normalized.",
+    "Private source hashes, keys, exact identifiers, source times, paths and content digests are omitted.",
+    "Original Tetra and genuine combined-source clock/network calibration remain unavailable.",
+    "Public BLE compatibility retains its independently tested earlier revision; no fresh radio run claimed.",
+    "Optional TLS continuation is a separate derived bundle; it does not change raw observations, losses or findings.",
+    "No endpoint contact, external name resolution, replay, enrichment, decryption, identity or compromise verdict."
+  ],
+  "not_applicable_checks": [
+    "fixture_count"
+  ],
+  "ordinary_export_reproducibility": {
+    "byte_exact_export_claim": false,
+    "method": "Matching deterministic normalized export digests; private logical records match both runs and real11.",
+    "run_id_normalization": "Only documented case run UUID replaced with VOLATILE."
+  },
+  "output_allocated_bytes": 5444448256,
+  "output_logical_bytes": 5444381911,
+  "runs": [
+    {
+      "cpu_seconds": 55.027420246,
+      "cpu_system_seconds": 4.258167,
+      "cpu_user_seconds": 50.806039999999996,
+      "output_bytes": 2722190469,
+      "packets": 591565,
+      "peak_rss_bytes": 45629440,
+      "sampled_parent_peak_rss_bytes": 29147136,
+      "sampled_qualification_tree_allocated_peak_bytes": 2722226176,
+      "sampled_worker_tree_peak_rss_bytes": 46346240,
+      "wall_seconds": 124.53611127399927
+    },
+    {
+      "cpu_seconds": 55.150056841,
+      "cpu_system_seconds": 4.305855,
+      "cpu_user_seconds": 50.882456999999995,
+      "output_bytes": 2722190469,
+      "packets": 591565,
+      "peak_rss_bytes": 45858816,
+      "sampled_parent_peak_rss_bytes": 35368960,
+      "sampled_qualification_tree_allocated_peak_bytes": 5444448256,
+      "sampled_worker_tree_peak_rss_bytes": 46338048,
+      "wall_seconds": 141.30395721699824
+    }
+  ],
+  "runtime": {
+    "logical_cpus": 16,
+    "machine": "x86_64",
+    "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+    "python": "3.14.4",
+    "sqlite": "3.46.1"
+  },
+  "schema": "sentinel.sanitized-actual-validation/1",
+  "scope": "Ordinary two-run analysis of the owner-confirmed complete Packet Squirrel dataset; optional continuation has a separate receipt.",
+  "source_bytes": 297151107,
+  "source_files": 3,
+  "status": "QUALIFIED_LIMITATIONS",
+  "timing": {
+    "child_system_cpu_seconds": 8.588568,
+    "child_user_cpu_seconds": 101.728173,
+    "inventory_seconds": 0.0071573739987798035,
+    "parent_cpu_seconds": 51.554048951,
+    "source_hash_after_seconds": 0.11724772999878041,
+    "source_hash_before_seconds": 0.11718189699968207,
+    "total_wall_seconds": 316.1378789840019
+  },
+  "tool_versions": {
+    "capinfos": "Capinfos (Wireshark) 4.6.4."
+  },
+  "validation": {
+    "ci_run": 39993333642,
+    "ci_tshark": "4.2.2",
+    "diagnostic_tests": 31,
+    "independent_local_review_completed": true,
+    "lab_tests": 376,
+    "local_tests": 407,
+    "python_ci": [
+      "3.11",
+      "3.14"
+    ]
+  }
+}

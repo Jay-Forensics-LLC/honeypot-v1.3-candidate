@@ -1,0 +1,13 @@
+{
+  "enabled": false,
+  "plugins": [],
+  "scope": [],
+  "assessment_approved": false,
+  "awareness_approved": false,
+  "privacy_policy": "",
+  "data_sharing_approved": false,
+  "max_bytes": 8388608,
+  "max_records": 10000,
+  "timeout_seconds": 5,
+  "retention_days": 30
+}

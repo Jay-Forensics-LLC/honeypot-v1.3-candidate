@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Explore HoneyTrace Forensic Dashboard: a free honeypot core with local forensic cases, telemetry and optional security integrations.">
+    <title>HoneyTrace Forensic Dashboard · Jay Forensics</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+        <a class="company" href="https://jayforensics.com/" aria-label="Jay Forensics home"><span class="jf-mark">JF</span><span>JAY FORENSICS <small>OBSERVE. RECONCILE. PRESERVE.</small></span></a>
+        <a class="text-link" href="https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/tree/codex/forensic-workflows-20261101" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+    </header>
+    <main id="main">
+        <section class="hero" aria-labelledby="hero-title">
+            <div class="hero-copy">
+                <p class="eyebrow"><span class="ht-mark" aria-hidden="true">HT<span>//</span></span> HONEYTRACE SECURITY SUITE</p>
+                <h1 id="hero-title">HoneyTrace<br>Forensic Dashboard</h1>
+                <p class="lead">Start with the free honeypot core. Bring forensic cases, telemetry and optional security tools into one clear, local workspace.</p>
+                <div class="download-actions">
+                    <a class="button primary" href="https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/archive/refs/heads/codex/forensic-workflows-20261101.zip">Download review build <span class="button-meta">ZIP ↓</span></a>
+                    <a class="button secondary" href="https://github.com/Jay-Forensics-LLC/honeypot-v1.3-candidate/tree/codex/forensic-workflows-20261101" target="_blank" rel="noopener noreferrer">View on GitHub ↗</a>
+                </div>
+                <p class="release-note">Review source · Python 3.11+ · Linux<br>This is a source preview, not a production installer.</p>
+            </div>
+            <aside class="hero-note" aria-label="HoneyTrace approach">
+                <span class="outline-mark" aria-hidden="true">HT<span>//</span></span>
+                <p class="eyebrow">BUILT AROUND YOUR EVIDENCE</p>
+                <h2>One connected workflow.</h2>
+                <p>Observe interactions. Reconcile signals. Preserve the source behind every conclusion.</p>
+                <div class="local-badge"><span aria-hidden="true"></span> Local dashboard · No cloud account</div>
+            </aside>
+        </section>
+
+        <section class="preview-section" aria-labelledby="preview-title">
+            <div class="section-heading"><div><p class="eyebrow">A LOOK INSIDE</p><h2 id="preview-title">A workspace that makes sense.</h2></div><p class="section-note">Synthetic demonstration<br>No live telemetry or private evidence</p></div>
+            <div class="preview-tabs" role="tablist" aria-label="Dashboard examples">
+                <button id="tab-cases" role="tab" type="button" aria-selected="true" aria-controls="panel-cases">Forensic cases</button>
+                <button id="tab-diagnostics" role="tab" type="button" aria-selected="false" aria-controls="panel-diagnostics" tabindex="-1">Diagnostics</button>
+                <button id="tab-decoys" role="tab" type="button" aria-selected="false" aria-controls="panel-decoys" tabindex="-1">Decoy profiles</button>
+            </div>
+            <div class="preview-frame">
+                <div class="preview-bar"><span class="window-dots" aria-hidden="true">● ● ●</span><span>HoneyTrace Forensic Dashboard</span><span class="synthetic-label">SYNTHETIC EXAMPLE</span></div>
+                <section id="panel-cases" role="tabpanel" aria-labelledby="tab-cases" tabindex="0">
+                    <div class="preview-image"><img src="assets/cases.png" alt="HoneyTrace forensic case dashboard showing a synthetic timeline, case coverage and source provenance." hidden><div class="preview-fallback"><span class="fallback-label">DASHBOARD PREVIEW</span><h3>Follow the evidence.</h3><p>Case timeline → Coverage → Source provenance</p><span class="fallback-pill">Synthetic example · Screenshot pending</span></div></div>
+                    <div class="preview-caption"><strong>From capture to context.</strong><p>Analyze a local PCAP or Packet Squirrel capture with the bundled Sentinel analyzer. Search its timeline, inspect coverage and follow hash-linked provenance.</p></div>
+                </section>
+                <section id="panel-diagnostics" role="tabpanel" aria-labelledby="tab-diagnostics" tabindex="0" hidden>
+                    <div class="preview-image"><img src="assets/diagnostics.png" alt="HoneyTrace diagnostics dashboard showing sanitized synthetic operation events, filters and export controls." hidden><div class="preview-fallback"><span class="fallback-label">DASHBOARD PREVIEW</span><h3>See what happened.</h3><p>Operation events → Useful filters → Sanitized export</p><span class="fallback-pill">Synthetic example · Screenshot pending</span></div></div>
+                    <div class="preview-caption"><strong>Understand activity without exposing evidence.</strong><p>Review structured operation events, filter by component or level, and export sanitized diagnostics for troubleshooting.</p></div>
+                </section>
+                <section id="panel-decoys" role="tabpanel" aria-labelledby="tab-decoys" tabindex="0" hidden>
+                    <div class="preview-image"><img src="assets/decoys.png" alt="HoneyTrace honeypot dashboard showing a prepared decoy identity profile with configuration previews and file downloads." hidden><div class="preview-fallback"><span class="fallback-label">DASHBOARD PREVIEW</span><h3>Prepare a coherent identity.</h3><p>Choose a profile → Review configuration → Download files</p><span class="fallback-pill">Synthetic example · Screenshot pending</span></div></div>
+                    <div class="preview-caption"><strong>A deliberate presentation for your decoys.</strong><p>Prepare identity profiles, review configuration and download the files. Applying a profile and restarting services remain separate operator actions.</p></div>
+                </section>
+            </div>
+            <p class="preview-footnote">This is a static product preview. The dashboard runs on your own machine; this page has no access to its session, evidence or services.</p>
+        </section>
+
+        <section class="capabilities" aria-label="Suite capabilities">
+            <article><p class="eyebrow">01 / FREE FOUNDATION</p><h2>Honeypot & telemetry</h2><p>Decoy-service observations, saved sensor health and preserved evidence form the free core.</p></article>
+            <article><p class="eyebrow">02 / CONNECTED ANALYSIS</p><h2>Forensics & reports</h2><p>Verified Sentinel cases, searchable timelines, backup metadata and supported assessment reports in one workflow.</p></article>
+            <article><p class="eyebrow">03 / ROOM TO GROW</p><h2>Optional capabilities</h2><p>Enable the modules you need. Live provider integrations and BLE, Wi-Fi and RF capture remain on the roadmap.</p></article>
+        </section>
+
+        <section class="start-section" aria-labelledby="start-title">
+            <div><p class="eyebrow">START WITH THE LOCAL WORKSPACE</p><h2 id="start-title">Three steps to your dashboard.</h2><p class="lead">Use a normal Linux user with Python 3.11 or newer. The local dashboard needs no Node build or cloud account.</p></div>
+            <ol class="start-steps">
+                <li><span>01</span><div><h3>Download & extract</h3><p>Download the review ZIP and open a terminal in the extracted repository folder.</p></div></li>
+                <li><span>02</span><div><h3>Launch the dashboard</h3><code>bash tools/launch-dashboard.sh</code></div></li>
+                <li><span>03</span><div><h3>Open your private session</h3><p>Open the complete local URL printed in the terminal. Keep its session token private.</p></div></li>
+            </ol>
+            <details class="companion-note"><summary>Bundled offline capture analysis</summary><p>Sentinel Forensics is included under <strong>sentinel-forensics/</strong> and selected automatically. The dashboard connects its supported offline capture workflow; completed cases can also be imported directly.</p><p>To use another trusted checkout, supply this optional override:</p><code>bash tools/launch-dashboard.sh --sentinel-root /absolute/path/to/sentinel-forensics</code><p>Current capture analysis targets small datasets; backup support inventories finished, unencrypted metadata.</p></details>
+        </section>
+    </main>
+    <footer><a href="https://jayforensics.com/">JF · Jay Forensics LLC</a><span>Observe. Reconcile. Preserve.</span></footer>
+</body>
+</html>
