@@ -75,6 +75,7 @@ Deno.serve(async (req) => {
       const checkTimestamp = new Date().toISOString();
       let status = 'pass';
       let driftDetected = false;
+      let alertSent = false;
       let computedHash = null;
       let errorMessage = null;
       let fileAccessible = true;
@@ -117,14 +118,26 @@ Deno.serve(async (req) => {
               driftDetected = true;
               failed++;
               
-              // Send alert for drift detection
-              await base44.asServiceRole.functions.invoke('sendNotification', {
-                user_email: evidence.collected_by || user.email,
-                title: '⚠️ Evidence Integrity Drift Detected',
-                message: `Evidence "${evidence.title}" (${evidence.id}) has a hash mismatch. Potential tampering or corruption detected.`,
-                priority: 'high',
-                type: 'security_alert'
-              }).catch(err => console.error('Failed to send alert:', err));
+              // Record notification success only after an explicit acknowledgment.
+              // An unconfirmed attempt may still have created a notification.
+              try {
+                const notificationResponse = await base44.asServiceRole.functions.invoke('sendNotification', {
+                  userEmail: evidence.collected_by || user.email,
+                  title: '⚠️ Evidence Integrity Drift Detected',
+                  message: `Evidence "${evidence.title}" (${evidence.id}) has a hash mismatch. Potential tampering or corruption detected.`,
+                  severity: 'high',
+                  type: 'security_alert'
+                });
+                const notification = notificationResponse?.data;
+                alertSent = Number.isInteger(notificationResponse?.status) &&
+                  notificationResponse.status >= 200 && notificationResponse.status < 300 &&
+                  notification?.success === true &&
+                  typeof notification.notificationId === 'string' &&
+                  notification.notificationId.trim().length > 0;
+                if (!alertSent) console.error('Integrity drift notification was not confirmed');
+              } catch {
+                console.error('Integrity drift notification was not confirmed');
+              }
 
             } else {
               status = 'pass';
@@ -152,7 +165,7 @@ Deno.serve(async (req) => {
         check_timestamp: checkTimestamp,
         file_accessible: fileAccessible,
         file_size_bytes: fileSizeBytes,
-        alert_sent: driftDetected
+        alert_sent: alertSent
       });
 
       results.push({

@@ -2,13 +2,13 @@
   "schema_version": 1,
   "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
   "commit": "187bec14835fc9497b05594ca467a49259553d64",
-  "git_tree": "cef8e9ad84dd2614e0f7794aea7fbef4ccaeb30b",
+  "git_tree": "d5f5cf496102b882a0a82d744beec3711bd7d55f",
   "prefix": "sentinel-forensics",
-  "files": 1450,
-  "bytes": 11547879,
+  "files": 1455,
+  "bytes": 11606086,
   "license": "AGPL-3.0",
   "license_sha256": "7f8f48e4266aa8fd3033dfaa4bb7f6e83a60c6e099f82d4959b81de90e67cd8f",
-  "import_method": "Complete committed upstream tree with 68 recorded replacements and 34 local additions; Git metadata/history and untracked files excluded.",
+  "import_method": "Complete committed upstream tree with 70 recorded replacements and 39 local additions; Git metadata/history and untracked files excluded.",
   "upstream_git_tree": "45e7025dd351732dfa0d321362891ff353f8b940",
   "upstream_bytes": 11448833,
   "patches": [
@@ -547,8 +547,8 @@
       "operation": "replace",
       "upstream_blob": "f8d5154fbb5c67ac0ac41e50cbced0ee719f36d2",
       "upstream_sha256": "b475f7e1a000f6d31d94ce6cf7becf3e075805d2cceb2ed69572d47b8255dc18",
-      "reason": "Use runtime TCP peer metadata and exact normalized IP matching; reject untrusted forwarding and malformed policies; log only trusted client addresses. Fail closed on unavailable rate-limit state and use bounded conditional token updates. Actual backend nested-field atomicity remains unverified.",
-      "sha256": "8c95798120517e4e0e7d6766595bbc3c57a565bcfa23a65940ee566779447765"
+      "reason": "Use runtime TCP peer metadata and exact normalized IP matching; reject untrusted forwarding and malformed policies; log only trusted client addresses. Fail closed on unavailable rate-limit state and use bounded conditional token updates. Actual backend nested-field atomicity remains unverified. Refuse future refill timestamps before spending tokens or rewinding bucket state; recheck the current time after each lookup, including conflict retries. Preserve null or absent API-key expiry while refusing malformed present values and timestamps at or before the current time, before rate-limit or case access.",
+      "sha256": "3f05ee54558edebc9a5ba5150c3253f170fc5509f28846fe86bc8ca34fc9d046"
     },
     {
       "path": "src/components/dashboard/widgets/ActivityFeedWidget.jsx",
@@ -699,8 +699,8 @@
       "operation": "replace",
       "upstream_blob": "72b419b56cf121f0718a0f568069f0a5ea446bd8",
       "upstream_sha256": "e030be5f3c2fbcffb8a84601fda7346d8f613ed920e5cb8980b490fd183658bc",
-      "sha256": "700da89ec034263664551d88eabe12521d169d490870bb6cdd4e2cb09256ff1b",
-      "reason": "Reject malformed guardian token and case inputs before querying service-role entities."
+      "sha256": "381bfd3547373e850bbb7f258b2e9ce263c0950035f26560de29b3ac2866d922",
+      "reason": "Reject malformed guardian token and case inputs before querying service-role entities; require a parseable string expiry strictly after the current time before recording successful guardian access."
     },
     {
       "path": "functions/enforceRBAC.js",
@@ -761,6 +761,52 @@
       "upstream_sha256": "1761bfaa0a06480b76b31511e4a5c24903b407732e027fc11ad615dd3d93a562",
       "sha256": "56342edd46149f4c65ac2d221fe47e3b82fa69089aca9178283e455239a1658a",
       "reason": "Support Radix sliders configured with multiple values."
+    },
+    {
+      "path": "functions/deleteEvidence.ts",
+      "operation": "replace",
+      "upstream_blob": "edc1a1093bf03b43bc5ff47a618583497284dfe4",
+      "upstream_sha256": "32fc43c323485f320904adc717dbb3d65662ac18d25b6308cfb96220ebc7543b",
+      "sha256": "44f938f80e71d378a66f3a1b2def64e54ac86a6dad3fab86f57c9fc01318ad90",
+      "reason": "Disable permanent evidence-record deletion to preserve full custody history; retain access and legal-hold checks and use the tracked validation and RBAC modules."
+    },
+    {
+      "path": "functions/tests/deleteEvidence.test.mjs",
+      "operation": "add",
+      "sha256": "5801409ffe7dc082186b33bacd5cb22393eff8346b2b0cfef03be051976740de",
+      "reason": "Use the real deletion endpoint, RBAC and validator with a synthetic SDK to check refusal, evidence preservation, retained preconditions and read-failure behavior."
+    },
+    {
+      "path": "functions/monitorEvidenceIntegrity.ts",
+      "operation": "replace",
+      "upstream_blob": "a4df4464d8cbc5e6f88e50f22973a63bb5070b42",
+      "upstream_sha256": "5a74a75b44aacfdcd46f4237ae4d4252f70107d29845e49c615d704905d3bcda",
+      "sha256": "e5e76249505d4b75adf6c0a17061662147928b0951a00effdace1d2a7e738932",
+      "reason": "Use the notification endpoint recipient/severity fields and record alert_sent only after an explicit successful acknowledgment; preserve the integrity mismatch when notification is unconfirmed."
+    },
+    {
+      "path": "functions/tests/monitorEvidenceIntegrity.test.mjs",
+      "operation": "add",
+      "sha256": "92f7d3008752c7f7a90f241a010cd763a1a6a0bf8b45f9d2ce89e1796dcf3cfb",
+      "reason": "Exercise the actual integrity monitor and notification endpoint with synthetic SDK/network boundaries; verify request mapping, acknowledged success, rejection, malformed responses, per-item state and preserved evidence."
+    },
+    {
+      "path": "functions/tests/apiKeyExpiry.test.mjs",
+      "operation": "add",
+      "sha256": "7fe8cf6bf40b382deaf47988b9f576189710f0e3e78eae17e083dbbc35a67222",
+      "reason": "Exercise the real API handler, middleware and IP helper with a synthetic SDK and clock; cover malformed present expiry, equality, future and past dates, optional expiry, post-lookup time and unchanged protected state on refusal."
+    },
+    {
+      "path": "functions/tests/apiKeyRateLimitClock.test.mjs",
+      "operation": "add",
+      "sha256": "353f9c59af19c076fc61fc9fd43acc13b360258c75d7b6633aa1ee1b64803f83",
+      "reason": "Exercise the real API handler, middleware and IP helper with a synthetic SDK and clock; cover future refill timestamps, clock rollback, conflict retry, recovery at the preserved timestamp, valid refills and unchanged protected state on refusal."
+    },
+    {
+      "path": "functions/tests/verifyGuardianToken.test.mjs",
+      "operation": "add",
+      "sha256": "a1135b304e0fa37effdcbed4ed3837524490860221df2ae8c35d454ae35806f0",
+      "reason": "Exercise the real endpoint and input validator with a synthetic SDK and clock; cover missing, unparseable, non-string and expired timestamps, future UTC/offset timestamps, exact capability lookup, revocation and backend failures without token mutation."
     }
   ]
 }

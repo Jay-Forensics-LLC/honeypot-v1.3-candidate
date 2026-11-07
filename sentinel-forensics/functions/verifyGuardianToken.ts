@@ -21,8 +21,11 @@ Deno.serve(async (req) => {
 
         const tokenRecord = tokens[0];
 
-        // Check expiry
-        if (new Date(tokenRecord.expires_at) < new Date()) {
+        // Access requires a parseable stored expiry strictly after the current time.
+        const expiresAt = typeof tokenRecord.expires_at === 'string'
+            ? Date.parse(tokenRecord.expires_at)
+            : NaN;
+        if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
             return Response.json({ valid: false, reason: 'Token expired' });
         }
 
