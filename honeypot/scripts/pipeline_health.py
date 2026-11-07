@@ -17,7 +17,7 @@ def snapshot(root=ROOT, now=None):
         sources[name]={'last_write_age':max(0,round(now-path.stat().st_mtime,3)) if path.exists() else None,
                        'present':path.exists()}
     count=0
-    for path in (root/'logs/system').glob('parser-errors.jsonl*'):
+    for path in (root/'logs/system').glob('parser-errors*.jsonl*'):
         with path.open(encoding='utf-8',errors='replace') as f:
             for line in f:
                 try:

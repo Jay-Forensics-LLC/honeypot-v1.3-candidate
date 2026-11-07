@@ -1,0 +1,78 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { verifyApiKeyAndAuthorize } from './verifyApiKeyAndAuthorize.ts';
+
+/**
+ * API ENDPOINT: GET /api/v1/cases
+ * Scope: cases:read
+ */
+
+Deno.serve(async (req, connectionInfo) => {
+  const startTime = Date.now();
+
+  try {
+    // Verify API key and authorize
+    const authResult = await verifyApiKeyAndAuthorize(req, 'cases:read', connectionInfo);
+    if (!authResult.authorized) {
+      const status = authResult.status === 503 ? 503
+        : authResult.status === 429 ? 429 : 401;
+
+      const titles = {
+        401: 'Unauthorized',
+        429: 'Too Many Requests',
+        503: 'Service Unavailable'
+      };
+
+      const errorTypes = {
+        401: 'unauthorized',
+        429: 'rate-limited',
+        503: 'service-unavailable'
+      };
+
+      return Response.json({
+        type: `https://sentinel.forensics/errors/${errorTypes[status]}`,
+        title: titles[status],
+        status,
+        detail: authResult.error
+      }, { status });
+    }
+
+    const { apiKey } = authResult;
+    if (typeof apiKey.organization_id !== 'string' || !apiKey.organization_id.trim()
+      || (apiKey.case_id !== null && apiKey.case_id !== undefined
+        && (typeof apiKey.case_id !== 'string' || !apiKey.case_id.trim()))) {
+      return Response.json({ error: 'Invalid API key organization or case scope' }, { status: 403 });
+    }
+    const base44 = createClientFromRequest(req);
+
+    // Get cases for organization
+    const cases = await base44.asServiceRole.entities.Case.filter({
+      organization_id: apiKey.organization_id,
+      ...(apiKey.case_id !== null && apiKey.case_id !== undefined
+        ? { id: apiKey.case_id }
+        : {})
+    });
+
+    return Response.json({
+      cases: cases.map(c => ({
+        id: c.id,
+        case_number: c.case_number,
+        title: c.title,
+        status: c.status,
+        severity: c.severity,
+        created_date: c.created_date,
+        updated_date: c.updated_date
+      })),
+      total: cases.length,
+      api_version: 'v1'
+    });
+
+  } catch (error) {
+    console.error('API cases read failed:', error);
+    return Response.json({
+      type: 'https://sentinel.forensics/errors/internal',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: error.message
+    }, { status: 500 });
+  }
+});

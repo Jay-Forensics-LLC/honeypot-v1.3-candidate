@@ -1,0 +1,138 @@
+{
+  "TLS_actual_scope": {
+    "current_candidate_actual_chain_executed": false,
+    "historical_qualified_commit": "a60feb9a2a8defc3f85e92d6a85347e98f39da8e",
+    "historical_receipt_updated": false
+  },
+  "budgets": {
+    "CLI_default_bytes_per_packet_per_run_estimate": 6000,
+    "actual_API_bytes_per_packet_per_run_reserve": 12000,
+    "actual_API_min_free_bytes": 15271301824,
+    "combined_preflight_free_bytes_with_future_TLS_reserve": 17418785472,
+    "future_TLS_reserve_executed_by_this_qualification": false,
+    "per_worker_rss_bytes": 536870912,
+    "per_worker_seconds": 14400
+  },
+  "dataset": {
+    "bytes": 297151107,
+    "demonstrates_30gb_scale": false,
+    "files": 3,
+    "format": "classic PCAP",
+    "independent_packets": 591565,
+    "owner_confirmed_complete": true
+  },
+  "historical_receipts": [
+    "examples/vendor-header-validation.json",
+    "examples/tls-continuation-validation.json",
+    "examples/tls-derived-validation.json",
+    "examples/actual-capture-validation.json"
+  ],
+  "historical_supported_decoding_reuse": {
+    "admitted_candidate_commit": "445abb1ce9df314469f559c862ff15ec81144d49",
+    "decision": "ADMITTED_BY_EXACT_BYTE_AND_RAW_SEMANTICS_GATE",
+    "fresh_current_candidate_numeric_or_stored_field_audit_claimed": false,
+    "full_private_raw_semantics_coverage_configuration_source_inventory_equal": true,
+    "historical_actual_supported_field_comparisons": 5774468,
+    "historical_decoder_execution_commit": "7547e4ff93fd499320e9f87134d8abe0a21a8d2e",
+    "historical_supported_profile_count": 5,
+    "historical_vendor_numeric_field_comparisons": 6561,
+    "historical_vendor_stored_observations_audited": 1458,
+    "honeytrace_schema_unchanged": true,
+    "independent_decoder_executed_at_current_candidate": false,
+    "only_changed_python_entry": "qualify.py",
+    "unchanged_python_entries_from_historical_candidate": 22
+  },
+  "implementation": {
+    "commit": "445abb1ce9df314469f559c862ff15ec81144d49",
+    "oracle_version": "2.0.9",
+    "parser_version": "2.0.10"
+  },
+  "limitations": [
+    "QUALIFIED_LIMITATIONS is not GOAL_PASS: all 1,825 raw decoding losses remain explicit.",
+    "The owner-confirmed complete dataset is 297,151,107 bytes; this does not demonstrate 30 GB scale, cold-cache performance or original-USB after-checks.",
+    "Actual supplied-key validation used the current read-only loader and qualify API with both workers. Public run-CLI forwarding is synthetically validated, not claimed as an owner-data CLI execution.",
+    "The two new minimized-export digests match after normalizing only the documented case run UUID. Cross-version or cross-key export equality is not claimed.",
+    "Historical independent supported decoding and vendor numeric/storage checks executed at 7547e4f; their admission at 445abb1 uses unchanged decoding bytes, full raw semantics, coverage, configuration and source inventory, without rerunning supported-field/TShark comparisons. Independent packet counts were freshly checked with capinfos.",
+    "TLS continuation actual results remain pinned to historical a60feb9. No current-candidate actual chain is claimed; three oversized and 21 indeterminate historical TLS cases remain unresolved.",
+    "Vendor event bodies, trailing bytes and two unsupported LLC cases remain unexamined. Common-header observations do not establish device identity, event meaning or compromise.",
+    "Owner sources are classic PCAP. PCAPNG is covered by generated and independent fixtures, not actual owner PCAPNG qualification.",
+    "Original Tetra evidence and genuine cross-source clock/network context remain external prerequisites; no new radio validation is claimed.",
+    "RSS values are sampled measured gates, not OS quotas. Qualification total wall time excludes report finalization and wrapper post-key/candidate-gate work.",
+    "The prospective public CLI uses its default 6,000-byte per-packet-per-run disk estimate. The actual API qualification explicitly reserved 12,000 bytes per packet per run; its fixed budgets are reported separately."
+  ],
+  "ordinary_qualification": {
+    "analyses": 2,
+    "applicable_checks_passed": 14,
+    "baseline_commit": "7547e4ff93fd499320e9f87134d8abe0a21a8d2e",
+    "counts_and_protocol_distribution_match_real13": true,
+    "cross_version_or_cross_key_export_equality_claimed": false,
+    "filtered_packets": 0,
+    "fixture_count_check": "not_applicable_real_profile",
+    "framing_errors": 0,
+    "normalization": "Documented case run UUID only",
+    "observations_each": 93894,
+    "private_raw_index_semantics_match_real13": true,
+    "qualification_child_system_cpu_seconds": 8.849109,
+    "qualification_child_user_cpu_seconds": 101.853409,
+    "qualification_parent_cpu_seconds": 51.928558524,
+    "qualification_total_wall_seconds_excluding_report_finalization": 303.158011517,
+    "raw_decoding_losses": {
+      "tls_reassembly_required": 1094,
+      "unsupported_ethertype": 729,
+      "unsupported_llc_control": 2
+    },
+    "raw_limited_packets": 1825,
+    "runs": [
+      {
+        "completed_worker_output_bytes": 2725074302,
+        "packets": 591565,
+        "reaped_worker_system_cpu_seconds": 4.364215,
+        "reaped_worker_user_cpu_seconds": 50.985383,
+        "sampled_parent_peak_rss_bytes": 29503488,
+        "sampled_worker_tree_peak_rss_bytes": 46587904,
+        "wall_seconds_complete_worker": 125.45347174999915,
+        "worker_cpu_seconds": 55.311980445
+      },
+      {
+        "completed_worker_output_bytes": 2725074302,
+        "packets": 591565,
+        "reaped_worker_system_cpu_seconds": 4.460823,
+        "reaped_worker_user_cpu_seconds": 50.826139,
+        "sampled_parent_peak_rss_bytes": 35741696,
+        "sampled_worker_tree_peak_rss_bytes": 46456832,
+        "wall_seconds_complete_worker": 126.96664323600271,
+        "worker_cpu_seconds": 55.249184724
+      }
+    ],
+    "source_hashes_before_after_and_closed_inventory_verified": true,
+    "vendor_header_observations_each": 729,
+    "within_new_pair_normalized_exports_match": true
+  },
+  "schema": "sentinel.qualification-key-validation/1",
+  "status": "QUALIFIED_LIMITATIONS",
+  "supplied_key_workflow": {
+    "actual_invocation": "current_readonly_loader_then_qualify_API",
+    "both_workers_use_supplied_bytes": true,
+    "external_key_name_or_path_published": false,
+    "key_material_or_direct_hash_published": false,
+    "mode": "caller_supplied_32_bytes",
+    "original_held_readonly_across_two_analyses_and_copy_verification": true,
+    "protected_copies_verified": 3,
+    "public_cli_actual_execution_claimed": false,
+    "public_cli_forwarding_validation": "synthetic_only"
+  },
+  "validation": {
+    "diagnostic_tests": 31,
+    "exact_implementation_ci_run": 40036277664,
+    "lab_tests": 409,
+    "local_tests": 440,
+    "public_CLI_qualified_limitations_exitcode": 2,
+    "python_ci": [
+      "3.11",
+      "3.14"
+    ],
+    "real_actual_wrapper_success_exitcode": 0,
+    "schema_reproducibility": true,
+    "skips": 0
+  }
+}

@@ -1,4 +1,5 @@
 .env
+configs/phase10.json
 secrets/
 state/**
 !state/wan-approval.example.json

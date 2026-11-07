@@ -1,4 +1,27 @@
-# HoneyTrace source candidate
+# HoneyTrace Forensic Dashboard
+
+One local workspace connects the free honeypot core, telemetry, offline evidence
+analysis, verified cases and diagnostics. The complete tracked Sentinel-Forensics
+source is bundled in [sentinel-forensics/](sentinel-forensics/README.md), so a
+second checkout is not needed for capture analysis.
+
+From this downloaded repository's root, run:
+
+```sh
+bash tools/launch-dashboard.sh --port 8765
+```
+
+Open the private session link printed in the terminal. In **Settings**, enable
+offline imports and **Sentinel Forensics**, then open **Forensic cases** to analyze
+a local PCAP/PCAPNG or import a completed case. Packet Squirrel captures use the
+same capture workflow.
+
+The [dashboard guide](docs/DASHBOARD.md) covers import, provenance review and
+export. The [forensic workflow guide](docs/FORENSIC_WORKFLOWS.md) covers jobs,
+case timelines and coverage; [suite logging](docs/SUITE_LOGGING.md) covers
+diagnostics and decoy identity preparation. See [unified source](docs/UNIFIED_SOURCE.md)
+for the bundled source revision and active integration scope, and the
+[roadmap](docs/SECURITY_SUITE_ROADMAP.md) for later capabilities.
 
 The application source is in [honeypot/](honeypot/README.md).
 The [current phase status](docs/CURRENT_PHASE_STATUS.md) records HoneyWatch at

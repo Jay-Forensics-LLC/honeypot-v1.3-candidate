@@ -1,0 +1,203 @@
+{
+  "schema": "sentinel.validation-summary/1",
+  "scope": "synthetic performance and public upstream oracle, never actual Packet Squirrel qualification",
+  "implementation_commit": "51e7ca609a0d20a35f66787a22274655448f894d",
+  "clean_tree": true,
+  "code_sha256": {
+    "adapters.py": "f63372ae7c2a8a40374afd3b85bf242d5a069eb3f86f9ba87377857745202e80",
+    "analyze.py": "d5b0425a21341d6730b7db7f93f1f929dbcc819a7b7e882732275bda74a39fd2",
+    "capture.py": "eaa67a1c135e26d245d5a7ada3f25f71f0907660fb58b97c190f988e3c6e2537",
+    "contract.py": "b287b632f6a766bb3f9b027841372a018bf12fa225c7088eff3af3fb4bbc77ac",
+    "core.py": "b7eeadd89429b4f38cb4f5c8fd5cf7f3fa25b57b06ad5831599d002a836975fd",
+    "correlate.py": "8032470600c5cffe5b6aa7ec360f5f97e400f5f99f440a41529cfd9b0fe7245f",
+    "ios_ingest.py": "20188f76bcd8d4522cd18fada0aede15189aa3f0522fe352c08c27230cf68a75",
+    "network.py": "a18461707fe70ea9cef933ffb6baa7efb0213f5b6079c62d52e5d480c4bf4789",
+    "oracle.py": "aba1d49c707be320bda04f3c863774604cbbfced663126193f9ea35706470eaf",
+    "qualify.py": "a4897d9b018ab361d67339a8956178342d9df060fb0c9880855ccf51a446e2b4",
+    "query.py": "6be18f30cbc275ace8bb2d213c034df826855c20a70f9c633f08805d1003bc61",
+    "report.py": "d8d6b8a0542dc30cdad93c2a3042661e7688ef170afaaae60ab831c9da127e05",
+    "rules.py": "9e3e5ab6ddaa3b4d4e866c982547d2fd0ac43f3f9ba10c1d229881b1a089de5d",
+    "run_tests.py": "367fe4a34a1acdaa0fcb0fe4f451229744f03be05eef37c8b9ac877e01fec9fe",
+    "store.py": "26758730276d9e3d21c7d554b2f6ed04be7a58628b91fda5df1b21919a30e09c"
+  },
+  "synthetic": {
+    "status": "SYNTHETIC_PASS",
+    "environment": {
+      "cpu_model": "AMD Ryzen 7 9700X 8-Core Processor",
+      "logical_cpus": 16,
+      "machine": "x86_64",
+      "memory": {
+        "MemAvailable_bytes": 16884445184,
+        "MemTotal_bytes": 32222789632
+      },
+      "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+      "python": "3.14.4",
+      "sqlite": "3.46.1"
+    },
+    "limits": {
+      "disk_estimate_bytes_per_packet_per_run": 6000,
+      "disk_reserve_bytes": 1073741824,
+      "justification": "One sequential worker; default 512 MiB leaves headroom on this 31 GiB host. Four-hour per-worker deadline is fixed before measurement.",
+      "peak_rss_bytes": 536870912,
+      "per_run_seconds": 14400
+    },
+    "timing": {
+      "child_system_cpu_seconds": 0.875342,
+      "child_user_cpu_seconds": 13.71505,
+      "inventory_seconds": 0.002074885996989906,
+      "parent_cpu_seconds": 7.130284152,
+      "source_hash_after_seconds": 0.003148521005641669,
+      "source_hash_before_seconds": 0.00426648800203111,
+      "total_wall_seconds": 40.18347696800629
+    },
+    "source_bytes": 7000024,
+    "checks": {
+      "complete_dataset_accounting": true,
+      "fixture_count": true,
+      "independent_count": true,
+      "independent_memory_budget": true,
+      "memory_budget": true,
+      "nonempty_capture": true,
+      "parent_memory_budget": true,
+      "pinned_real_code": true,
+      "reproducible_minimized_export": true,
+      "reproducible_records": true,
+      "source_hashes_match": true,
+      "source_unchanged": true,
+      "time_budget": true
+    },
+    "metric_limitations": [
+      "50 ms RSS samples can miss short peaks; Python worker ru_maxrss also recorded.",
+      "Worker process tree sampled; parent RSS sampled separately. No external decode workers inside analysis.",
+      "1 s allocated-file sampling can miss temporary files; filesystem deltas include unrelated activity.",
+      "Filesystem cache not flushed: both runs are clean cases but warm-cache effects are possible.",
+      "Full cost includes inventory, all source hashes, decoder, worker startup, analysis, output verification and semantic/export digests; excludes report finalization.",
+      "Analysis time includes ingestion, decoding, SQL aggregation, rules, export and checksums. No separately instrumented parser-only speed claim.",
+      "No OS hard RSS/disk quota. Timeouts terminate the worker process group."
+    ]
+  },
+  "synthetic_runs": [
+    {
+      "packets": 100000,
+      "seconds": 24.534050150999974,
+      "wall_seconds": 24.6080752439957,
+      "cpu_seconds": 7.34531344,
+      "cpu_user_seconds": 6.918989,
+      "cpu_system_seconds": 0.472707,
+      "peak_rss_bytes": 45744128,
+      "sampled_worker_tree_peak_rss_bytes": 46198784,
+      "sampled_parent_peak_rss_bytes": 30158848,
+      "output_bytes": 339858972,
+      "verification_seconds": 3.4645481439947616,
+      "semantic_sha256": "e04e6c90b5f64bb57d408453e9bf0c713ae109be10cb05ffbe5eafed7a461a2c",
+      "export_sha256": "2f4995e40ef5a4155ab5415563f493ac7bfbfe4542fd780777b591c73648c7f6"
+    },
+    {
+      "packets": 100000,
+      "seconds": 8.50739500400232,
+      "wall_seconds": 8.555741477997799,
+      "cpu_seconds": 7.144789397,
+      "cpu_user_seconds": 6.785213,
+      "cpu_system_seconds": 0.396539,
+      "peak_rss_bytes": 46161920,
+      "sampled_worker_tree_peak_rss_bytes": 46202880,
+      "sampled_parent_peak_rss_bytes": 36257792,
+      "output_bytes": 339858972,
+      "verification_seconds": 3.479834279998613,
+      "semantic_sha256": "e04e6c90b5f64bb57d408453e9bf0c713ae109be10cb05ffbe5eafed7a461a2c",
+      "export_sha256": "2f4995e40ef5a4155ab5415563f493ac7bfbfe4542fd780777b591c73648c7f6"
+    }
+  ],
+  "independent_upstream": {
+    "files": [
+      {
+        "bytes": 1400,
+        "field_comparisons": 32,
+        "limited_packets": 0,
+        "mismatches": [],
+        "ordinal": 1,
+        "packets": 4,
+        "sha256": "2471b5420bdac826eecf8f61a2bbb4a3eb20dbfab7c02ff2be502f349f368214",
+        "supported_packets": 4
+      },
+      {
+        "bytes": 1508,
+        "field_comparisons": 32,
+        "limited_packets": 0,
+        "mismatches": [],
+        "ordinal": 2,
+        "packets": 4,
+        "sha256": "e47f667c226a3f74ae033e488243399d1e31819c23b5ebe05d4b8377155a1666",
+        "supported_packets": 4
+      },
+      {
+        "bytes": 1640,
+        "field_comparisons": 32,
+        "limited_packets": 0,
+        "mismatches": [],
+        "ordinal": 3,
+        "packets": 4,
+        "sha256": "efd90c0d4d35fde4d77557d188553df2a9536c0d0526590476154968e228d507",
+        "supported_packets": 4
+      },
+      {
+        "bytes": 1596,
+        "field_comparisons": 32,
+        "limited_packets": 0,
+        "mismatches": [],
+        "ordinal": 4,
+        "packets": 4,
+        "sha256": "d9706606fc3febb9740897d85818bd06edc76dc7538ea13d8a9131a988376dfb",
+        "supported_packets": 4
+      },
+      {
+        "bytes": 20888,
+        "field_comparisons": 457,
+        "limited_packets": 2,
+        "mismatches": [],
+        "ordinal": 5,
+        "packets": 64,
+        "sha256": "1efe50e015468a22a0aed403351fb4fb9bd3a6ce6221430358ad470aad4350be",
+        "supported_packets": 62
+      },
+      {
+        "bytes": 3392,
+        "field_comparisons": 119,
+        "limited_packets": 0,
+        "mismatches": [],
+        "ordinal": 6,
+        "packets": 15,
+        "sha256": "36a4932f0d4f87b9c51167a476134c14c224fb8e1477c2a93687d3d284897f6a",
+        "supported_packets": 15
+      },
+      {
+        "bytes": 3704,
+        "field_comparisons": 59,
+        "limited_packets": 0,
+        "mismatches": [],
+        "ordinal": 7,
+        "packets": 9,
+        "sha256": "6a836fc505a785b6491add52bbd3d697e0c62c8790f634fc24ecd9bb60eac25b",
+        "supported_packets": 9
+      },
+      {
+        "bytes": 836,
+        "field_comparisons": 27,
+        "limited_packets": 0,
+        "mismatches": [],
+        "ordinal": 8,
+        "packets": 5,
+        "sha256": "4115561b934beddf3ab7864402f78c86219f948eac55e07e7824d1853d868771",
+        "supported_packets": 5
+      }
+    ],
+    "schema": "sentinel.decoder-comparison/1",
+    "scope": "Independent offline framing, times and supported header/application metadata; not real Packet Squirrel qualification.",
+    "status": "PASS",
+    "tool_version": "TShark (Wireshark) 4.6.4.",
+    "wall_seconds": 1.4376044000018737
+  },
+  "upstream_repository": "wireshark/wireshark",
+  "upstream_commit": "e099bf71c44046ef1ba39c6d0d827928a840664b",
+  "actual_packet_squirrel_goal": "BLOCKED_EXTERNAL: actual dataset location required"
+}
