@@ -219,6 +219,39 @@ test('prior revocation, disabled, expiry, scope and secret checks remain enforce
   assert.deepEqual(fixture.queries, []);
 });
 
+test('only active API key status is authorized', async () => {
+  const invalidStatuses = [
+    'pending',
+    'expired',
+    '',
+    null,
+    { unexpected: true }
+  ];
+
+  for (const status of invalidStatuses) {
+    setup({ status });
+
+    const { response } = await request();
+
+    assert.equal(
+      response.status,
+      401,
+      `API key status ${JSON.stringify(status)} must fail closed`
+    );
+
+    // Invalid state must be rejected before protected data,
+    // rate-limit consumption, or successful key usage updates.
+    assert.deepEqual(fixture.queries, []);
+    assert.deepEqual(fixture.updates, []);
+    assert.equal(fixture.rateChecks, 0);
+
+    assert.equal(
+      fixture.usage.at(-1).auth_result,
+      'invalid_status'
+    );
+  }
+});
+
 test('rate-limit database read failure denies access', async () => {
   setup();
 
@@ -466,6 +499,44 @@ test('atomic rate limiter denies access after repeated conflicts', async () => {
 
   assert.deepEqual(fixture.queries, []);
   assert.deepEqual(fixture.updates, []);
+});
+
+
+test('atomic rate limiter rejects future refill timestamps', async () => {
+  setup();
+
+  fixture.rateLimitState.bucket = {
+    capacity: 10,
+    tokens: 5,
+    refill_per_sec: 1,
+    last_refill_at: new Date(
+      Date.now() + 24 * 60 * 60 * 1000
+    ).toISOString()
+  };
+
+  const { response, body } = await request();
+
+  assert.equal(response.status, 503);
+  assert.equal(body.status, 503);
+
+  // Future clock state is malformed/unavailable,
+  // not ordinary bucket exhaustion.
+  assert.equal(
+    fixture.usage.at(-1).rate_limit_action,
+    'unavailable'
+  );
+
+  // No protected read or successful key usage update
+  // may occur from a future-dated bucket.
+  assert.deepEqual(fixture.queries, []);
+  assert.deepEqual(fixture.updates, []);
+
+  // The malformed bucket must be rejected before
+  // any token mutation attempt.
+  assert.equal(
+    fixture.rateLimitState.bucket.tokens,
+    5
+  );
 });
 
 test('atomic rate limiter rejects malformed and duplicate states', async () => {

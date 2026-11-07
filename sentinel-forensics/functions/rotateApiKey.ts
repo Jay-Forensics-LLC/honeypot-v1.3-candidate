@@ -9,15 +9,24 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
     }
 
-    const { apiKeyId } = await req.json();
-
-    if (!apiKeyId) {
-      return Response.json({ error: 'Missing apiKeyId' }, { status: 400 });
+    const organizationId = user.organization_id;
+    if (typeof organizationId !== 'string' || !organizationId.trim()) {
+      return Response.json({ error: 'Organization context required' }, { status: 403 });
     }
 
-    // Get old key
-    const oldKeys = await base44.asServiceRole.entities.ApiKey.filter({ id: apiKeyId });
-    if (oldKeys.length === 0) {
+    const { apiKeyId } = await req.json();
+
+    if (typeof apiKeyId !== 'string' || !apiKeyId.trim()) {
+      return Response.json({ error: 'Missing or invalid apiKeyId' }, { status: 400 });
+    }
+
+    // Select an exact key within the authenticated administrator's organization.
+    const oldKeys = await base44.asServiceRole.entities.ApiKey.filter({
+      id: apiKeyId,
+      organization_id: organizationId
+    });
+    if (!Array.isArray(oldKeys) || oldKeys.length !== 1 ||
+        oldKeys[0]?.id !== apiKeyId || oldKeys[0]?.organization_id !== organizationId) {
       return Response.json({ error: 'API key not found' }, { status: 404 });
     }
     const oldKey = oldKeys[0];
@@ -47,7 +56,7 @@ Deno.serve(async (req) => {
 
     // Create new API key with same config
     const newKey = await base44.asServiceRole.entities.ApiKey.create({
-      organization_id: oldKey.organization_id,
+      organization_id: organizationId,
       case_id: oldKey.case_id,
       schema_version: '1.0.0',
       name: oldKey.name + ' (rotated)',
@@ -64,7 +73,7 @@ Deno.serve(async (req) => {
 
     // Initialize rate limit state for new key
     await base44.asServiceRole.entities.ApiKeyRateLimitState.create({
-      organization_id: oldKey.organization_id,
+      organization_id: organizationId,
       api_key_id: newKey.id,
       schema_version: '1.0.0',
       bucket: {
