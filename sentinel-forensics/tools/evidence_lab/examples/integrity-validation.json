@@ -1,0 +1,471 @@
+{
+  "actual_packet_squirrel": {
+    "missing_prerequisite": "Owner is connecting USB and plans complete copy into private local staging; no capture files or completion confirmation yet.",
+    "source_bytes": null,
+    "status": "BLOCKED_EXTERNAL"
+  },
+  "full_regressions": {
+    "diagnostic": 27,
+    "evidence_lab": 136,
+    "scope": "162-test full local suite plus new segment-inventory regression; affected qualification/revision groups rerun; exact final PR head runs full CI.",
+    "skipped": 0,
+    "status": "PASS",
+    "total": 163
+  },
+  "implementation_commit": "07d2a53401cba7c20ebf1e6e529333431f58a7c1",
+  "implementation_sha256": {
+    "adapters.py": "f63372ae7c2a8a40374afd3b85bf242d5a069eb3f86f9ba87377857745202e80",
+    "analyze.py": "d5b0425a21341d6730b7db7f93f1f929dbcc819a7b7e882732275bda74a39fd2",
+    "capture.py": "eaa67a1c135e26d245d5a7ada3f25f71f0907660fb58b97c190f988e3c6e2537",
+    "contract.py": "b287b632f6a766bb3f9b027841372a018bf12fa225c7088eff3af3fb4bbc77ac",
+    "core.py": "a8dc54aa35fd4ab244250ddddd07ff7a5b02ec5d38f4cbc903598ec63d30947a",
+    "correlate.py": "a6d89a52647e110517c70ff28346c178744a8ca130422edfb29831202114aaad",
+    "ios_ingest.py": "20188f76bcd8d4522cd18fada0aede15189aa3f0522fe352c08c27230cf68a75",
+    "network.py": "43f9a95e4d1deee584e02185aaa6dce1a43e10c73e9558322383fe82b8628ce0",
+    "oracle.py": "9bdd859cfaa8d27f6500e22f2f8c4f262a1fbd087bfa2201156672c377da20e8",
+    "qualify.py": "1f533356d11ebdc8c94b5135ade9b8bd6b51611294610d835be57394d19799e5",
+    "query.py": "6ae843373fc3ed0ae402ea709a02a06430e6911c84cb029123be080d90642c43",
+    "report.py": "812eccc5b48c23f98f01049553154f098628d998986ca9029d06e71d3d3af220",
+    "rules.py": "1474260ddc8495cffa4446e0b2dc373bb1ce1a772112c019a0b0e2680a4b4fd8",
+    "run_tests.py": "367fe4a34a1acdaa0fcb0fe4f451229744f03be05eef37c8b9ac877e01fec9fe",
+    "store.py": "df1842de0eb042a556e362604750a1860ea56216b22d95036afeee3e086a57ec"
+  },
+  "independent_public_corpus": {
+    "compared_fields": {
+      "arp_addresses": 2,
+      "arp_macs": 2,
+      "captured_length": 109,
+      "dhcp_client_mac": 16,
+      "dhcp_lease_seconds": 16,
+      "dhcp_message_count": 16,
+      "dhcp_message_type": 16,
+      "dhcp_op": 16,
+      "dhcp_yiaddr": 16,
+      "dns_address_ttls": 1,
+      "dns_ipv4_answers": 1,
+      "dns_questions": 32,
+      "dport": 101,
+      "dst": 105,
+      "original_length": 109,
+      "packet_number": 109,
+      "sport": 101,
+      "src": 105,
+      "tcp_flags": 33,
+      "timestamp_ns": 109,
+      "tls_sni": 2
+    },
+    "complete_source_verified": 8,
+    "corpus_origin_sha256": "e511f565ccc5850759e0f94fd8c916a2a5427d97c3d92dc8ff91cc0487347aed",
+    "field_comparisons": 1017,
+    "files": 8,
+    "mismatches": 0,
+    "packets": 109,
+    "status": "PASS",
+    "tool_version": "TShark (Wireshark) 4.6.4."
+  },
+  "independent_synthetic_protocol_corpus": {
+    "compared_fields": {
+      "arp_addresses": 2,
+      "arp_macs": 2,
+      "captured_length": 12,
+      "dhcp_client_mac": 2,
+      "dhcp_lease_seconds": 2,
+      "dhcp_message_count": 2,
+      "dhcp_message_type": 2,
+      "dhcp_op": 2,
+      "dhcp_yiaddr": 2,
+      "dns_address_ttls": 2,
+      "dns_ipv4_answers": 2,
+      "dns_ipv6_answers": 2,
+      "dport": 6,
+      "dst": 10,
+      "ndp_mappings": 4,
+      "original_length": 12,
+      "packet_number": 12,
+      "sport": 6,
+      "src": 10,
+      "tcp_flags": 2,
+      "timestamp_ns": 12,
+      "vlan_ids_unordered": 2
+    },
+    "field_comparisons": 110,
+    "files": 2,
+    "mismatches": 0,
+    "packets": 12,
+    "status": "PASS",
+    "tool_version": "TShark (Wireshark) 4.6.4."
+  },
+  "limitations": [
+    "No real Packet Squirrel run. Synthetic and public-upstream checks do not complete the actual-data goal.",
+    "Mixed VLAN IDs independently compared as unordered multiset; mixed tag order not independently validated.",
+    "No TCP/IP fragment reassembly, decryption, external name resolution or endpoint contact.",
+    "Resource samples can miss transient peaks; no hard memory/disk quota. Expansion estimate remains approximate.",
+    "Historical source records and fixtures were verified before reuse. Old benchmark results do not certify modified modules."
+  ],
+  "parser_version": "2.0.3",
+  "radio_validation": {
+    "ble": "BLOCKED_EXTERNAL: representative genuine scanner export path/schema required.",
+    "current_candidate": "SYNTHETICALLY_VALIDATED",
+    "tetra_historical": "REAL_DATA_VALIDATED at ef97601: 40 observations/17 mappings; original source path missing for this candidate recheck."
+  },
+  "schema": "sentinel.integrity-validation/1",
+  "synthetic_qualification": {
+    "checks": {
+      "complete_dataset_accounting": true,
+      "dataset_inventory_unchanged": true,
+      "fixture_count": true,
+      "implementation_unchanged": true,
+      "independent_count": true,
+      "independent_memory_budget": true,
+      "memory_budget": true,
+      "nonempty_capture": true,
+      "parent_memory_budget": true,
+      "pinned_real_code": true,
+      "reproducible_minimized_export": true,
+      "reproducible_records": true,
+      "source_hashes_match": true,
+      "source_unchanged": true,
+      "time_budget": true
+    },
+    "code_commit": "07d2a53401cba7c20ebf1e6e529333431f58a7c1",
+    "code_dirty": false,
+    "code_matches_revision": true,
+    "code_revision_status": "git",
+    "environment": {
+      "cpu_model": "AMD Ryzen 7 9700X 8-Core Processor",
+      "logical_cpus": 16,
+      "machine": "x86_64",
+      "memory": {
+        "MemAvailable_bytes": 15823933440,
+        "MemTotal_bytes": 32222789632
+      },
+      "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+      "python": "3.14.4",
+      "sqlite": "3.46.1"
+    },
+    "final_inventory_bytes": 2580048,
+    "final_inventory_sources": 2,
+    "independent_packets": 10000,
+    "inventory": [
+      {
+        "id": 1,
+        "kind": "pcap",
+        "sha256": "a3e9c082263523d3a29ad98f2d066c50b2052886c2c8c1c9121d9529f689b1a8",
+        "signature_hex": "d4c3b2a1020004000000000000000000",
+        "size": 116024
+      },
+      {
+        "id": 2,
+        "kind": "pcap",
+        "sha256": "ac8f8853ec82903be30c360929647f63822d497a70244dc2e2c609bced935232",
+        "signature_hex": "d4c3b2a1020004000000000000000000",
+        "size": 2464024
+      }
+    ],
+    "limits": {
+      "disk_estimate_bytes_per_packet_per_run": 6000,
+      "disk_reserve_bytes": 1073741824,
+      "justification": "One sequential worker; default 512 MiB leaves headroom on this 31 GiB host. Four-hour per-worker deadline is fixed before measurement.",
+      "peak_rss_bytes": 536870912,
+      "per_run_seconds": 14400
+    },
+    "output_allocated_bytes": 205639680,
+    "output_logical_bytes": 205587850,
+    "per_file_reconciliation": [
+      {
+        "independent_packets": 2000,
+        "integrity": true,
+        "reconciled": true,
+        "run_packets": [
+          2000,
+          2000
+        ],
+        "source_id": 1
+      },
+      {
+        "independent_packets": 8000,
+        "integrity": true,
+        "reconciled": true,
+        "run_packets": [
+          8000,
+          8000
+        ],
+        "source_id": 2
+      }
+    ],
+    "runs": [
+      {
+        "coverage": {
+          "capture_blocks": {},
+          "counts": {
+            "associations": 10000,
+            "conflicts": 0,
+            "duplicate_records": 1999,
+            "findings": 0,
+            "flows": 1,
+            "observations": 10000,
+            "packet_records": 10000,
+            "parse_errors": 0
+          },
+          "decoding_losses": {},
+          "filtered_packets": 0,
+          "payload_retention": false,
+          "protocol_distribution": {
+            "arp": 2000,
+            "udp": 8000
+          },
+          "reassembly": "none",
+          "rules": [
+            {
+              "configuration": {
+                "dns_label_minimum": 50,
+                "dns_minimum_questions": 5,
+                "mapping_minimum_conflicts": 1,
+                "port_minimum": 10,
+                "syn_minimum": 10,
+                "window_seconds": 60
+              },
+              "eligible": 10000,
+              "findings": 0,
+              "reason": "Thresholds evaluated on the supported subset; absence of a finding is not a device health verdict.",
+              "rule": "conflicting_mappings",
+              "status": "NO_FINDING",
+              "version": "1.0.0"
+            },
+            {
+              "configuration": {
+                "dns_label_minimum": 50,
+                "dns_minimum_questions": 5,
+                "mapping_minimum_conflicts": 1,
+                "port_minimum": 10,
+                "syn_minimum": 10,
+                "window_seconds": 60
+              },
+              "eligible": 0,
+              "findings": 0,
+              "reason": "Too few eligible observations; unresolved, unsupported and encrypted data excluded.",
+              "rule": "destination_ports",
+              "status": "INSUFFICIENT_EVIDENCE",
+              "version": "1.0.0"
+            },
+            {
+              "configuration": {
+                "dns_label_minimum": 50,
+                "dns_minimum_questions": 5,
+                "mapping_minimum_conflicts": 1,
+                "port_minimum": 10,
+                "syn_minimum": 10,
+                "window_seconds": 60
+              },
+              "eligible": 0,
+              "findings": 0,
+              "reason": "Too few eligible observations; unresolved, unsupported and encrypted data excluded.",
+              "rule": "dns_long_labels",
+              "status": "INSUFFICIENT_EVIDENCE",
+              "version": "1.0.0"
+            },
+            {
+              "configuration": {
+                "dns_label_minimum": 50,
+                "dns_minimum_questions": 5,
+                "mapping_minimum_conflicts": 1,
+                "port_minimum": 10,
+                "syn_minimum": 10,
+                "window_seconds": 60
+              },
+              "eligible": 0,
+              "findings": 0,
+              "reason": "Too few eligible observations; unresolved, unsupported and encrypted data excluded.",
+              "rule": "repeated_syn",
+              "status": "INSUFFICIENT_EVIDENCE",
+              "version": "1.0.0"
+            }
+          ],
+          "unexamined": [
+            "encrypted application content",
+            "tracev3",
+            "unsupported protocols and adapter schemas"
+          ]
+        },
+        "cpu_seconds": 1.718908911,
+        "cpu_system_seconds": 0.071722,
+        "cpu_user_seconds": 1.688999,
+        "export_sha256": "65db1453b4d86b14328c688738d0204c8450ba3d8031af81fcac9daf3fc57b9e",
+        "output_bytes": 102793421,
+        "packets": 10000,
+        "peak_rss_bytes": 47349760,
+        "sampled_case_allocated_peak_bytes": 73940992,
+        "sampled_parent_peak_rss_bytes": 30371840,
+        "sampled_worker_tree_peak_rss_bytes": 47976448,
+        "seconds": 1.7207601599948248,
+        "semantic_sha256": "cb13e890a1a0f57bc9b688022c2a0178cb229df5844423a34f95cc3b083d0f92",
+        "sources": [
+          {
+            "decoding_limited_other": 0,
+            "filtered": 0,
+            "id": 1,
+            "kind": "pcap",
+            "packets": 2000,
+            "sha256": "a3e9c082263523d3a29ad98f2d066c50b2052886c2c8c1c9121d9529f689b1a8",
+            "size": 116024,
+            "unsupported_or_unreassembled": 0
+          },
+          {
+            "decoding_limited_other": 0,
+            "filtered": 0,
+            "id": 2,
+            "kind": "pcap",
+            "packets": 8000,
+            "sha256": "ac8f8853ec82903be30c360929647f63822d497a70244dc2e2c609bced935232",
+            "size": 2464024,
+            "unsupported_or_unreassembled": 0
+          }
+        ],
+        "wall_seconds": 1.7632248130030348
+      },
+      {
+        "coverage": {
+          "capture_blocks": {},
+          "counts": {
+            "associations": 10000,
+            "conflicts": 0,
+            "duplicate_records": 1999,
+            "findings": 0,
+            "flows": 1,
+            "observations": 10000,
+            "packet_records": 10000,
+            "parse_errors": 0
+          },
+          "decoding_losses": {},
+          "filtered_packets": 0,
+          "payload_retention": false,
+          "protocol_distribution": {
+            "arp": 2000,
+            "udp": 8000
+          },
+          "reassembly": "none",
+          "rules": [
+            {
+              "configuration": {
+                "dns_label_minimum": 50,
+                "dns_minimum_questions": 5,
+                "mapping_minimum_conflicts": 1,
+                "port_minimum": 10,
+                "syn_minimum": 10,
+                "window_seconds": 60
+              },
+              "eligible": 10000,
+              "findings": 0,
+              "reason": "Thresholds evaluated on the supported subset; absence of a finding is not a device health verdict.",
+              "rule": "conflicting_mappings",
+              "status": "NO_FINDING",
+              "version": "1.0.0"
+            },
+            {
+              "configuration": {
+                "dns_label_minimum": 50,
+                "dns_minimum_questions": 5,
+                "mapping_minimum_conflicts": 1,
+                "port_minimum": 10,
+                "syn_minimum": 10,
+                "window_seconds": 60
+              },
+              "eligible": 0,
+              "findings": 0,
+              "reason": "Too few eligible observations; unresolved, unsupported and encrypted data excluded.",
+              "rule": "destination_ports",
+              "status": "INSUFFICIENT_EVIDENCE",
+              "version": "1.0.0"
+            },
+            {
+              "configuration": {
+                "dns_label_minimum": 50,
+                "dns_minimum_questions": 5,
+                "mapping_minimum_conflicts": 1,
+                "port_minimum": 10,
+                "syn_minimum": 10,
+                "window_seconds": 60
+              },
+              "eligible": 0,
+              "findings": 0,
+              "reason": "Too few eligible observations; unresolved, unsupported and encrypted data excluded.",
+              "rule": "dns_long_labels",
+              "status": "INSUFFICIENT_EVIDENCE",
+              "version": "1.0.0"
+            },
+            {
+              "configuration": {
+                "dns_label_minimum": 50,
+                "dns_minimum_questions": 5,
+                "mapping_minimum_conflicts": 1,
+                "port_minimum": 10,
+                "syn_minimum": 10,
+                "window_seconds": 60
+              },
+              "eligible": 0,
+              "findings": 0,
+              "reason": "Too few eligible observations; unresolved, unsupported and encrypted data excluded.",
+              "rule": "repeated_syn",
+              "status": "INSUFFICIENT_EVIDENCE",
+              "version": "1.0.0"
+            }
+          ],
+          "unexamined": [
+            "encrypted application content",
+            "tracev3",
+            "unsupported protocols and adapter schemas"
+          ]
+        },
+        "cpu_seconds": 1.714837797,
+        "cpu_system_seconds": 0.05838600000000001,
+        "cpu_user_seconds": 1.6952120000000002,
+        "export_sha256": "65db1453b4d86b14328c688738d0204c8450ba3d8031af81fcac9daf3fc57b9e",
+        "output_bytes": 102793421,
+        "packets": 10000,
+        "peak_rss_bytes": 47624192,
+        "sampled_case_allocated_peak_bytes": 177147904,
+        "sampled_parent_peak_rss_bytes": 36233216,
+        "sampled_worker_tree_peak_rss_bytes": 47955968,
+        "seconds": 1.715151276999677,
+        "semantic_sha256": "cb13e890a1a0f57bc9b688022c2a0178cb229df5844423a34f95cc3b083d0f92",
+        "sources": [
+          {
+            "decoding_limited_other": 0,
+            "filtered": 0,
+            "id": 1,
+            "kind": "pcap",
+            "packets": 2000,
+            "sha256": "a3e9c082263523d3a29ad98f2d066c50b2052886c2c8c1c9121d9529f689b1a8",
+            "size": 116024,
+            "unsupported_or_unreassembled": 0
+          },
+          {
+            "decoding_limited_other": 0,
+            "filtered": 0,
+            "id": 2,
+            "kind": "pcap",
+            "packets": 8000,
+            "sha256": "ac8f8853ec82903be30c360929647f63822d497a70244dc2e2c609bced935232",
+            "size": 2464024,
+            "unsupported_or_unreassembled": 0
+          }
+        ],
+        "wall_seconds": 1.7629550120036583
+      }
+    ],
+    "source_bytes": 2580048,
+    "status": "SYNTHETIC_PASS",
+    "timing": {
+      "child_system_cpu_seconds": 0.142899,
+      "child_user_cpu_seconds": 3.396068,
+      "inventory_seconds": 0.000355140000465326,
+      "parent_cpu_seconds": 1.7379735920000001,
+      "source_hash_after_seconds": 0.0012129940005252138,
+      "source_hash_before_seconds": 0.0014710239993291907,
+      "total_wall_seconds": 5.360949273002916
+    },
+    "tool_versions": {
+      "capinfos": "Capinfos (Wireshark) 4.6.4."
+    }
+  }
+}
