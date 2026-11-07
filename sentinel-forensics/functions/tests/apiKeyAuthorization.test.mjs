@@ -14,7 +14,7 @@ globalThis.__syntheticApiKeyClient = () => fixture.client;
 const sdk = 'data:text/javascript,export const createClientFromRequest = () => globalThis.__syntheticApiKeyClient();';
 const hooks = registerHooks({
   resolve(specifier, context, nextResolve) {
-    if (specifier === 'npm:@base44/sdk@0.8.6') return { url: sdk, shortCircuit: true };
+    if (specifier === 'npm:@base44/sdk@0.8.6' || specifier === 'npm:@base44/sdk@0.8.30') return { url: sdk, shortCircuit: true };
     if (/^(npm:|https?:)/.test(specifier)) throw new Error('Unexpected provider import');
     return nextResolve(specifier, context);
   }
@@ -39,12 +39,62 @@ function setup(overrides = {}) {
   const key = { id: 'key-a', organization_id: 'org-a', case_id: 'case-a', status: 'active',
     scopes: ['cases:read'], ip_allowlist: ['192.0.2.1'], key_hash_sha256: keyHash, ...overrides };
   fixture = { key, queries: [], usage: [], updates: [], rateChecks: 0 };
+
+  fixture.rateLimitState = {
+    id: 'synthetic-default-bucket',
+    bucket: {
+      capacity: 1000,
+      tokens: 1000,
+      refill_per_sec: 1000 / 60,
+      last_refill_at: new Date().toISOString()
+    }
+  };
+
   fixture.client = { asServiceRole: { entities: {
     ApiKey: {
       async filter(query) { return query.key_hash_sha256 === keyHash ? [key] : []; },
       async update(id, value) { fixture.updates.push({ id, value }); }
     },
-    ApiKeyRateLimitState: { async filter() { fixture.rateChecks++; return []; } },
+    ApiKeyRateLimitState: {
+      async filter(query) {
+        fixture.rateChecks++;
+        return query.api_key_id === key.id
+          ? [fixture.rateLimitState]
+          : [];
+      },
+      async update() {
+        throw new Error('Non-atomic bucket update forbidden');
+      },
+      async updateMany(query, data) {
+        assert.deepEqual(
+          Object.keys(query).sort(),
+          ['id', 'api_key_id', 'bucket.tokens', 'bucket.last_refill_at'].sort()
+        );
+
+        assert.deepEqual(
+          Object.keys(data.$set).sort(),
+          ['bucket.tokens', 'bucket.last_refill_at'].sort()
+        );
+
+        const state = fixture.rateLimitState;
+        const bucket = state.bucket;
+
+        if (
+          query.id !== state.id ||
+          query.api_key_id !== fixture.key.id ||
+          query['bucket.tokens'] !== bucket.tokens ||
+          query['bucket.last_refill_at'] !== bucket.last_refill_at
+        ) {
+          return { success: true, updated: 0, has_more: false };
+        }
+
+        // Synchronous compare-and-write models an atomic backend.
+        bucket.tokens = data.$set['bucket.tokens'];
+        bucket.last_refill_at = data.$set['bucket.last_refill_at'];
+
+        return { success: true, updated: 1, has_more: false };
+      }
+    },
     ApiKeyUsageLog: { async create(value) { fixture.usage.push(value); } },
     Case: { async filter(query) {
       fixture.queries.push(query);
@@ -167,4 +217,296 @@ test('prior revocation, disabled, expiry, scope and secret checks remain enforce
   setup();
   assert.equal((await request({ token: 'wrong-synthetic-key' })).response.status, 401);
   assert.deepEqual(fixture.queries, []);
+});
+
+test('rate-limit database read failure denies access', async () => {
+  setup();
+
+  fixture.client.asServiceRole.entities.ApiKeyRateLimitState.filter =
+    async () => {
+      throw new Error('Synthetic rate-limit database read failure');
+    };
+
+  const { response } = await request();
+
+  assert.equal(response.status, 503);
+  assert.equal(fixture.usage.at(-1).rate_limit_action, 'unavailable');
+  assert.deepEqual(fixture.queries, []);
+  assert.deepEqual(fixture.updates, []);
+});
+
+test('rate-limit token update failure denies access', async () => {
+  setup();
+
+  const state = {
+    id: 'synthetic-bucket',
+    bucket: {
+      capacity: 5,
+      tokens: 5,
+      refill_per_sec: 1,
+      last_refill_at: new Date().toISOString()
+    }
+  };
+
+  fixture.client.asServiceRole.entities.ApiKeyRateLimitState.filter =
+    async () => [state];
+
+  fixture.client.asServiceRole.entities.ApiKeyRateLimitState.updateMany =
+    async () => {
+      throw new Error('Synthetic token update failure');
+    };
+
+  const { response } = await request();
+
+  assert.equal(response.status, 503);
+  assert.equal(fixture.usage.at(-1).rate_limit_action, 'unavailable');
+  assert.deepEqual(fixture.queries, []);
+  assert.deepEqual(fixture.updates, []);
+});
+
+test('exhausted rate-limit bucket returns HTTP 429', async () => {
+  setup();
+
+  fixture.client.asServiceRole.entities.ApiKeyRateLimitState.filter =
+    async () => [{
+      id: 'synthetic-exhausted-bucket',
+      bucket: {
+        capacity: 1,
+        tokens: 0,
+        refill_per_sec: 0,
+        last_refill_at: new Date().toISOString()
+      }
+    }];
+
+  const { response, body } = await request();
+
+  assert.equal(response.status, 429);
+  assert.equal(body.status, 429);
+  assert.deepEqual(fixture.queries, []);
+  assert.equal(fixture.usage.at(-1).rate_limit_action, 'throttled');
+});
+
+test('missing rate-limit state denies API access', async () => {
+  setup();
+
+  // Simulate a valid API key whose rate-limit state is missing.
+  fixture.client.asServiceRole.entities.ApiKeyRateLimitState.filter =
+    async () => [];
+
+  const { response, body } = await request();
+
+  assert.equal(response.status, 503);
+  assert.equal(body.status, 503);
+
+  // The protected case data must never be queried.
+  assert.deepEqual(fixture.queries, []);
+
+  // No successful API-key usage update should occur.
+  assert.deepEqual(fixture.updates, []);
+
+  // Telemetry must classify this as unavailable,
+  // rather than ordinary throttling.
+  assert.equal(
+    fixture.usage.at(-1).rate_limit_action,
+    'unavailable'
+  );
+});
+
+test('simultaneous requests cannot spend the same rate-limit token twice', async () => {
+  setup();
+
+  // Exactly one token is available. No automatic refill.
+  fixture.rateLimitState.bucket = {
+    capacity: 1,
+    tokens: 1,
+    refill_per_sec: 0,
+    last_refill_at: new Date().toISOString()
+  };
+
+  let reads = 0;
+  let releaseReads;
+
+  const bothReadsComplete = new Promise(resolve => {
+    releaseReads = resolve;
+  });
+
+  // Force both requests to read the same original bucket state.
+  fixture.client.asServiceRole.entities.ApiKeyRateLimitState.filter =
+    async (query) => {
+      assert.equal(query.api_key_id, fixture.key.id);
+
+      const snapshot = structuredClone(fixture.rateLimitState);
+
+      reads++;
+
+      if (reads === 2) {
+        releaseReads();
+      }
+
+      await bothReadsComplete;
+
+      return [snapshot];
+    };
+
+  // Execute two requests concurrently against the same synthetic key.
+  let timer;
+  let responses;
+
+  try {
+    responses = await Promise.race([
+      Promise.all([
+        request(),
+        request()
+      ]),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error('Concurrent request test timed out'));
+        }, 3000);
+      })
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const statuses = responses
+    .map(result => result.response.status)
+    .sort();
+
+  // Both requests read the original bucket.
+  // The losing request must reread after its conditional update fails.
+  assert.equal(reads, 3);
+
+  // A one-token bucket permits exactly one successful request.
+  assert.deepEqual(
+    statuses,
+    [200, 429],
+    'Two concurrent requests must not consume the same token'
+  );
+
+  // Only the successful request may read protected case data.
+  assert.equal(fixture.queries.length, 1);
+
+  // Only the successful request may update key usage.
+  assert.equal(fixture.updates.length, 1);
+});
+
+
+test('atomic rate limiter denies access without updateMany', async () => {
+  setup();
+
+  delete fixture.client.asServiceRole.entities
+    .ApiKeyRateLimitState.updateMany;
+
+  const { response, body } = await request();
+
+  assert.equal(response.status, 503);
+  assert.equal(body.status, 503);
+  assert.equal(fixture.rateChecks, 0);
+  assert.deepEqual(fixture.queries, []);
+  assert.deepEqual(fixture.updates, []);
+});
+
+test('atomic rate limiter rejects malformed acknowledgments', async () => {
+  const acknowledgments = [
+    null,
+    undefined,
+    {},
+    { success: true, updated: 1 },
+    { success: false, updated: 1, has_more: false },
+    { success: true, updated: 2, has_more: false },
+    { success: true, updated: '1', has_more: false },
+    { success: true, updated: 1, has_more: true },
+    { updatedCount: 1, modifiedCount: 1 }
+  ];
+
+  for (const acknowledgment of acknowledgments) {
+    setup();
+
+    fixture.client.asServiceRole.entities
+      .ApiKeyRateLimitState.updateMany =
+        async () => acknowledgment;
+
+    const { response, body } = await request();
+
+    assert.equal(response.status, 503);
+    assert.equal(body.status, 503);
+    assert.deepEqual(fixture.queries, []);
+    assert.deepEqual(fixture.updates, []);
+    assert.equal(
+      fixture.usage.at(-1).rate_limit_action,
+      'unavailable'
+    );
+  }
+});
+
+test('atomic rate limiter denies access after repeated conflicts', async () => {
+  setup();
+
+  let attempts = 0;
+
+  fixture.client.asServiceRole.entities
+    .ApiKeyRateLimitState.updateMany = async () => {
+      attempts++;
+
+      return {
+        success: true,
+        updated: 0,
+        has_more: false
+      };
+    };
+
+  const { response, body } = await request();
+
+  assert.equal(response.status, 503);
+  assert.equal(body.status, 503);
+
+  // The implementation must have a bounded retry limit.
+  assert.equal(attempts, 3);
+  assert.equal(fixture.rateChecks, 3);
+
+  assert.deepEqual(fixture.queries, []);
+  assert.deepEqual(fixture.updates, []);
+});
+
+test('atomic rate limiter rejects malformed and duplicate states', async () => {
+  const invalidStates = [
+    state => { state.bucket = null; },
+    state => { state.bucket.capacity = 0; },
+    state => { state.bucket.capacity = Infinity; },
+    state => { state.bucket.tokens = -1; },
+    state => { state.bucket.tokens = NaN; },
+    state => { state.bucket.tokens = 2000; },
+    state => { state.bucket.refill_per_sec = -1; },
+    state => { state.bucket.last_refill_at = 'invalid'; },
+    state => { state.bucket.last_refill_at = null; },
+    state => { state.id = null; }
+  ];
+
+  for (const invalidate of invalidStates) {
+    setup();
+
+    invalidate(fixture.rateLimitState);
+
+    const { response, body } = await request();
+
+    assert.equal(response.status, 503);
+    assert.equal(body.status, 503);
+    assert.deepEqual(fixture.queries, []);
+    assert.deepEqual(fixture.updates, []);
+  }
+
+  setup();
+
+  fixture.client.asServiceRole.entities
+    .ApiKeyRateLimitState.filter = async () => [
+      fixture.rateLimitState,
+      structuredClone(fixture.rateLimitState)
+    ];
+
+  const { response, body } = await request();
+
+  assert.equal(response.status, 503);
+  assert.equal(body.status, 503);
+  assert.deepEqual(fixture.queries, []);
+  assert.deepEqual(fixture.updates, []);
 });
