@@ -15,11 +15,13 @@ not copied upstream source. Images/packages retain their own upstream licenses.
 - [Compose schema](https://github.com/compose-spec/compose-spec/blob/main/schema/compose-spec.json)
 
 Version tags checked for registry existence: cowrie/cowrie:3.1.4,
-grafana/loki:3.7.9, grafana/grafana:12.4.13, grafana/alloy:v1.21.3,
+grafana/loki:3.7.9, grafana/grafana:12.4.14, grafana/alloy:v1.21.3,
 python:3.12.13-slim-bookworm. OpenCanary PyPI version 0.9.10 was confirmed.
+The grafana/grafana:12.4.14 digest reference is supplied by Dependabot; registry
+manifest and platform digests were not independently verified in this repair.
 Cowrie 3.1.4's registry digest and platform manifests were checked on 2026-11-04.
-Registry manifest digests were resolved and pinned in .env.example, Compose defaults
-and Dockerfile defaults; docs/IMAGE_REFERENCES.json records these references.
+Image references are pinned in .env.example, Compose defaults and Dockerfile
+defaults; docs/IMAGE_REFERENCES.json records the references and verification status.
 Transitive package dependencies can change; target build records should capture
 RepoDigests, pip freeze and dpkg-query output. The bundle is portable, not
 a bit-reproducible offline image set. Review available security updates before use.
