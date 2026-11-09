@@ -14,7 +14,7 @@ x-common: &common
 services:
   cowrie:
     <<: *common
-    image: ${COWRIE_IMAGE:-cowrie/cowrie:3.1.3@sha256:69e3317c6ecf8811d18faecb8a2fcedee0af1f0f864b50de07b688c7409f515c}
+    image: ${COWRIE_IMAGE:-cowrie/cowrie:3.1.4@sha256:baf351038db967704dfa39f7ce860e8875c9456cdab72a9d3257c4247211050d}
     container_name: honeypot-cowrie
     user: "999:2000"
     mem_limit: 768m
@@ -133,7 +133,7 @@ services:
       retries: 3
   grafana:
     <<: *common
-    image: ${GRAFANA_IMAGE:-grafana/grafana:12.4.13@sha256:41bbc1b5e04416f81891806076db2a2ff60a5d4da5f78d36a88b033a8c199185}
+    image: ${GRAFANA_IMAGE:-grafana/grafana:12.4.14@sha256:ae509d9ae8c1021ca32ec370a9ca975d40165eda9fccd1e1102d317ff8787cd7}
     container_name: honeypot-grafana
     user: "472:2000"
     mem_limit: 512m
