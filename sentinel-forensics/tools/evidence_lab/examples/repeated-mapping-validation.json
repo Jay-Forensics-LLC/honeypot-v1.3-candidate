@@ -1,0 +1,364 @@
+{
+  "schema": "sentinel.repeated-mapping-validation/1",
+  "scope": "synthetic SQL probes and synthetic repeated-mapping captures, not actual Packet Squirrel qualification",
+  "implementation_commit": "3e38141f7edbaf4ac1c7a5e6e7523d80572bddf8",
+  "clean_tree": true,
+  "code_sha256": {
+    "adapters.py": "f63372ae7c2a8a40374afd3b85bf242d5a069eb3f86f9ba87377857745202e80",
+    "analyze.py": "d5b0425a21341d6730b7db7f93f1f929dbcc819a7b7e882732275bda74a39fd2",
+    "capture.py": "eaa67a1c135e26d245d5a7ada3f25f71f0907660fb58b97c190f988e3c6e2537",
+    "contract.py": "b287b632f6a766bb3f9b027841372a018bf12fa225c7088eff3af3fb4bbc77ac",
+    "core.py": "771b8e0bdbd1a182489e5955d5c08979df8b8ffcbdd0ea4c146b343844e452a0",
+    "correlate.py": "a6d89a52647e110517c70ff28346c178744a8ca130422edfb29831202114aaad",
+    "ios_ingest.py": "20188f76bcd8d4522cd18fada0aede15189aa3f0522fe352c08c27230cf68a75",
+    "network.py": "a18461707fe70ea9cef933ffb6baa7efb0213f5b6079c62d52e5d480c4bf4789",
+    "oracle.py": "aba1d49c707be320bda04f3c863774604cbbfced663126193f9ea35706470eaf",
+    "qualify.py": "a4897d9b018ab361d67339a8956178342d9df060fb0c9880855ccf51a446e2b4",
+    "query.py": "6be18f30cbc275ace8bb2d213c034df826855c20a70f9c633f08805d1003bc61",
+    "report.py": "d8d6b8a0542dc30cdad93c2a3042661e7688ef170afaaae60ab831c9da127e05",
+    "rules.py": "9e3e5ab6ddaa3b4d4e866c982547d2fd0ac43f3f9ba10c1d229881b1a089de5d",
+    "run_tests.py": "367fe4a34a1acdaa0fcb0fe4f451229744f03be05eef37c8b9ac877e01fec9fe",
+    "store.py": "a2b98f703ba3ae5baf352ddab0d22d0ee154ee2deeef7edf4577b56371b1c0f0"
+  },
+  "sql_before": {
+    "commit": "e1522836cb8f3703e0dd8cdb9919775973135dd6",
+    "scope": "bounded synthetic SQL scaling probes; not actual capture qualification",
+    "measurements": [
+      {
+        "operation": "conflict_detection",
+        "associations": 1000,
+        "vm_steps_approximate": 12009000,
+        "seconds": 0.06418280399520881,
+        "status": "COMPLETE"
+      },
+      {
+        "operation": "duplicate_lookup_query_plan",
+        "rows": 1000,
+        "plan": [
+          "SCAN duplicates"
+        ]
+      },
+      {
+        "operation": "conflict_detection",
+        "associations": 4000,
+        "vm_steps_approximate": 20001000,
+        "seconds": 0.08986505000211764,
+        "status": "INTERRUPTED_AT_DECLARED_20M_VM_STEPS"
+      },
+      {
+        "operation": "duplicate_lookup_query_plan",
+        "rows": 4000,
+        "plan": [
+          "SCAN duplicates"
+        ]
+      }
+    ]
+  },
+  "sql_after": {
+    "parent_commit": "e1522836cb8f3703e0dd8cdb9919775973135dd6",
+    "scope": "synthetic SQL scaling probes; not actual capture qualification",
+    "measurements": [
+      {
+        "operation": "conflict_detection",
+        "associations": 1000,
+        "vm_steps_approximate": 113000,
+        "seconds": 0.004316120997827966,
+        "status": "COMPLETE",
+        "conflicts": 0
+      },
+      {
+        "operation": "duplicate_lookup_query_plan",
+        "rows": 1000,
+        "plan": [
+          "SEARCH duplicates USING INDEX duplicate_record_lookup (source_id=? AND ordinal=?)"
+        ]
+      },
+      {
+        "operation": "conflict_detection",
+        "associations": 4000,
+        "vm_steps_approximate": 458000,
+        "seconds": 0.01608657500037225,
+        "status": "COMPLETE",
+        "conflicts": 0
+      },
+      {
+        "operation": "duplicate_lookup_query_plan",
+        "rows": 4000,
+        "plan": [
+          "SEARCH duplicates USING INDEX duplicate_record_lookup (source_id=? AND ordinal=?)"
+        ]
+      },
+      {
+        "operation": "conflict_detection",
+        "associations": 16000,
+        "vm_steps_approximate": 1838000,
+        "seconds": 0.06431124200025806,
+        "status": "COMPLETE",
+        "conflicts": 0
+      },
+      {
+        "operation": "duplicate_lookup_query_plan",
+        "rows": 16000,
+        "plan": [
+          "SEARCH duplicates USING INDEX duplicate_record_lookup (source_id=? AND ordinal=?)"
+        ]
+      }
+    ]
+  },
+  "qualification": {
+    "status": "SYNTHETIC_PASS",
+    "profile": "synthetic",
+    "configuration": {
+      "contexts": {
+        "1": "synthetic-lan",
+        "2": "synthetic-lan"
+      }
+    },
+    "source_bytes": 2580048,
+    "limits": {
+      "disk_estimate_bytes_per_packet_per_run": 6000,
+      "disk_reserve_bytes": 1073741824,
+      "justification": "One sequential worker; default 512 MiB leaves headroom on this 31 GiB host. Four-hour per-worker deadline is fixed before measurement.",
+      "peak_rss_bytes": 536870912,
+      "per_run_seconds": 14400
+    },
+    "timing": {
+      "child_system_cpu_seconds": 0.12361499999999999,
+      "child_user_cpu_seconds": 3.040953,
+      "inventory_seconds": 0.0013120489966240712,
+      "parent_cpu_seconds": 1.379787263,
+      "source_hash_after_seconds": 0.0011994189990218729,
+      "source_hash_before_seconds": 0.001894299995910842,
+      "total_wall_seconds": 5.496941072997288
+    },
+    "checks": {
+      "complete_dataset_accounting": true,
+      "fixture_count": true,
+      "independent_count": true,
+      "independent_memory_budget": true,
+      "memory_budget": true,
+      "nonempty_capture": true,
+      "parent_memory_budget": true,
+      "pinned_real_code": true,
+      "reproducible_minimized_export": true,
+      "reproducible_records": true,
+      "source_hashes_match": true,
+      "source_unchanged": true,
+      "time_budget": true
+    },
+    "metric_limitations": [
+      "50 ms RSS samples can miss short peaks; Python worker ru_maxrss also recorded.",
+      "Worker process tree sampled; parent RSS sampled separately. No external decode workers inside analysis.",
+      "1 s allocated-file sampling can miss temporary files; filesystem deltas include unrelated activity.",
+      "Filesystem cache not flushed: both runs are clean cases but warm-cache effects are possible.",
+      "Full cost includes inventory, all source hashes, decoder, worker startup, analysis, output verification and semantic/export digests; excludes report finalization.",
+      "Analysis time includes ingestion, decoding, SQL aggregation, rules, export and checksums. No separately instrumented parser-only speed claim.",
+      "No OS hard RSS/disk quota. Timeouts terminate the worker process group."
+    ]
+  },
+  "runs": [
+    {
+      "packets": 10000,
+      "seconds": 1.9833844849999878,
+      "cpu_seconds": 1.53765586,
+      "sampled_worker_tree_peak_rss_bytes": 47824896,
+      "output_bytes": 83946433,
+      "semantic_sha256": "73d1adab478e86f1fceb2fcc9d3d9ca14c63ed01a7f63ec02b942186cc595fd8",
+      "export_sha256": "6c8e413007b9846c19d773f239eb770c07b784c2dcf0d9f2225a5f26e02f18af",
+      "coverage": {
+        "capture_blocks": {},
+        "counts": {
+          "associations": 10000,
+          "conflicts": 0,
+          "duplicate_records": 1999,
+          "findings": 0,
+          "flows": 1,
+          "observations": 10000,
+          "packet_records": 10000,
+          "parse_errors": 0
+        },
+        "decoding_losses": {},
+        "filtered_packets": 0,
+        "payload_retention": false,
+        "protocol_distribution": {
+          "arp": 2000,
+          "udp": 8000
+        },
+        "reassembly": "none",
+        "rules": [
+          {
+            "configuration": {
+              "dns_label_minimum": 50,
+              "dns_minimum_questions": 5,
+              "mapping_minimum_conflicts": 1,
+              "port_minimum": 10,
+              "syn_minimum": 10,
+              "window_seconds": 60
+            },
+            "eligible": 10000,
+            "findings": 0,
+            "reason": "Thresholds evaluated on the supported subset; absence of a finding is not a device health verdict.",
+            "rule": "conflicting_mappings",
+            "status": "NO_FINDING",
+            "version": "1.0.0"
+          },
+          {
+            "configuration": {
+              "dns_label_minimum": 50,
+              "dns_minimum_questions": 5,
+              "mapping_minimum_conflicts": 1,
+              "port_minimum": 10,
+              "syn_minimum": 10,
+              "window_seconds": 60
+            },
+            "eligible": 0,
+            "findings": 0,
+            "reason": "Too few eligible observations; unresolved, unsupported and encrypted data excluded.",
+            "rule": "destination_ports",
+            "status": "INSUFFICIENT_EVIDENCE",
+            "version": "1.0.0"
+          },
+          {
+            "configuration": {
+              "dns_label_minimum": 50,
+              "dns_minimum_questions": 5,
+              "mapping_minimum_conflicts": 1,
+              "port_minimum": 10,
+              "syn_minimum": 10,
+              "window_seconds": 60
+            },
+            "eligible": 0,
+            "findings": 0,
+            "reason": "Too few eligible observations; unresolved, unsupported and encrypted data excluded.",
+            "rule": "dns_long_labels",
+            "status": "INSUFFICIENT_EVIDENCE",
+            "version": "1.0.0"
+          },
+          {
+            "configuration": {
+              "dns_label_minimum": 50,
+              "dns_minimum_questions": 5,
+              "mapping_minimum_conflicts": 1,
+              "port_minimum": 10,
+              "syn_minimum": 10,
+              "window_seconds": 60
+            },
+            "eligible": 0,
+            "findings": 0,
+            "reason": "Too few eligible observations; unresolved, unsupported and encrypted data excluded.",
+            "rule": "repeated_syn",
+            "status": "INSUFFICIENT_EVIDENCE",
+            "version": "1.0.0"
+          }
+        ],
+        "unexamined": [
+          "encrypted application content",
+          "tracev3",
+          "unsupported protocols and adapter schemas"
+        ]
+      }
+    },
+    {
+      "packets": 10000,
+      "seconds": 1.8955437170006917,
+      "cpu_seconds": 1.5286300990000001,
+      "sampled_worker_tree_peak_rss_bytes": 47812608,
+      "output_bytes": 83946433,
+      "semantic_sha256": "73d1adab478e86f1fceb2fcc9d3d9ca14c63ed01a7f63ec02b942186cc595fd8",
+      "export_sha256": "6c8e413007b9846c19d773f239eb770c07b784c2dcf0d9f2225a5f26e02f18af",
+      "coverage": {
+        "capture_blocks": {},
+        "counts": {
+          "associations": 10000,
+          "conflicts": 0,
+          "duplicate_records": 1999,
+          "findings": 0,
+          "flows": 1,
+          "observations": 10000,
+          "packet_records": 10000,
+          "parse_errors": 0
+        },
+        "decoding_losses": {},
+        "filtered_packets": 0,
+        "payload_retention": false,
+        "protocol_distribution": {
+          "arp": 2000,
+          "udp": 8000
+        },
+        "reassembly": "none",
+        "rules": [
+          {
+            "configuration": {
+              "dns_label_minimum": 50,
+              "dns_minimum_questions": 5,
+              "mapping_minimum_conflicts": 1,
+              "port_minimum": 10,
+              "syn_minimum": 10,
+              "window_seconds": 60
+            },
+            "eligible": 10000,
+            "findings": 0,
+            "reason": "Thresholds evaluated on the supported subset; absence of a finding is not a device health verdict.",
+            "rule": "conflicting_mappings",
+            "status": "NO_FINDING",
+            "version": "1.0.0"
+          },
+          {
+            "configuration": {
+              "dns_label_minimum": 50,
+              "dns_minimum_questions": 5,
+              "mapping_minimum_conflicts": 1,
+              "port_minimum": 10,
+              "syn_minimum": 10,
+              "window_seconds": 60
+            },
+            "eligible": 0,
+            "findings": 0,
+            "reason": "Too few eligible observations; unresolved, unsupported and encrypted data excluded.",
+            "rule": "destination_ports",
+            "status": "INSUFFICIENT_EVIDENCE",
+            "version": "1.0.0"
+          },
+          {
+            "configuration": {
+              "dns_label_minimum": 50,
+              "dns_minimum_questions": 5,
+              "mapping_minimum_conflicts": 1,
+              "port_minimum": 10,
+              "syn_minimum": 10,
+              "window_seconds": 60
+            },
+            "eligible": 0,
+            "findings": 0,
+            "reason": "Too few eligible observations; unresolved, unsupported and encrypted data excluded.",
+            "rule": "dns_long_labels",
+            "status": "INSUFFICIENT_EVIDENCE",
+            "version": "1.0.0"
+          },
+          {
+            "configuration": {
+              "dns_label_minimum": 50,
+              "dns_minimum_questions": 5,
+              "mapping_minimum_conflicts": 1,
+              "port_minimum": 10,
+              "syn_minimum": 10,
+              "window_seconds": 60
+            },
+            "eligible": 0,
+            "findings": 0,
+            "reason": "Too few eligible observations; unresolved, unsupported and encrypted data excluded.",
+            "rule": "repeated_syn",
+            "status": "INSUFFICIENT_EVIDENCE",
+            "version": "1.0.0"
+          }
+        ],
+        "unexamined": [
+          "encrypted application content",
+          "tracev3",
+          "unsupported protocols and adapter schemas"
+        ]
+      }
+    }
+  ],
+  "actual_packet_squirrel_goal": "BLOCKED_EXTERNAL: actual dataset location required"
+}

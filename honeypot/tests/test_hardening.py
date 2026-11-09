@@ -224,6 +224,9 @@ class TelemetryTests(unittest.TestCase):
         paths=source_paths()
         self.assertEqual(paths['cowrie'],ROOT/'logs/normalized/cowrie.jsonl')
         self.assertIn('parser',paths);self.assertIn('audit',paths)
+        self.assertEqual(paths['incidentd'],ROOT/'logs/system/incidentd-suite.jsonl')
+        self.assertEqual(paths['incidentd_parser'],ROOT/'logs/system/parser-errors-incidentd.jsonl')
+        self.assertEqual(paths['incidentd_errors'],ROOT/'logs/system/incidentd-errors-private.jsonl')
         self.assertFalse(any('secrets' in str(p) or p.suffix=='.pcap' for p in paths.values()))
     def test_drop_rate_counter_reset_and_initial_sample(self):
         self.assertIsNone(drop_rate({},100,100))
@@ -236,10 +239,12 @@ class TelemetryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);shutil.copytree(ROOT/'configs',root/'configs')
             path=root/'logs/system/parser-errors.jsonl';path.parent.mkdir(parents=True)
+            incidentd_path=root/'logs/system/parser-errors-incidentd.jsonl'
             now=time.time()
             path.write_text('\n'.join(json.dumps({'timestamp':dt.datetime.fromtimestamp(now-age,dt.timezone.utc).isoformat()}) for age in (10,3599,3601)))
+            incidentd_path.write_text(json.dumps({'timestamp':dt.datetime.fromtimestamp(now-20,dt.timezone.utc).isoformat()})+'\n')
             sources,count=snapshot(root,now)
-            self.assertEqual(count,2);self.assertTrue(sources['parser']['present'])
+            self.assertEqual(count,3);self.assertTrue(sources['parser']['present'])
             self.assertIsNone(sources['audit']['last_write_age'])
     def test_backup_age_warning_is_optional_and_cumulative_drops_are_not_failure(self):
         import healthcheck

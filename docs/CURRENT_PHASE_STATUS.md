@@ -1,4 +1,18 @@
-# HoneyTrace current phase status — 2026-10-31
+# HoneyTrace current phase status
+
+## Source development — 2026-11-01
+
+The owner authorized local Phase 9/10 source implementation and a phased
+HoneyTrace Security Suite. The optional offline foundation and local dashboard
+MVP are source-complete. The forensic backbone now adds verified case workspaces,
+precise timelines, coverage, offline capture jobs, structured suite diagnostics
+and reviewable decoy identity profiles. See the
+[delivery roadmap](SECURITY_SUITE_ROADMAP.md) and
+[source validation report](phase10/ACCEPTANCE_REPORT.md).
+This source work supersedes the earlier Phase 10 planning hold for implementation;
+it does not change the recorded runtime/deployment status below.
+
+## Recorded runtime closeout — 2026-10-31
 
 **Phase 7: CLOSED — OWNER-ACCEPTED WITH EXCEPTIONS — ISOLATED LAB ONLY**, limited
 to candidate `40d31fce8322feee41ac766717a9369bfc762373`, tree
@@ -6,7 +20,7 @@ to candidate `40d31fce8322feee41ac766717a9369bfc762373`, tree
 
 **Independent acceptance: NOT OBTAINED. Current HoneyWatch images: NOT
 LIVE-QUALIFIED. Supervised loopback beta and public beta: BLOCKED. Phase 8:
-NOT AUTHORIZED. Phase 10: PLANNED — PENDING — DO NOT IMPLEMENT. WAN exposure
+NOT AUTHORIZED. Phase 10 source development is recorded above. WAN exposure
 and automatic decoy boot remain unauthorized; daemon-reload remains HOLD.**
 
 ## Closeout scope and evidence source
