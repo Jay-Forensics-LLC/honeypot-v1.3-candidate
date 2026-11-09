@@ -11,8 +11,9 @@ from guard_policy import inspect_guard, inspect_dns
 from pipeline_health import snapshot, drop_rate
 from capture_status import inspect_capture
 from health_snapshot import boot_id
+from operational_log import SuiteLog
 
-def check():
+def _check():
     cfg=config();problems=[];warnings=[];containers={};now=time.time()
     try: previous=json.loads((ROOT/'state/health.json').read_text())
     except (OSError,ValueError): previous={}
@@ -115,6 +116,22 @@ def check():
             row['capture']['problems'].append('Capture stopped at critical disk watermark; manual recovery required')
     atomic_json(ROOT/'state/health.json',row);append_json(ROOT/'logs/system/health.jsonl',row,rotate=True)
     return row
+
+
+def check():
+    log, started = SuiteLog(ROOT, 'health'), time.monotonic()
+    with log.bind():
+        log.event('health.started')
+        try:
+            row = _check()
+        except Exception as exc:
+            log.event('health.failed', level='ERROR', error_type=type(exc).__name__,
+                      duration_ms=(time.monotonic() - started) * 1000)
+            raise
+        log.event('health.completed', level='WARNING' if row['problems'] else 'INFO',
+                  severity=row['severity'], problems=len(row['problems']), warnings=len(row['warnings']),
+                  duration_ms=(time.monotonic() - started) * 1000)
+        return row
 
 if __name__=='__main__':
     os.umask(0o027);result=check();print(json.dumps(result,indent=2));raise SystemExit(0 if not result['problems'] and result['severity'] not in ('HIGH','CRITICAL') else 1)

@@ -61,7 +61,7 @@ def atomic_json(path, data):
         if os.path.exists(tmp):
             os.unlink(tmp)
 
-def _log_parent(path):
+def _log_parent(path, mode=0o750):
     """Pin each directory without following an attacker-replaced ancestor."""
     path = Path(path).absolute()
     if '..' in path.parts:
@@ -74,7 +74,7 @@ def _log_parent(path):
                 child = os.open(part, flags, dir_fd=fd)
             except FileNotFoundError:
                 try:
-                    os.mkdir(part, mode=0o750, dir_fd=fd)
+                    os.mkdir(part, mode=mode, dir_fd=fd)
                 except FileExistsError:
                     # A concurrent creator won. The immediately following
                     # O_DIRECTORY|O_NOFOLLOW open still validates the entry.
@@ -115,10 +115,10 @@ def _lock_log_directory(parent):
 
 
 @contextmanager
-def _open_log(path, rotate=False):
+def _open_log(path, rotate=False, *, private=False):
     # A privileged writer shares some operational directories with incidentd.
     # Never follow their file/ancestor symlinks or write through a hard link.
-    parent, name = _log_parent(path)
+    parent, name = _log_parent(path, 0o700 if private else 0o750)
     try:
         # Directory identity survives file rotation. A per-log-file lock would
         # split writers across old/new inodes; a sidecar introduces another
@@ -126,6 +126,8 @@ def _open_log(path, rotate=False):
         # already pinned directory until close, including exceptions.
         _lock_log_directory(parent)
         prior = _log_regular(parent, name)
+        if private and prior is not None and (prior.st_uid != os.geteuid() or prior.st_mode & 0o077):
+            raise ValueError('Suite log must be private and operator-owned')
         if rotate and prior is not None and prior.st_size > 20 * 1024**2:
             # Only live operational logs use rotation; never evidence/manifests.
             for i in range(9, 0, -1):
@@ -136,11 +138,12 @@ def _open_log(path, rotate=False):
             _log_regular(parent, name + '.1')
             os.replace(name, name + '.1', src_dir_fd=parent, dst_dir_fd=parent)
         fd = os.open(name, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK,
-                     0o640, dir_fd=parent)
+                     0o600 if private else 0o640, dir_fd=parent)
         try:
             info = os.fstat(fd)
             current = _log_regular(parent, name)
             if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or current is None or
+                    private and (info.st_uid != os.geteuid() or info.st_mode & 0o077) or
                     (info.st_dev, info.st_ino) != (current.st_dev, current.st_ino)):
                 raise ValueError('Operational log changed during safe open')
             yield fd, parent, name
@@ -164,8 +167,8 @@ def _append_log(log, data):
         encoded = encoded[written:]
 
 
-def append_json(path, data, rotate=False):
-    with _open_log(path, rotate) as log:
+def append_json(path, data, rotate=False, *, private=False):
+    with _open_log(path, rotate, private=private) as log:
         _append_log(log, data)
 
 def sha256(path):

@@ -3,6 +3,7 @@
 import ast
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -10,6 +11,7 @@ import sys
 import zipfile
 
 from check_dependencies import check as check_dependencies
+from validate_sentinel_bundle import check as check_sentinel_bundle
 
 ROOT = Path(__file__).resolve().parents[1]
 SENSITIVE = re.compile(r'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|'
@@ -194,6 +196,11 @@ def main():
     count = verify_source()
     print(f'PASS: {count} current source files checked for modes, syntax and exclusions', flush=True)
     check_dependencies()
+    print('PASS: complete bundled Sentinel snapshot ' + str(check_sentinel_bundle()), flush=True)
+    subprocess.run([sys.executable, '-B', 'sentinel-forensics/tools/evidence_lab/run_tests.py'],
+                   cwd=ROOT, check=True, timeout=90,
+                   env={**os.environ, 'PYTHONDONTWRITEBYTECODE': '1'})
+    check_sentinel_bundle()
     subprocess.run([sys.executable, '-B', '-m', 'unittest', 'discover', '-s', 'tools/tests', '-v'],
                    cwd=ROOT, check=True, timeout=60)
     for target in ('stage7-test', 'test', 'verify'):

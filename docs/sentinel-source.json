@@ -1,0 +1,766 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/Jay-Forensics-LLC/sentinel-forensics",
+  "commit": "187bec14835fc9497b05594ca467a49259553d64",
+  "git_tree": "cef8e9ad84dd2614e0f7794aea7fbef4ccaeb30b",
+  "prefix": "sentinel-forensics",
+  "files": 1450,
+  "bytes": 11547879,
+  "license": "AGPL-3.0",
+  "license_sha256": "7f8f48e4266aa8fd3033dfaa4bb7f6e83a60c6e099f82d4959b81de90e67cd8f",
+  "import_method": "Complete committed upstream tree with 68 recorded replacements and 34 local additions; Git metadata/history and untracked files excluded.",
+  "upstream_git_tree": "45e7025dd351732dfa0d321362891ff353f8b940",
+  "upstream_bytes": 11448833,
+  "patches": [
+    {
+      "path": "functions/runCodebaseAudit.ts",
+      "operation": "replace",
+      "upstream_blob": "399ccc3d16d869828bb99f11001b402735d097ec",
+      "upstream_sha256": "5900463418863db90035791a294c439ac3ddbdce71b14e0fda9264e226735c7e",
+      "sha256": "7f53dcb35ac0917eee35fb333e54702ccb632782a50689192a7cc0a1167d25db",
+      "reason": "Replace one credential-shaped demo value with an explicit placeholder after GitHub push protection rejected publication; no credential was used or tested."
+    },
+    {
+      "path": "tools/evidence_lab/tests/test_reconstruct.py",
+      "operation": "replace",
+      "upstream_blob": "c821da2c3533a9238eeb41018b0bfd2a6d41fee8",
+      "upstream_sha256": "206fab435cc0302a3a493bb81a8eb915533292fb84291fee656a5df7a507d7ef",
+      "sha256": "c50bde8168844d53cc57790db88017cc69e7c341b725387b7468f2af54a415fb",
+      "reason": "Close test-owned descriptors on setup or diagnostic failure after PR code-quality review; production reconstruction behavior is unchanged."
+    },
+    {
+      "path": "functions/apiCasesRead.ts",
+      "operation": "replace",
+      "upstream_blob": "cc336ed7ad91bcc2d26222339cfb70584264864d",
+      "upstream_sha256": "b98a09780435c52fa9f8220cebc988f43cce82af6e90cc62745f39a24734b45e",
+      "sha256": "8938b1d2d936ce5216cf9069d436fe3d1d0ca2c303746c8cef9795ae7ae48e2f",
+      "reason": "Preserve Case.id and organization restrictions, pass runtime connection metadata and reject malformed tenant/case scopes. Distinguish unavailable rate-limit storage (HTTP 503) from exhausted tokens (HTTP 429)."
+    },
+    {
+      "path": "functions/calculateFileHash.ts",
+      "operation": "replace",
+      "upstream_blob": "baef279e72994b9c576cb578fef69a3e4fa29b84",
+      "upstream_sha256": "d4f9ddae3fa5d46f55d817d63f39a392ce067221d7a66b6dbe3a85e66ab1c95d",
+      "sha256": "c40f46c081169be263172081e896938c0589d7c7edebeb768e3340183cae2ed0",
+      "reason": "Resolve evidence by ID, enforce case authorization, and bound signed-URL downloads."
+    },
+    {
+      "path": "functions/helpers/orgContext.ts",
+      "operation": "replace",
+      "upstream_blob": "fdf13c175cd4c944d32bb60a3198becb42c1c8b8",
+      "upstream_sha256": "fb5755dc705b9ce9100d2fadda6d3ee038f8de059559a8d397f636e3473213b3",
+      "sha256": "55494e2aa2737815c5626cdab0c0b9e704248aa474e8e7e43b9a0965996b9a33",
+      "reason": "Prevent additional filters from overriding the authenticated organization."
+    },
+    {
+      "path": "functions/helpers/sanitizeLog.ts",
+      "operation": "replace",
+      "upstream_blob": "50851f52f3bb9acc6897e0a261545e5562797549",
+      "upstream_sha256": "5517de3c328ae0080bc9fff05ce6274f54dbad6aaa06207a0b2226d5a91dd75b",
+      "sha256": "512f2a4c73f207d3dcad9cc2245ab64dc26b19ce4e09afc63c0996f407270568",
+      "reason": "Normalize sensitive field names before redaction."
+    },
+    {
+      "path": "functions/helpers/usage.ts",
+      "operation": "add",
+      "sha256": "30f711685f7283ae55a51da6217aa00ec9e0a79fa1f01ab7ca9f712c937f19b1",
+      "reason": "Add allowlisted, finite positive usage-increment validation and apply increments with updateMany $inc rather than a field PUT."
+    },
+    {
+      "path": "functions/incrementUsage.ts",
+      "operation": "replace",
+      "upstream_blob": "ad1408b84d948cfc2ba287c49ffb3a1c37194a89",
+      "upstream_sha256": "1456fb844b46ed34bc226b7662a4b5969e85949b775041586af8d8752d46fe61",
+      "sha256": "527a70f9468e5078dfae826515243dae7fa6b5a75d2df9816cb394b28db9e997",
+      "reason": "Reject unsupported usage metrics and invalid increments; load SDK 0.8.30 so counters increment through atomic updateMany operators."
+    },
+    {
+      "path": "functions/tests/incrementUsage_test.ts",
+      "operation": "add",
+      "sha256": "6143c2e8c6d09c1cc99f9735ae95fba38ad922e07c7d1f70e542dcadeb7f30fc",
+      "reason": "Add regression coverage for accepted and rejected usage increments and atomic updateMany counter updates."
+    },
+    {
+      "path": "functions/tests/orgContext.test.mjs",
+      "operation": "add",
+      "sha256": "d7db174f286f20c17f80070706b407f4f6303281768b7f7fec4a2342ffc09c4d",
+      "reason": "Add regression coverage for authenticated organization filter precedence."
+    },
+    {
+      "path": "functions/tests/sanitizeLog_test.ts",
+      "operation": "add",
+      "sha256": "a90ef16eff0ddf01ca40c9a3acadcdf193ad8d41a1b916949788cbcdae0ff888",
+      "reason": "Add regression coverage for camel-case secret redaction."
+    },
+    {
+      "path": "src/components/cases/CaseReadinessIndicator.jsx",
+      "operation": "replace",
+      "upstream_blob": "b0605bef2c33638bbab605318c5ac5f922c10600",
+      "upstream_sha256": "6f503df31dc15c6b28ee6cc2f647793377020874260829f184b585aad17d9def",
+      "sha256": "1a08aa0777c7d7425a557730de52bfc46260731548a527ce75bceb9e342d47e1",
+      "reason": "Require evidence context and collected evidence for ready status."
+    },
+    {
+      "path": "src/components/hooks/useEnhancedQuery.jsx",
+      "operation": "replace",
+      "upstream_blob": "67bab39def761edd55e05e53aba01b1389c6cd9b",
+      "upstream_sha256": "972ad9b32fbb15957b3f2a6f11dfaa3874587b4dcf4a9ca33345e2784b57b475",
+      "sha256": "03788535b1f9ea0ae170b44aa18eea29cc9cadd7a7be612fa228e8ebf420edcb",
+      "reason": "Preserve the composed mutation success callback instead of overriding it."
+    },
+    {
+      "path": "src/components/hooks/useOrgQuery.jsx",
+      "operation": "replace",
+      "upstream_blob": "f3edb08b78191e686aed3edae35b71922217cf20",
+      "upstream_sha256": "be7c48808fd7b71d8c5cc5274971eb33581f217af9f0583d79534e3465457acf",
+      "sha256": "04127956ac8b799298c5fe317a435a08b22a9124920d533a2235ab57e158653b",
+      "reason": "Keep organization filters authenticated and propagate query failures."
+    },
+    {
+      "path": "src/components/ui/progress.jsx",
+      "operation": "replace",
+      "upstream_blob": "cab97c91bb57e7d114c175c05b958c031637b11b",
+      "upstream_sha256": "1ad2808d51c365f04f23a4e985b03274dcc30735d74db68e1f78332a6533859c",
+      "sha256": "6c786193cf08b97d00020877fc5085020bda5bc5ffef51d98c05d984c69df8b4",
+      "reason": "Forward the progress value to the underlying primitive."
+    },
+    {
+      "path": "src/lib/app-params.js",
+      "operation": "replace",
+      "upstream_blob": "9db83131a04db70fca26aeff6dbc20c66f9c0a42",
+      "upstream_sha256": "0932f9c15cdbb89365ea14d07ee2b5ed9dd0cdf17057f428504768e1343b232e",
+      "sha256": "da87d24ecc5eaecbce6d45a70963149f4ba56a1de35fcfb53da24f061d4a5c1f",
+      "reason": "Use the configured backend origin rather than a URL parameter override."
+    },
+    {
+      "path": "functions/controlPlaneExport.ts",
+      "operation": "replace",
+      "upstream_blob": "157bab7aac9445bb04c8ddaad20a3647b8966acc",
+      "upstream_sha256": "6d3a574696dea8cb64e00683bbc39937f7ed9c6a93f18f81afd494131d009ea2",
+      "sha256": "09bbe9f3b83dc2095805e4fe3afe50f7d08821d5b4291ec3f3c7b89e2092455e",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/getApiKeyUsage.ts",
+      "operation": "replace",
+      "upstream_blob": "38331fc96bc0eebb675a6ca928f445847f45155b",
+      "upstream_sha256": "a0de5d2ee437d2e7db2f8610253ee1ffbc3737092c870056f80ac36389366cf0",
+      "sha256": "092f7058dc2750054091c4d76eac6bfb808521f0ad62f42eb31f275601979059",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/helpers/apiKeyScope.ts",
+      "operation": "add",
+      "sha256": "8773f2029808411d9d4f394373bc72b8984bcecbeb1cacb194e23b7582c56977",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/helpers/apiKeyStatus.ts",
+      "operation": "add",
+      "sha256": "75f4a635e36d69ed76f60b20ddccb1e9cd6c0c510ef0cf63c32b3b049d06a67e",
+      "reason": "Transition API key status with a conditional updateMany on the observed organization, id, and status, and fail closed if that atomic writer is unavailable. Add the same guarded transition for revocation in the PR #53 review fix."
+    },
+    {
+      "path": "functions/helpers/apiKeyUsage.ts",
+      "operation": "add",
+      "sha256": "6bab15a2cb03842e1928720042a3aa1cbe971a1a3d293e32bb5a179d51faa5d5",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/helpers/apiKeyUsageFilters.ts",
+      "operation": "add",
+      "sha256": "7dc200734e39e54e700b94fa3d0b6e934817a354f6f466c0e79ff1f294294d39",
+      "reason": "Reject invalid API-key usage pagination limits before querying logs."
+    },
+    {
+      "path": "functions/helpers/boundedFetch.ts",
+      "operation": "add",
+      "sha256": "85ced2e6f9d402207b5347ec9a0fb45fdcf86a093fa8c576c67fbb65c9614f75",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/helpers/csv.ts",
+      "operation": "add",
+      "sha256": "07f0233578ac745417f46a521003711c74a7923fa8a232f909b00e811a2f1afd",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/helpers/cveInput.ts",
+      "operation": "add",
+      "sha256": "7225dc6c8c74b9ea4ae3015f830e2773a7e930606b5fcd57f39ed40466c44809",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/helpers/readBoundedResponse.ts",
+      "operation": "add",
+      "sha256": "c07ad5569c283803601b983fef3461c798e5bf5e66f8de0f1b2db4ea5f52f481",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/logUsage.ts",
+      "operation": "replace",
+      "upstream_blob": "3dd72eea410e992595e388232c0f5108c06f8ff2",
+      "upstream_sha256": "aa799ca350d1f59408e90cf5e3e4e03994f4f0d24da69df8c1bd1cdbb80e577e",
+      "sha256": "ef88140875f1350935085048462cdacc110e9772656ca20d0bb32c5fd9858b84",
+      "reason": "Reject unknown usage types and non-positive or non-finite quantities before recording charges. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction."
+    },
+    {
+      "path": "functions/revokeApiKey.ts",
+      "operation": "replace",
+      "upstream_blob": "e4df659a38b533c65d7d00b4d98d6f0b19a0b45c",
+      "upstream_sha256": "25341d74156c3feb57e955d9f82ada2984141f612a3c8a0462a5dc9706b88da7",
+      "sha256": "79e17a269d5f7a58d350b841e6e99ee0b4151c06267d8ebb86df0256474e2f59",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree; apply the conditional revocation transition in the PR #53 review fix."
+    },
+    {
+      "path": "functions/secureThreatIngest.ts",
+      "operation": "replace",
+      "upstream_blob": "05c367d026b1baa86704667e0836707827130dc5",
+      "upstream_sha256": "659ddb89878d3e03d6e95c33319a3dec727960eb5b0b72b36ea375e0eaf0d668",
+      "sha256": "2b24d15bb8a8bb5ab850c9e8432a0abf836e0c32077fbc959d84a1b85ee1d093",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/tests/apiKeyStatus.test.mjs",
+      "operation": "add",
+      "sha256": "b98c16590bb8a10cd67ca68752a3f578125e4808f69d951bdce57637ba440ffc",
+      "reason": "Cover stale enable requests after revocation and require the SDK pin that provides conditional updateMany."
+    },
+    {
+      "path": "functions/tests/apiKeyUsageFilters.test.mjs",
+      "operation": "add",
+      "sha256": "e7de3211c651a2471142e4a33602bd5a2ea27e4e0d3c4eb2a0ee98ad08277027",
+      "reason": "Cover rejection of invalid and unsafe API-key usage limits."
+    },
+    {
+      "path": "functions/tests/boundedFetch.test.mjs",
+      "operation": "add",
+      "sha256": "4d56ed9c7dbcf151d9c1e43224237b04974d89b362e870dc19da2f93d197b18d",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/tests/csv.test.mjs",
+      "operation": "add",
+      "sha256": "940127a222ce027354e1658f4e45412f35637966139bc3cab6d06865aa5049df",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/tests/cveInput.test.mjs",
+      "operation": "add",
+      "sha256": "c239c80c032336830d4fba8c4b8a42b8bfb06be3546cc901b180eab77f3ce70b",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/tests/readBoundedResponse.test.mjs",
+      "operation": "add",
+      "sha256": "7a3f067e92b5271f8d849c6e6f40f0d29f37d007237be305a0b9743fc5240187",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/toggleApiKey.ts",
+      "operation": "replace",
+      "upstream_blob": "c4fae6d46cdfc13e38afc04bf1b5a55e5e1a4c7c",
+      "upstream_sha256": "da113a6ba545a6fa925283b6778ca227177e0ec086c7288ccaa948f422fe219f",
+      "sha256": "deb19645d237ff6c7f1cadf09806d335241da42ea12a24cb9098b2bc34e9ef73",
+      "reason": "Load SDK 0.8.30 so enable/disable uses conditional updateMany and cannot reactivate a key revoked after the status was read."
+    },
+    {
+      "path": "src/components/hooks/useOfflineSync.jsx",
+      "operation": "replace",
+      "upstream_blob": "e0ec21493d45be8191c2d27c807fb6a0c5fb1d9b",
+      "upstream_sha256": "00de792a19b95d888575796a2317ab125fc5171cd065104258bdcb4f5275b60e",
+      "sha256": "71bf52ac7b3eb09a02909c9e53a29469017c53af98ff585a5e0468ca7dfae946",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/lib/APIClient.jsx",
+      "operation": "replace",
+      "upstream_blob": "d4ce658757208eb4f61f16e3abcf729093f2a605",
+      "upstream_sha256": "f7608d15c3d0c49cbe1b1a7e9e57a89236315dc045d5a3acf5db358dfeebafc3",
+      "sha256": "4bb46463cd2d6b842f34494c63830abea7dea3ccd04802a6d84bdc3f81be1f2f",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/lib/Container.jsx",
+      "operation": "replace",
+      "upstream_blob": "50f6d2d9487034a09f5a0336601a7c143d45caac",
+      "upstream_sha256": "448a604cccbecfdef2e198b1295dc699a4f330d4aa2a132b9dd745d0ac040e9d",
+      "sha256": "4a57834170b1f73742fa5b058d2085407bc40997b182fd8d33e5b379843a0bcd",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/lib/OfflineDB.jsx",
+      "operation": "replace",
+      "upstream_blob": "49dfa584ff740dd111ed21fc761804d5db3c102f",
+      "upstream_sha256": "a6f4d800089045f440c8c3238926572a915ea3bc664daa2f7e39db4f45c0acab",
+      "sha256": "306801642752a6545425182b3d7660685a24f7c11f02f50f67a1b76c339ab171",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/lib/OfflineQueue.jsx",
+      "operation": "replace",
+      "upstream_blob": "a5defcc2f14311ea1db2db3d4ea8b213554617bc",
+      "upstream_sha256": "939a4d6f55ecd06757e5880729545a07e10875a95e89b75fc49a9412a6ba7fef",
+      "sha256": "c26f46df5ba79259fdf593e6ba20ddc407938609c97a3242420ebec196baec10",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/lib/RateLimiter.jsx",
+      "operation": "replace",
+      "upstream_blob": "4c3ce805fe98b9b2e59602cb3f9efd5fb6a9d088",
+      "upstream_sha256": "9ca7a6bfcdb63f574bd7ef953dda03058724f7962aef7646f6bf79ea43f76fd7",
+      "sha256": "b37fdbd77be59fdfdf08d4f2a3490d04efbcc0945f19a309063f32b108ddeeaf",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/lib/RequestCache.jsx",
+      "operation": "replace",
+      "upstream_blob": "33851f9059cfc8c4b111d6197870bb0a83712fcf",
+      "upstream_sha256": "c5b973b176e127d23aa8e6cab910c163fd05f19f6cd4ad1657af0e2f236c1fc1",
+      "sha256": "13e0d562ec71a0af729434eac3636730ed8dbf5abb244594f8a26f491df01974",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/lib/RequestDeduplicator.jsx",
+      "operation": "replace",
+      "upstream_blob": "6ece9267c22ff0db5c955386c5551f1821197e22",
+      "upstream_sha256": "5921aa3b7ca55c9a2b0b8eaa7f4d1cc956816feddc88a0f5a4baa1cb95b6f1e1",
+      "sha256": "1974654f23cd636a4df2909ff31ae6b2e358b6a742849f4b734d4c139a2f5a2e",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/lib/RetryHandler.jsx",
+      "operation": "replace",
+      "upstream_blob": "b6340d7ac3eeff54545c0b28c5e2960dccbbf4fb",
+      "upstream_sha256": "b7284fd4361eb6b75c0798b32ec295b8227d12ae535af134fbe912c9a4ab7705",
+      "sha256": "3275e269a93376f22f7941e9cf32d1f26e1673393381268f63ccbf416480a611",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/navigation/SmartBackButton.jsx",
+      "operation": "replace",
+      "upstream_blob": "1fe26d5058b1dfd9c76b68b4461d4d91721ace24",
+      "upstream_sha256": "cc454893da487377a65e78d1159cf9dbf3ebd4294b49c975ab7d2ce64d4efec5",
+      "sha256": "64ece79b78f0cd935798d934cd17b0d773b485568da037443fed4c7256d66d74",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/onboarding/OnboardingGuard.jsx",
+      "operation": "replace",
+      "upstream_blob": "544864830c3541002303594cd133c491e1a6f7a0",
+      "upstream_sha256": "9c86ec8de879d7620ebd3f42862d56f00e9e33a8ff03f39309489900bb07addd",
+      "sha256": "22274ba6455f4da858ffe4ae8a278ae690dcff380fef48b58c9586ad693788de",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/performance/ComponentMonitor.jsx",
+      "operation": "replace",
+      "upstream_blob": "215130e17fd833649fc5369f4ff8d3e33a00bbf4",
+      "upstream_sha256": "ed1b9376d5e9f9978d8ac4e0fe1f4a0aa42bb500427c786e666fbf03180e8401",
+      "sha256": "deb8784544e5231ad366072cea835585ab80a45b4fb4874e9848a27110019e4a",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/performance/DataPreloader.jsx",
+      "operation": "replace",
+      "upstream_blob": "091d04bc1e9a0df813137283dffdf4d545cadbe2",
+      "upstream_sha256": "427c9fcfedb25903b344785f82b5412d1f53b29fa7e88a6fee86d272c6a5fc87",
+      "sha256": "c18deeea3cf0a0aba54674444fb96586413570775823af23f6ec9b881da6f0f5",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/performance/MemoryManager.jsx",
+      "operation": "replace",
+      "upstream_blob": "5942f5e9242116c1916c1274bbfdb3553b36f493",
+      "upstream_sha256": "b7b1a3cfe3e80e3966dded38132c993ee864efba52236ae8c64dccd628dd9877",
+      "sha256": "773c6efa5b40b0b2178aaed1f3d90ddb80788e78c6c64d9c83b35c7b8458bb09",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/performance/OptimizedImage.jsx",
+      "operation": "replace",
+      "upstream_blob": "caf86c9dbed08ee6f753b81bb70e40cb544280c9",
+      "upstream_sha256": "60d49487542aee3fcf24c141dba0fafa7b67a3daa062bc9839578dcf907b58df",
+      "sha256": "1e058509a987681dcc00511cd2ff65b5c01b2ab8e94e28d224f5a85fa84cc7e4",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "src/components/subscription/UpgradeButton.jsx",
+      "operation": "replace",
+      "upstream_blob": "db621f1b1e8bdc2ea7e68112ee7e094fe7f7cf9a",
+      "upstream_sha256": "cb41d9f92f4f900b9e3516e4462558fb844407722383ef0c70027033dbf9fc89",
+      "sha256": "da7c8f5845c492ec12c0b458df2543a6c6951b19830ef563113cf3035055ca09",
+      "reason": "Record reviewed local Sentinel source change while preserving the pinned upstream tree."
+    },
+    {
+      "path": "functions/cancelSubscription.ts",
+      "operation": "replace",
+      "upstream_blob": "57c88d80e19a17dd522a08bbb79c3651758b4da1",
+      "upstream_sha256": "c11ca18a8a715bddcb56139e4085f90ea1db0d227974a864c7f8f85d3b1fc0f3",
+      "sha256": "c09b8d1c59b1ab63f9aaeae2d62d1c9ea9ea88c503fb729f96e326ad70ae2535",
+      "reason": "Keep local subscription status aligned with Stripe cancellation state."
+    },
+    {
+      "path": "functions/enforceRBAC.ts",
+      "operation": "replace",
+      "upstream_blob": "678171af8e09751eaf7c7a540072cca23849aa16",
+      "upstream_sha256": "b8ac202d47c36bcf04a0194bda5b3ba28fc6b7db961726ed12d28d3ea12e263c",
+      "sha256": "dc2a6c811fd0b30ae788eaaad84d446df034a037cb77d935bc09d8ec784cf4b0",
+      "reason": "Expose RBAC request handling only when the module is executed directly."
+    },
+    {
+      "path": "functions/generateDisclosureLog.ts",
+      "operation": "replace",
+      "upstream_blob": "cb73a59ad08cf073262f589c4a7a89277c36d606",
+      "upstream_sha256": "29cc7dad8b19279994db777784983ae4ff0c35b2f8c26be63e6d64a81acdabd3",
+      "sha256": "d1998cdd43f9aedb8ee97dd19843d7a20c3872d8cceb2c771907d2e95f6a37a7",
+      "reason": "Validate disclosure evidence selection and reject unavailable evidence. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction."
+    },
+    {
+      "path": "functions/listApiKeys.ts",
+      "operation": "replace",
+      "upstream_blob": "db741a273827e1ef1a74eed7065d1430b002add5",
+      "upstream_sha256": "e669dc9e8e2bc148ee706b51608081daadf505f87976a7307db549860c6ede2a",
+      "sha256": "c00dbf5a9cb02246bb2a4fc7063ebcdef5533ac6ed34e6cc069904ff2cb5d7d6",
+      "reason": "Require organization context before listing API keys."
+    },
+    {
+      "path": "functions/tests/usageCounter.test.mjs",
+      "operation": "add",
+      "sha256": "c75e0b6e22f9f01fa87acec5c6c9cbeb60062bfcab747a44bf94a583632dcd1f",
+      "reason": "Add regression coverage for concurrent atomic updateMany usage increments and the SDK pin that provides them."
+    },
+    {
+      "path": "package-lock.json",
+      "operation": "replace",
+      "upstream_blob": "e28a7cb245b5d7edec1ad6d0405680a5941eeb69",
+      "upstream_sha256": "077f802c65ebdbfd2216c4453ec15706c1525df8176e7c8636522351db4b92b0",
+      "sha256": "0b232501e7a8ddb7d02904f8cf7acd30397998aadb5af20b623d7f9342bbae8d",
+      "reason": "Record dependency lockfile changes required by the Sentinel package manifest."
+    },
+    {
+      "path": "package.json",
+      "operation": "replace",
+      "upstream_blob": "b7e996c001ace369ab2fcece76b578e2a2e09e03",
+      "upstream_sha256": "270a6c036c5494e840a9d48ede4a59fbeba77e0250313b465229c084a63ff39e",
+      "sha256": "2380dfb2e6aec62244c803bbdccff4db1b9f7086313bf8c48bfed07453cd0681",
+      "reason": "Record dependency and script changes for the Sentinel package."
+    },
+    {
+      "path": "src/components/analytics/ChartCard.jsx",
+      "operation": "replace",
+      "upstream_blob": "058d6d8e001447d4d9d265e33e376d61da60e272",
+      "upstream_sha256": "5ecc1406c4c5f032bc90ea0ef8742d8730ad41bea5c78034e4c08c74d9f06f3e",
+      "sha256": "310ec01a4e8b55f7c3b97f012c683ee03baadf87008d60ef88bba95a54e61797",
+      "reason": "Add accessible labels and expanded state to chart controls."
+    },
+    {
+      "path": "src/components/hooks/useCaseTriage.jsx",
+      "operation": "replace",
+      "upstream_blob": "0cbf6490a272bb562874ea5dfa567ca61b32d127",
+      "upstream_sha256": "a283b88a5c7eb18ca55ace8c39b5dde38f93615b8d14f08d1f0992b0efd5aac4",
+      "sha256": "ad6138c348de0c86383876878b1ee3de4078ffdc43658a65deef0f9170dfa5a3",
+      "reason": "Invalidate the triaged case and organization query after success."
+    },
+    {
+      "path": "src/lib/NavigationTracker.jsx",
+      "operation": "replace",
+      "upstream_blob": "44eb5f5d24ed4beaa2240cbf51e47f5ddf8dd618",
+      "upstream_sha256": "6f763bef5afe86616af979761bea5e6a57ddae5d893e84c1c87e164509b51329",
+      "sha256": "9a893d385b8aa1bb863c042ba5ec58e5a610fe80334f19a369a6f7d4fae8f157",
+      "reason": "Report only the relative pathname to the parent navigation tracker."
+    },
+    {
+      "path": "functions/API_KEY_AUTHORIZATION.md",
+      "operation": "add",
+      "reason": "Add offline API-key authorization regression coverage and document the direct-connection trust contract.",
+      "sha256": "8075c1aa34eb7b20c2e020db1fb1c7cb376234c231f342d79e3d15b55960bc30"
+    },
+    {
+      "path": "functions/dashboardLayoutDelete.ts",
+      "operation": "replace",
+      "upstream_blob": "70b0baeb5e1b328788b5e2c348b76b4d640e8e33",
+      "upstream_sha256": "09dd929ed1ebb4721a80976c2732e95894c374843a4780760dc1532b61216c6c",
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction.",
+      "sha256": "5f64e47fab674251f557e4c0aac0c842cad26eb5d5cd2c3b61a90020d94dcde1"
+    },
+    {
+      "path": "functions/dashboardLayoutList.ts",
+      "operation": "replace",
+      "upstream_blob": "5b462286b0a001104453a08b8a0c442bfd2716cc",
+      "upstream_sha256": "5246af0a666d0a04bd2499e2aa1d5e521244ccb92b18ef4f86f2755529196925",
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction.",
+      "sha256": "ec63cf616e88407e81cdc93797bd224fff20bf9ec4c53fd431de79d5cb45cee4"
+    },
+    {
+      "path": "functions/getAgentDownloadLinks.ts",
+      "operation": "replace",
+      "upstream_blob": "495c0b267e2992949c5ff23163bff2d55289172b",
+      "upstream_sha256": "3eba8f0fc87b53bfaa2531144d75d53df9a1904e86f9216058cd628ce0f0b081",
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction.",
+      "sha256": "6c9c4986eb3ddf494581a684564fa343a473446ab5f6b90c73045d66aace8e3e"
+    },
+    {
+      "path": "functions/helpers/apiKeyIp.ts",
+      "operation": "add",
+      "reason": "Add offline API-key authorization regression coverage and document the direct-connection trust contract.",
+      "sha256": "40a6f4952144ad1982a1ec47f2a2491626ea59d9193ec691fc3fe6f7b31b2b59"
+    },
+    {
+      "path": "functions/helpers/disclosure.ts",
+      "operation": "add",
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction.",
+      "sha256": "a010fedf8d0671ab22e2c88328ffff23ad9453e15dcc20e9c7449aa181c2008a"
+    },
+    {
+      "path": "functions/helpers/usagePricing.ts",
+      "operation": "add",
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction.",
+      "sha256": "4c26b864e70cc26019936ddb85b23e1a52b2f6ff4acbbf534fd6489b3cfb4a0d"
+    },
+    {
+      "path": "functions/tests/apiKeyAuthorization.test.mjs",
+      "operation": "add",
+      "reason": "Add offline API-key authorization regression coverage and document the direct-connection trust contract. Add synthetic storage-failure, missing-state, concurrency, and adversarial rate-limit regression coverage.",
+      "sha256": "7a89df8862146b82d8b8ae505e1a3fe976025a63373b0fc6c468c12d71300492"
+    },
+    {
+      "path": "functions/tests/apiKeyIp.test.mjs",
+      "operation": "add",
+      "reason": "Add offline API-key authorization regression coverage and document the direct-connection trust contract.",
+      "sha256": "05047920f791f3239728ca404424dde6404e1ff8b69579f46472be0add811887"
+    },
+    {
+      "path": "functions/tests/disclosure.test.mjs",
+      "operation": "add",
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction.",
+      "sha256": "0ca2f947e2d0407981f746aed27c48d7f2042116abb1ffcb90cd7ec7615eb3fd"
+    },
+    {
+      "path": "functions/tests/usagePricing.test.mjs",
+      "operation": "add",
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction.",
+      "sha256": "2de89e204dc157c3e6a5c57abb30c1551cab0bb7023de61458e6966386d9017f"
+    },
+    {
+      "path": "functions/verifyApiKeyAndAuthorize.ts",
+      "operation": "replace",
+      "upstream_blob": "f8d5154fbb5c67ac0ac41e50cbced0ee719f36d2",
+      "upstream_sha256": "b475f7e1a000f6d31d94ce6cf7becf3e075805d2cceb2ed69572d47b8255dc18",
+      "reason": "Use runtime TCP peer metadata and exact normalized IP matching; reject untrusted forwarding and malformed policies; log only trusted client addresses. Fail closed on unavailable rate-limit state and use bounded conditional token updates. Actual backend nested-field atomicity remains unverified.",
+      "sha256": "8c95798120517e4e0e7d6766595bbc3c57a565bcfa23a65940ee566779447765"
+    },
+    {
+      "path": "src/components/dashboard/widgets/ActivityFeedWidget.jsx",
+      "operation": "replace",
+      "upstream_blob": "bf64015612c4643814f30308e74e381a97762282",
+      "upstream_sha256": "c15482ead217d8161d377fc129f273ae0b9b7810e356d591987944b70cddc031",
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction. Add failed-refresh status handling in the PR #53 review fix.",
+      "sha256": "36c6bc4797857050655dc17bf05180567fd6647347c94d8d4c921a80177550c2"
+    },
+    {
+      "path": "src/components/dashboard/widgets/AlertTrendWidget.jsx",
+      "operation": "replace",
+      "upstream_blob": "88b054a0a5703094abded81b648e3418d616cff3",
+      "upstream_sha256": "e7dcdfa8224a1d5b742075159fa4549f4a8712c18463da395cc84328c4e2ac75",
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction. Add failed-refresh status handling in the PR #53 review fix.",
+      "sha256": "038ce4a9df8e6ba455d554b067818bd4be2aa14622d40278f600744d0826f4d0"
+    },
+    {
+      "path": "src/components/dashboard/widgets/CriticalAlertsWidget.jsx",
+      "operation": "replace",
+      "upstream_blob": "83d605768170cf083c29fc7bdf4d8bb0f73b9b18",
+      "upstream_sha256": "9c4d888c42564020c8b63331bf5d9440795f5d2a3534de3ab9f6c5e83eb28c1a",
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction. Add failed-refresh status handling in the PR #53 review fix.",
+      "sha256": "2a841e8500681d071e4abb6ff38646e05155823eeca1c43ea15878e9d8347d2a"
+    },
+    {
+      "path": "src/components/dashboard/widgets/DashboardMetricsStatus.jsx",
+      "operation": "add",
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction.",
+      "sha256": "ab179842ca03bf6b4c197251afb3287ca9126c75ddedd33fb56f465563e92789"
+    },
+    {
+      "path": "src/components/dashboard/widgets/DevicePostureWidget.jsx",
+      "operation": "replace",
+      "upstream_blob": "4784289e5a4f6aa19eb37a1b76285f2fcc83b761",
+      "upstream_sha256": "60691187a245096714963fea3f8f5a457b3c7fbf4717e0805897f1ed0320e043",
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction. Add failed-refresh status handling in the PR #53 review fix.",
+      "sha256": "23fa2c9e85c06f113419770597502d1b4e195ee8b42898fa28c8b48f98d85038"
+    },
+    {
+      "path": "src/components/dashboard/widgets/EvidenceIntegrityWidget.jsx",
+      "operation": "replace",
+      "upstream_blob": "01e8e7bf62183ab806640ab545e566f7e109cf19",
+      "upstream_sha256": "fa71542f7a3ddd9996ccc82da4b17c8d98ab2aa11deda07fee866c24741ed8dc",
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction. Add failed-refresh status handling in the PR #53 review fix.",
+      "sha256": "01ecca73d181ac4933cc10690293e8dd16d200365797d81a88c6777f9910a56a"
+    },
+    {
+      "path": "src/components/dashboard/widgets/ThreatOverviewWidget.jsx",
+      "operation": "replace",
+      "upstream_blob": "2dbf8d6adf1f92254e15a865554581ba87dced68",
+      "upstream_sha256": "60cb0ea25310f2a2c11cefee5ab38b3fddece09b81cdfd4992883104940cd9dc",
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction. Add failed-refresh status handling in the PR #53 review fix.",
+      "sha256": "f304ca444511982212be4a981b7412f5011b8544c98d9bce756fe6b313ba9d91"
+    },
+    {
+      "path": "src/components/demo/LoadingFallback.jsx",
+      "operation": "replace",
+      "upstream_blob": "4d6713f9143b7aa762373b73e181a42944a2a6e2",
+      "upstream_sha256": "9e194bea1e22b6c29161d29f9f5bb2636eb5c8054ed5bd2ca533294f637cb560",
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction.",
+      "sha256": "a3372cfa9b0cc624c95d6a1ee3c932ee3745b4818fd95fb598b7bc8c9831ac54"
+    },
+    {
+      "path": "src/components/router/RouteGate.jsx",
+      "operation": "replace",
+      "upstream_blob": "55d5fa9d4f92eb90ce5ca1152a52e3e252ffb8f1",
+      "upstream_sha256": "25542b2f035ebc0edc236869cf4a1d0f672debd08143da079072f811ae558d73",
+      "reason": "Record existing parent-branch overlay. Reconcile bytes last changed in 960cb537d0f9feb74f534284a6e55743e69ba498; source preserved unchanged in the authorization correction. Add route loading and error handling in the PR #53 review fix.",
+      "sha256": "d08b77acbd8360e010049bf4347a80bfd5b70ef1c7e89dc2d8f65f98e73c9575"
+    },
+    {
+      "path": "src/pages/App.jsx",
+      "operation": "replace",
+      "upstream_blob": "722865f4d1570131fe97d0e3826a9660c750c17b",
+      "upstream_sha256": "d679dc7dc16f0c906edeb0dbe3c59b6857a169c16096a67c00408e32b5d03398",
+      "reason": "Use the existing RouteGate for route loading and error handling in the PR #53 review fix.",
+      "sha256": "4999fe6bd7636c9787729e3eccbf16b7de90e874f147ed61187c6f972f0ab4b8"
+    },
+    {
+      "path": "src/components/dashboard/widgets/PolicyComplianceWidget.jsx",
+      "operation": "replace",
+      "upstream_blob": "a10e05b3a7fbc187dbe4904f7c90769120dd5015",
+      "upstream_sha256": "9439c50caee6fc728d585917b46837d3102f0b2ed8bbf27007bd0f15eb4394b7",
+      "reason": "Handle failed metric queries and retain cached data during refresh in the PR #53 review fix.",
+      "sha256": "3deb39f2156d9ed2ae98787757acc005cf6777750f25644a899729db77b9463c"
+    },
+    {
+      "path": "src/components/docs/PHASE_3_UI_VALIDATION_TESTS.md",
+      "operation": "replace",
+      "upstream_blob": "1d48ec6f281b13554dd030094c73e8a1c608c4f4",
+      "upstream_sha256": "ce99e7dc8845d59061f42e530a916c13a636533d75d698d13b07331a24dddd5e",
+      "upstream_path": "src/components/docs/PHASE_3_UI_VALIDATION_TESTS.md.jsx",
+      "reason": "Rename Markdown stored with a JSX extension without changing its contents.",
+      "sha256": "ce99e7dc8845d59061f42e530a916c13a636533d75d698d13b07331a24dddd5e"
+    },
+    {
+      "path": "src/components/docs/PHASE_SCAFFOLDING.md",
+      "operation": "replace",
+      "upstream_blob": "cc87bcaf0523fa77fb039231392d86ec257ad8af",
+      "upstream_sha256": "d61f94db12fa302fb826c9805ee39126e0e4ba52fceac0e5531d8355f87c4033",
+      "upstream_path": "src/components/docs/PHASE_SCAFFOLDING.md.jsx",
+      "reason": "Rename Markdown stored with a JSX extension without changing its contents.",
+      "sha256": "d61f94db12fa302fb826c9805ee39126e0e4ba52fceac0e5531d8355f87c4033"
+    },
+    {
+      "path": "tools/evidence_lab/adapters.py",
+      "operation": "replace",
+      "upstream_blob": "c5212cf99e8dc5a8bcb9a6be4ecb36bfc55e73eb",
+      "upstream_sha256": "a3eb233c13555dc8972e1d2f3664c2408d11c8577969655b4aa4256f306b19b7",
+      "sha256": "59c36b1d06f9820204c79d5eaf6399dbdb7638982ce1a9547faabeb71dc3cceb",
+      "reason": "Reviewed SQLite compatibility and resource-lifetime correction."
+    },
+    {
+      "path": "tools/evidence_lab/reconstruct_history.py",
+      "operation": "replace",
+      "upstream_blob": "f0315774667983d4052e095f3efab87aab2c0cc4",
+      "upstream_sha256": "8d94c7f8eb28d3de400caaa8a8463481f6df91115b44263e990b2ad43553f388",
+      "sha256": "73416965bb9ecfa6a8633fa6fc0c0e04ac12cc951cfcb335f1578b9d67a6e1dd",
+      "reason": "Reviewed SQLite compatibility and resource-lifetime correction."
+    },
+    {
+      "path": "tools/evidence_lab/reconstruct_input.py",
+      "operation": "replace",
+      "upstream_blob": "2aa18f968a4093ce84c3ded152202a6aeea116f5",
+      "upstream_sha256": "80d314ef382576d72b80887120d5616bfafe331c99dadd171ba5f78d30ae05de",
+      "sha256": "26590d9da0df4c49df27e9fe1e785248c57ce850fbfe519d93a39c6b55e19e7c",
+      "reason": "Reviewed SQLite compatibility and resource-lifetime correction."
+    },
+    {
+      "path": "tools/evidence_lab/reconstruct_pipeline.py",
+      "operation": "replace",
+      "upstream_blob": "6109a07953dd4013397aa2727de0a99d9f3160e2",
+      "upstream_sha256": "6976b8e5c57bb82d680ccb212d3917f1cd92150ac20657c54f80aaa069c19900",
+      "sha256": "ed6a966741c8f53ed1c1fc270247fc5b02d2e60d4938bb9a4d4649e4d9abc12e",
+      "reason": "Reviewed SQLite compatibility and resource-lifetime correction."
+    },
+    {
+      "path": "tools/evidence_lab/tests/test_reconstruct_history_io.py",
+      "operation": "replace",
+      "upstream_blob": "3301d750838635d92d727bb3381bc71dac0c62fd",
+      "upstream_sha256": "0ad19e918be71d90a02c8fb59e6122253c95ef1b687a70534cd064aba6f9257b",
+      "sha256": "cc6ba2b1c4ad91ea74126eb4a5605f07e04859b7127459d52ad7030d8ce9418e",
+      "reason": "Reviewed SQLite compatibility and resource-lifetime correction."
+    },
+    {
+      "path": "functions/verifyGuardianToken.ts",
+      "operation": "replace",
+      "upstream_blob": "72b419b56cf121f0718a0f568069f0a5ea446bd8",
+      "upstream_sha256": "e030be5f3c2fbcffb8a84601fda7346d8f613ed920e5cb8980b490fd183658bc",
+      "sha256": "700da89ec034263664551d88eabe12521d169d490870bb6cdd4e2cb09256ff1b",
+      "reason": "Reject malformed guardian token and case inputs before querying service-role entities."
+    },
+    {
+      "path": "functions/enforceRBAC.js",
+      "operation": "add",
+      "sha256": "c588d655e05023ffa4efb387259ef1b0cbfc8fa2f884ce7674c6af10a8e0492e",
+      "reason": "Provide the missing JavaScript import path as a re-export of the tracked TypeScript RBAC helper."
+    },
+    {
+      "path": "functions/helpers/guardianTokenInput.ts",
+      "operation": "add",
+      "sha256": "ff5ac04754beaba6d6ef26d0f07478b1ce64db8376066380c5e238f922e88e39",
+      "reason": "Validate guardian token and case inputs as non-empty strings."
+    },
+    {
+      "path": "functions/tests/guardianTokenInput.test.mjs",
+      "operation": "add",
+      "sha256": "69851df2beb2e1e8966d71fd970203c47ed3e709f874d43cfe492236673a6761",
+      "reason": "Test rejection of non-string and empty guardian capability inputs."
+    },
+    {
+      "path": "functions/tests/featureFlags.test.mjs",
+      "operation": "add",
+      "sha256": "486d4ca4b346b24c8c0c3ed5c9d026e11208812a2aad43a86ae1b839a9290b5e",
+      "reason": "Verify the demo compatibility exports remain authentication-safe by default."
+    },
+    {
+      "path": "src/components/config/featureFlags.js",
+      "operation": "add",
+      "sha256": "28e2547024f19e52ad84c50cc3ae31f0de304fe4e54006d0c5820351dfc8afba",
+      "reason": "Restore feature-flag and demo compatibility exports used by retained frontend pages."
+    },
+    {
+      "path": "eslint.config.js",
+      "operation": "replace",
+      "upstream_blob": "07f28af9f8e6deab5c04cd5d371d4eaa15bf5003",
+      "upstream_sha256": "711a0eec65d9210510d4e1a0af6e5b64f70c1a10acc20d19d0b152a15b5aa2d0",
+      "sha256": "eb63dfd400d49103a658b90deadb6a372ffb8abe730cace75142d12bdd5564e0",
+      "reason": "Exclude retained Markdown documents with JSX suffixes from JavaScript linting."
+    },
+    {
+      "path": "functions/sendNotification.ts",
+      "operation": "replace",
+      "upstream_blob": "f2545d95150f5d7268644228e52244ec06ea994e",
+      "upstream_sha256": "cf22303a4eafb0b7c9a3687942b7095b4c552a36a02caf0f6ef7a4485ed90864",
+      "sha256": "6015cc2cd6e25d15d8c345038cc13d774fce52bf9c69fc564ac19b4fff1f6944",
+      "reason": "Restrict notification recipient resolution to the authenticated organization."
+    },
+    {
+      "path": "functions/tests/sendNotification.test.mjs",
+      "operation": "add",
+      "sha256": "4b323a64776b7bc554521daca83e9cab5af1b6bc7d64452cd0af0b695ce43879",
+      "reason": "Add synthetic regression coverage for notification recipient authorization."
+    },
+    {
+      "path": "src/components/ui/slider.jsx",
+      "operation": "replace",
+      "upstream_blob": "6062ce5e4b36a90b148d55eb0cb080ac3f47330c",
+      "upstream_sha256": "1761bfaa0a06480b76b31511e4a5c24903b407732e027fc11ad615dd3d93a562",
+      "sha256": "56342edd46149f4c65ac2d221fe47e3b82fa69089aca9178283e455239a1658a",
+      "reason": "Support Radix sliders configured with multiple values."
+    }
+  ]
+}

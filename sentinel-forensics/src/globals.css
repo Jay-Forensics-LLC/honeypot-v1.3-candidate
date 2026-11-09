@@ -1,0 +1,226 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Sentinel Forensics Brand Colors - Maximum Contrast */
+:root {
+  --sentinel-red: #EF4444;
+  --sentinel-red-dark: #DC2626;
+  --sentinel-red-darker: #B91C1C;
+  --sentinel-bg-primary: #000000;
+  --sentinel-bg-secondary: #0A0A0A;
+  --sentinel-bg-elevated: #141414;
+  --sentinel-border: #1A1A1A;
+  --sentinel-border-light: #202020;
+  --sentinel-text-primary: #FFFFFF;
+  --sentinel-text-secondary: #E5E5E5;
+  --sentinel-text-muted: #9CA3AF;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  height: 100%;
+  width: 100%;
+  -webkit-text-size-adjust: 100%;
+  background-color: var(--sentinel-bg-primary);
+}
+
+body {
+  background-color: var(--sentinel-bg-primary);
+  color: var(--sentinel-text-primary);
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: none;
+  overflow-x: hidden;
+}
+
+#root {
+  background-color: var(--sentinel-bg-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+  isolation: isolate;
+}
+
+/* CRITICAL FIX: Portal container for dialogs */
+.portal-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.portal-container > * {
+  pointer-events: auto;
+}
+
+/* iOS CRITICAL FIX: Ensure content always renders */
+@supports (-webkit-touch-callout: none) {
+  html {
+    height: -webkit-fill-available;
+  }
+  
+  body {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+  
+  #root {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  /* iOS FIX: Ensure Router renders */
+  #root > div {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  
+  /* iOS FIX: Force content visibility */
+  .min-h-screen {
+    min-height: -webkit-fill-available !important;
+  }
+  
+  .h-screen {
+    height: -webkit-fill-available !important;
+  }
+}
+
+button {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+input, textarea, select {
+  -webkit-appearance: none;
+  background-color: var(--sentinel-bg-elevated);
+  color: var(--sentinel-text-primary);
+  border: 1px solid var(--sentinel-border);
+  transition: border-color 0.2s ease;
+  font-size: 16px;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--sentinel-red);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* CRITICAL FIX: Prevent Dialog DOM errors */
+[role="dialog"] {
+  -webkit-overflow-scrolling: touch !important;
+  /* CRITICAL: Ensure dialogs have proper containment */
+  contain: layout style;
+  /* Prevent NotFoundError during unmount */
+  will-change: auto;
+}
+
+/* CRITICAL FIX: Radix Portal compatibility */
+[data-radix-portal] {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  /* CRITICAL: Prevent DOM manipulation conflicts */
+  isolation: isolate;
+  /* Prevent NotFoundError during portal cleanup */
+  pointer-events: none;
+}
+
+[data-radix-portal] > * {
+  pointer-events: auto;
+}
+
+/* Prevent React Router transition conflicts with portals */
+[data-radix-presence] {
+  will-change: auto !important;
+}
+
+.overflow-y-auto,
+.overflow-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+body.modal-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.loading-shimmer {
+  background: linear-gradient(90deg, var(--sentinel-bg-secondary) 25%, var(--sentinel-bg-elevated) 50%, var(--sentinel-bg-secondary) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.safe-top {
+  padding-top: max(1rem, env(safe-area-inset-top));
+}
+
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.safe-left {
+  padding-left: max(1rem, env(safe-area-inset-left));
+}
+
+.safe-right {
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+/* CRITICAL: Pulsing border animation for hamburger menu */
+@keyframes pulse-border {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.8), 0 0 40px rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(239, 68, 68, 1), 0 0 60px rgba(239, 68, 68, 0.6);
+  }
+}
+
+.pulse-border {
+  animation: pulse-border 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .overflow-auto,
+  .overflow-y-auto {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Ensure content is visible on mobile */
+  body, #root {
+    width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+}
