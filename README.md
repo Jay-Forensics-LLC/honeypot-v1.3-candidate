@@ -1,5 +1,10 @@
 # HoneyTrace source candidate
 
+Strategic direction: [project instructions](docs/HONEYTRACE_PROJECT_INSTRUCTIONS.md)
+and [2026-2032 solo-first roadmap](docs/roadmap/HONEYTRACE_2026_2032.md).
+These are planning guidance only; existing acceptance and authorization gates
+remain authoritative.
+
 The application source is in [honeypot/](honeypot/README.md).
 The [current phase status](docs/CURRENT_PHASE_STATUS.md) records HoneyWatch at
 `efac52cce39cd8adcf86a00cd4fe2cb7ab66f607` and the separate October 31 lab closeout.
