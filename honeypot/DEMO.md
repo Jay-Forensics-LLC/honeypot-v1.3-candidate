@@ -1,16 +1,19 @@
 # HoneyTrace demonstration
 
-Current beta preparation: source-only, unverified private candidate. See
-[beta acceptance](docs/BETA_ACCEPTANCE.md). Use isolated replay for review;
-current live testing is BLOCKED by unresolved Docker ownership/API access and
-inactive capture. No new live traffic or restart matrix was run. Independent
-Stage 7 closeout remains pending; the seven-row PASS below is historical.
+**Current disposition — October 26:** see [current phase status](../docs/CURRENT_PHASE_STATUS.md)
+for HoneyWatch through PR #38, source validation, review outcomes and remaining
+Phase 7 gates. Independent acceptance remains pending; Phase 8 execution and
+public beta remain unauthorized. The observations/command block below are a
+historical handoff, not a fresh operational direction. October 20 packet/prefix
+and recovery checks superseded the protected-access-only blocker; full-state
+ambiguity and current-build live qualification remain open. Do not rerun the
+completed matrix or old acquisition solely to update this document.
 
 HoneyTrace is a defensive deception prototype. It records activity aimed at
 decoy services, turns telemetry into incidents, and retains supporting evidence
 for an operator to review. It never attacks an outside system.
 
-## Current Phase 7 closeout
+## Historical Phase 7 closeout record
 
 The operator's `stage7-fresh-ewnrhtur` matrix completed all seven restart rows
 with **PASS**, final postflight PASS and exit 0. The report records Stage 7 PASS

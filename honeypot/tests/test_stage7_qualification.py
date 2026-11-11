@@ -52,6 +52,94 @@ class CleanStartupAudit(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'after restart'): self.run_audit(since=future)
 
 
+class LokiRecoveryReadiness(unittest.TestCase):
+    def pending_error(self):
+        runtime = {'runtime_root': str(qualification.RUNTIME),
+                   'candidate_source_commit': 'rev', 'candidate_source_dirty': False,
+                   'image_approval_sha256': 'pin', 'guard': {'ok': True},
+                   'capture': {'ok': True}, 'problems': [
+                       "Command '['docker', 'exec', 'incidentd', 'python', '-B', '-c', "
+                       "'http://loki:3100/ready'] returned non-zero exit status 1.",
+                       'urllib.error.HTTPError: HTTP Error 503']}
+        error = ValueError('Runtime observation failed before context validation')
+        error.runtime_observation = runtime
+        return error
+
+    def test_only_pinned_safe_http_503_uses_existing_window(self):
+        context = Mock(value={'source_commit': 'rev', 'image_approval_sha256': 'pin',
+                              'boot_id': Path('/proc/sys/kernel/random/boot_id').read_text().strip()})
+        with patch.object(qualification, 'CONTEXT', context):
+            self.assertTrue(qualification.pending_loki_http_readiness(self.pending_error()))
+            context.validate_current.assert_called_once_with()
+            for field, value in [('candidate_source_commit', 'other'),
+                                 ('candidate_source_dirty', True),
+                                 ('image_approval_sha256', 'other'),
+                                 ('guard', {'ok': False}),
+                                 ('capture', {'ok': False})]:
+                error = self.pending_error()
+                error.runtime_observation[field] = value
+                with self.subTest(field=field):
+                    self.assertFalse(qualification.pending_loki_http_readiness(error))
+            for problem in ('urllib.error.HTTPError: HTTP Error 500',
+                            'urllib.error.HTTPError: HTTP Error 503; other failure'):
+                error = self.pending_error()
+                error.runtime_observation['problems'][1] = problem
+                with self.subTest(problem=problem):
+                    self.assertFalse(qualification.pending_loki_http_readiness(error))
+
+    def test_failed_inventory_reports_observation_before_identity(self):
+        runtime = self.pending_error().runtime_observation
+        context = Mock()
+        with patch.object(qualification, 'collect', return_value=runtime), \
+             patch.object(qualification.live_capture, 'readiness', return_value={}), \
+             patch.object(qualification, 'CONTEXT', context):
+            with self.assertRaisesRegex(ValueError, 'Runtime observation failed before context validation') as caught:
+                qualification.observe()
+        self.assertIs(caught.exception.runtime_observation, runtime)
+        with patch.object(qualification, 'CONTEXT', None):
+            self.assertTrue(qualification.pending_loki_http_readiness(caught.exception))
+        context.check_runtime.assert_not_called()
+
+    def test_loki_row_waits_for_503_without_second_restart_or_probe(self):
+        before = runtime_fixture(True)
+        cid = 'a' * 64
+        before['containers']['loki']['id'] = cid
+        current = copy.deepcopy(before)
+        current.update(ok=True, problems=[],
+                       recovery_target={'service': 'loki', 'id': cid, 'status': 'HEALTHY'})
+        config = {'dynamic_mac': {'loki': True}}
+        base = {'execution_configuration': config, 'routes': {}, 'evidence_permissions': {},
+                'quarantine': {}, 'source_commit': 'rev', 'implementation': {},
+                'boot_id': before['boot_id']}
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(qualification, 'CONTEXT', None), \
+             patch.object(qualification, 'observe', side_effect=[(before, {}), (before, {}),
+                                                                 self.pending_error()]) as observe, \
+             patch.object(qualification, 'strict_compare', return_value={'status': 'PASS'}), \
+             patch.object(qualification, 'execution_configuration', return_value=config), \
+             patch.object(qualification, 'routes_and_tty', return_value={}), \
+             patch.object(qualification, 'evidence_permissions', return_value={}), \
+             patch.object(qualification, 'quarantine_state', return_value={}), \
+             patch.object(qualification, 'source_revision', return_value='rev'), \
+             patch.object(qualification, 'implementation', return_value={}), \
+             patch.object(qualification, 'acquire_preservation', return_value={}), \
+             patch.object(qualification, 'restart_existing') as restart, \
+             patch.object(qualification, 'collect', return_value=current), \
+             patch.object(qualification.time, 'sleep', side_effect=KeyboardInterrupt) as sleep, \
+             patch.object(qualification, 'probe') as probe, \
+             patch.object(qualification, 'postflight', side_effect=lambda row, *args:
+                          row.update(postflight={'status': 'FAILED'})):
+            row = qualification.restart_row('loki', before, base, Path(tmp), [], 4)
+        self.assertEqual(row['health_recovery_timeout_seconds'], 150)
+        self.assertEqual(row['status'], 'ABORTED')
+        self.assertEqual(observe.call_count, 3)
+        self.assertIn('LOKI_HTTP_503_WITHIN_EXISTING_RECOVERY_WINDOW',
+                      [item.get('status') for item in row['recovery_observations']])
+        restart.assert_called_once()
+        sleep.assert_called_once_with(2)
+        probe.assert_not_called()
+
+
 def synthetic_probe(marker='honeytrace-demo-stage7-test'):
     raw = {'utc_time':'2026-10-10 05:24:41.000000', 'src_host':'192.0.2.10', 'src_port':41000,
            'dst_port':2121, 'logtype':2000,
@@ -571,7 +659,7 @@ class MatrixAcceptance(unittest.TestCase):
         cid = RestartCommand.cid
         before['containers']['opencanary']['id'] = cid
         current = copy.deepcopy(before)
-        current.update(ok=False, problems=['opencanary: not running and healthy'])
+        current.update(ok=False, problems=[], recovery_target={'service':'opencanary','id':cid,'status':'TARGET_STARTING'})
         current['containers']['opencanary']['health'] = 'starting'
         config = {'dynamic_mac':{'opencanary':True}}
         base = {'execution_configuration':config,'routes':{},'evidence_permissions':{},'quarantine':{},
@@ -587,7 +675,7 @@ class MatrixAcceptance(unittest.TestCase):
              patch.object(qualification,'implementation',return_value={}), \
              patch.object(qualification,'acquire_preservation',return_value={}), \
              patch.object(qualification.subprocess,'run',return_value=subprocess.CompletedProcess([],0,cid+'\n','')) as restart, \
-             patch.object(qualification,'collect',return_value=current), \
+             patch.object(qualification,'collect',return_value=current) as collect, \
              patch.object(qualification.time,'sleep',side_effect=KeyboardInterrupt), \
              patch.object(qualification,'probe') as probe, \
              patch.object(qualification,'postflight',side_effect=lambda row,*args:row.update(postflight={'status':'FAILED','error':'still starting'})) as post:
@@ -597,6 +685,8 @@ class MatrixAcceptance(unittest.TestCase):
             self.assertEqual(json.loads((folder/'recovery-observations.json').read_text())[0]['health'],'starting')
         self.assertEqual(row['status'],'ABORTED'); self.assertTrue(row['interrupted'])
         self.assertIn('health recovery',row['error'])
+        collect.assert_called_once_with(qualification.RUNTIME,qualification.SOURCE,probe_readiness=False,
+                                        recovery_target={'service':'opencanary','id':cid})
         probe.assert_not_called(); restart.assert_called_once(); post.assert_called_once()
 
     def test_interrupted_matrix_persists_row_and_never_restarts_next_service(self):

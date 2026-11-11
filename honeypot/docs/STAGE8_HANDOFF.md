@@ -1,10 +1,19 @@
 # Stage 8 supervised boot and recovery handoff
 
-Current disposition: the `stage7-fresh-ewnrhtur` report records **Stage 7 PASS**,
-all seven restart rows PASS and Stage 8 `READY_FOR_OPERATOR_DIRECTION`.
-**Independent completion verification is pending protected packet/evidence
-access.** Stage 8 execution remains NOT TESTED and requires separate operator
-direction. WAN remains unauthorized. This document installs or enables nothing.
+**Current disposition — October 26:** Phase 7 independent acceptance remains
+PENDING / BLOCKED; Phase 8 execution is NOT AUTHORIZED. Continue from the exact
+HoneyWatch source in [current status](../../docs/CURRENT_PHASE_STATUS.md), which
+reconciles merged PRs #31–#38, source tests/reviews and outstanding B17/live gates.
+Source integration and scoped startup/health observations do not clear those gates.
+
+The `stage7-fresh-ewnrhtur` report's Stage 7 PASS and Stage 8
+`READY_FOR_OPERATOR_DIRECTION` are historical report fields, not current
+permission. October 20 packet/recovery checks subsequently completed within their
+recorded scope; the old protected-access-only blocker is superseded. Global
+ambiguity, full-state reconciliation and current-build qualification remain open.
+The observations and proposed Stage 8 requirements below are historical/planning
+context; no execution is authorized. WAN remains unauthorized. This document
+installs or enables nothing.
 
 The locally hash-verified matrix report is
 `work/live-qualification/stage7-fresh-ewnrhtur/report.json`, SHA-256
@@ -13,10 +22,9 @@ Qualification source is `1a2b8c73106763d824999091c4e56c64f061f59e`; boot ID
 `67a93065-7f07-40e5-aa12-806d9ff14dcc`. The completed run's final health,
 containment, capture, logging and complete evidence checks passed. Independent
 local metadata verification confirms all required rows/checks and eight exact
-event relationships. Re-parsing protected packet copies and checking finite
-baseline prefixes require the single read-only command in DEMO.md. Do not
-repeat the completed restart matrix. Finish that closeout before issuing the
-verified Stage 8 handoff; an authentication failure does not imply packet loss.
+event relationships. The later packet/prefix and recovery checks are recorded
+in current status; do not repeat their acquisition or the completed restart matrix just to refresh
+this handoff. Historical PASS does not finish current-build independent closeout.
 
 Historical result (October 10, 2026 UTC): `stage7-fresh-u4vb87q6` FAILED after the
 OpenCanary restart. Its exact FTP event correctly reached MEDIUM at the

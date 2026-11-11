@@ -54,7 +54,7 @@ class ImageTrust(unittest.TestCase):
     def write_approval(self):
         self.approval_path.write_text(json.dumps(self.document))
 
-    def collect(self):
+    def collect(self, **kwargs):
         def run(root, argv, **kwargs):
             self.commands.append(argv)
             if argv[:2] == ['docker','compose']: value = json.dumps(self.rendered)
@@ -63,7 +63,9 @@ class ImageTrust(unittest.TestCase):
             elif argv[:3]==['docker','image','inspect']:
                 value=json.dumps([{'Id':identity,'Config':{'Cmd':[],'Entrypoint':[],'Env':[]}} for identity in argv[3:]])
             elif argv[:3] == ['docker','network','inspect']: value = json.dumps(self.networks)
-            elif argv[0] == 'nft': value = '{}'
+            elif argv[0] == 'nft':
+                if getattr(self, 'guard_missing', False): raise OSError('Synthetic owned table unavailable')
+                value = '{}'
             elif argv[:2] == ['docker','exec']: value = json.dumps(self.module_hashes)
             elif argv == ['git','rev-parse','HEAD']: value = 'synthetic-reviewed-commit'
             elif argv == ['git','status','--porcelain','--untracked-files=all']: value = ' M configs/images.approved.json' if self.source_dirty else ''
@@ -74,9 +76,9 @@ class ImageTrust(unittest.TestCase):
              patch.object(inventory,'command',side_effect=run), \
              patch.object(inventory,'config',return_value={'DECOY_BIND':'127.0.0.1','MANAGEMENT_BIND':'127.0.0.1'}), \
              patch.object(inventory,'inspect_daemon',return_value={'ok':True}), \
-             patch.object(inventory,'evaluate',return_value={'ok':True,'problems':[],'observed':{},'expected':{}}), \
+             patch.object(inventory,'evaluate',return_value=getattr(self,'guard_result',{'ok':True,'problems':[],'observed':{},'expected':{}})), \
              patch.object(inventory,'inspect_capture',return_value={'ok':True}):
-            return inventory.collect(self.root,self.source,probe_readiness=False)
+            return inventory.collect(self.root,self.source,probe_readiness=False,**kwargs)
 
     def test_exact_reviewed_source_approval_passes_without_runtime_lock(self):
         result = self.collect()

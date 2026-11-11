@@ -362,6 +362,8 @@ def observe():
     runtime = collect(RUNTIME, SOURCE)
     resources = live_capture.readiness(RUNTIME)
     try:
+        if runtime.get('problems'):
+            raise ValueError('Runtime observation failed before context validation')
         if CONTEXT is not None:
             CONTEXT.validate_current()
             CONTEXT.check_runtime(runtime)
@@ -378,6 +380,33 @@ def observe():
         exc.capture_observation = resources
         raise
     return runtime, resources
+
+
+def pending_loki_http_readiness(exc):
+    """Permit one specific transient 503 to use the existing recovery window."""
+    runtime = getattr(exc, 'runtime_observation', None)
+    if not isinstance(runtime, dict):
+        return False
+    problems = runtime.get('problems')
+    if (not isinstance(problems, list) or len(problems) != 2 or
+            "'docker', 'exec'" not in problems[0] or
+            'http://loki:3100/ready' not in problems[0] or
+            problems[1].rstrip().splitlines()[-1] not in (
+                'urllib.error.HTTPError: HTTP Error 503',
+                'urllib.error.HTTPError: HTTP Error 503: Service Unavailable') or
+            (runtime.get('guard') or {}).get('ok') is not True or
+            (runtime.get('capture') or {}).get('ok') is not True):
+        return False
+    if CONTEXT is not None:
+        CONTEXT.validate_current()
+        expected = CONTEXT.value
+        if (runtime.get('runtime_root') != str(RUNTIME) or
+                runtime.get('candidate_source_commit') != expected['source_commit'] or
+                runtime.get('candidate_source_dirty') is not False or
+                runtime.get('image_approval_sha256') != expected['image_approval_sha256'] or
+                Path('/proc/sys/kernel/random/boot_id').read_text().strip() != expected['boot_id']):
+            return False
+    return True
 
 
 def integrity_startup(since=None):
@@ -801,13 +830,16 @@ def restart_row(name, anchor, base, folder, events, index):
             row['recovery_observations'] = []
             next_update = time.monotonic()
             while time.monotonic() < until:
-                current = collect(RUNTIME, SOURCE, probe_readiness=False)
+                current = collect(RUNTIME, SOURCE, probe_readiness=False,
+                                  recovery_target={'service': name, 'id': cid})
                 problems = current.get('problems', [])
                 target = current.get('containers', {}).get(name, {})
                 row['recovery_observations'].append({'timestamp': current.get('timestamp'),
                     'ok': current.get('ok'), 'problems': problems, 'health': target.get('health'),
                     'started_at': target.get('started_at'), 'id': target.get('id')})
-                if any(p != name + ': not running and healthy' for p in problems):
+                profile = current.get('recovery_target', {})
+                if (problems or profile.get('service') != name or profile.get('id') != cid or
+                        profile.get('status') not in ('TARGET_STARTING', 'HEALTHY')):
                     raise ValueError('Safety failure during recovery: ' + str(problems))
                 # Endpoint disappearance is transient, so only compare once the target is healthy.
                 # Unrelated starts/images/health and containment/capture are checked every poll.
@@ -825,7 +857,16 @@ def restart_row(name, anchor, base, folder, events, index):
                 if new_capture != old_capture:
                     raise ValueError('PCAP identity/interface/ring changed during recovery')
                 if not problems and current.get('ok') is True:
-                    recovered, _ = observe()
+                    try:
+                        recovered, _ = observe()
+                    except ValueError as exc:
+                        if name != 'loki' or not pending_loki_http_readiness(exc):
+                            raise
+                        row['recovery_observations'].append({
+                            'timestamp': utc(), 'id': cid,
+                            'status': 'LOKI_HTTP_503_WITHIN_EXISTING_RECOVERY_WINDOW'})
+                        time.sleep(2)
+                        continue
                     row['runtime_comparison'] = strict_compare(before, recovered, name, config['dynamic_mac'][name])
                     break
                 if time.monotonic() >= next_update:
@@ -833,6 +874,9 @@ def restart_row(name, anchor, base, folder, events, index):
                     next_update = time.monotonic() + 10
                 time.sleep(2)
             if recovered is None:
+                if any(item.get('status') == 'LOKI_HTTP_503_WITHIN_EXISTING_RECOVERY_WINDOW'
+                       for item in row['recovery_observations']):
+                    raise TimeoutError('Loki HTTP readiness remained 503 within 150 seconds')
                 raise TimeoutError('Container health recovery exceeded 150 seconds')
             row['checks']['identity'] = 'PASS'
             row['checks']['runtime'] = 'PASS'

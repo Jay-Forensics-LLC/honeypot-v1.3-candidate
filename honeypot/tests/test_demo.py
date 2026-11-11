@@ -12,8 +12,8 @@ import demo
 import runtime_inventory as inventory
 
 
-def fixture():
-    root=Path('/test/runtime')
+def fixture(root=Path('/test/runtime')):
+    root=Path(root)
     containers={};services={};networks=[]
     ports={'cowrie':[(2222,2222),(2223,2223)],'opencanary':[(8080,8080),(2121,2121),(16379,16379)],'grafana':[(3000,3000)]}
     for name in inventory.SERVICES:
@@ -36,6 +36,10 @@ def fixture():
         services[name]['volumes'] = spec['volumes']
         containers[name]['Mounts'].extend({'Destination':v['target'], 'Source':v['source'], 'RW':False, 'Type':'bind'}
                                         for v in spec['volumes'])
+    services['grafana']['volumes'].append({'type':'bind', 'source':str(root/'state/grafana'),
+                                            'target':'/var/lib/grafana', 'read_only':False})
+    containers['grafana']['Mounts'].append({'Destination':'/var/lib/grafana', 'Source':str(root/'state/grafana'),
+                                            'RW':True, 'Type':'bind'})
     for suffix,subnet in [('cowrie-net','40'),('canary-net','41'),('observability','42'),('management','43')]:
         name='honeypot-'+suffix
         networks.append({'Name':name,'IPAM':{'Config':[{'Subnet':'172.29.'+subnet+'.0/24','Gateway':'172.29.'+subnet+'.1'}]},'Internal':suffix=='observability',
@@ -48,6 +52,10 @@ class RuntimeGate(unittest.TestCase):
     def setUp(self): self.r,self.c,self.n,self.root=fixture()
     def checks(self): return inventory.validate_runtime(self.r,self.c,self.n,self.root)
     def test_expected_runtime(self): self.assertEqual(self.checks(),[])
+    def test_approved_grafana_state_mount_and_static_configuration(self):
+        rendered,containers,networks,root=fixture(ROOT)
+        self.assertEqual(inventory.validate_runtime(rendered,containers,networks,root),[])
+        self.assertTrue(inventory.verify_static_configuration(rendered,root,ROOT))
     def test_unhealthy(self):
         self.c['alloy']['State']['Health']['Status']='unhealthy';self.assertTrue(self.checks())
     def test_extra_service(self):
@@ -120,6 +128,8 @@ class StoppedConfiguration(unittest.TestCase):
         self.assertIn('cowrie: not running and healthy',failures)
         self.assertIn('honeypot-cowrie-net: active membership differs',failures)
         self.assertFalse(any('CIDR differs' in problem for problem in failures))
+    def test_approved_grafana_state_mount_passes_stopped_gate(self):
+        self.assertEqual(self.assess()['status'],'CONFIGURATION_CHECKS_PASSED')
     def test_missing_or_abnormal_stop_state_rejected(self):
         for key,value in [('Status','created'),('Pid',10),('ExitCode',1),('Error','failure'),
                           ('Paused',True),('OOMKilled',True)]:
@@ -162,6 +172,45 @@ class StoppedConfiguration(unittest.TestCase):
         before=copy.deepcopy((self.r,self.c,self.n))
         self.assess()
         self.assertEqual(before,(self.r,self.c,self.n))
+
+
+class GrafanaStateMountPolicy(unittest.TestCase):
+    def setUp(self):
+        self.r,self.c,self.n,self.root=fixture()
+        self.state=next(v for v in self.r['services']['grafana']['volumes']
+                        if v['target']=='/var/lib/grafana')
+
+    def test_different_state_source_rejected(self):
+        self.state['source']=str(self.root/'state/other')
+        self.assertIn('grafana: unreviewed static mount /var/lib/grafana',
+                      inventory.static_mount_problems(self.r,self.root))
+
+    def test_symlinked_state_directory_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            rendered,_,_,_=fixture(root)
+            (root/'state').mkdir()
+            (root/'state/elsewhere').mkdir()
+            (root/'state/grafana').symlink_to(root/'state/elsewhere')
+            self.assertIn('grafana: unreviewed static mount /var/lib/grafana',
+                          inventory.static_mount_problems(rendered,root))
+
+    def test_read_only_state_mount_rejected(self):
+        self.state['read_only']=True
+        self.assertIn('grafana: unreviewed static mount /var/lib/grafana',
+                      inventory.static_mount_problems(self.r,self.root))
+
+    def test_non_bind_state_mount_rejected(self):
+        self.state['type']='volume'
+        self.assertIn('grafana: unreviewed static mount /var/lib/grafana',
+                      inventory.static_mount_problems(self.r,self.root))
+
+    def test_required_dashboards_mount_remains_required(self):
+        self.r['services']['grafana']['volumes']=[
+            v for v in self.r['services']['grafana']['volumes']
+            if v['target']!='/var/lib/grafana/dashboards']
+        self.assertIn('grafana: candidate static mount differs at /var/lib/grafana/dashboards',
+                      inventory.static_mount_problems(self.r,self.root))
 
 
 class Demonstration(unittest.TestCase):

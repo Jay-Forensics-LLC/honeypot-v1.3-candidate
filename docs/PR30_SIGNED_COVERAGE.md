@@ -1,5 +1,15 @@
 # Signed coverage checkpoint for PR #30
 
+**October 26 disposition:** PR #33 merged this receipt as
+`31468568e2b018332733c570213088ecaf5c76d3`. Its reviewed signed head was
+`3c056853c04ec1509cd08342d87e2899e001126b`; Codex completed with no findings.
+PR #30 was closed **without merge** on October 23 as superseded by merged #31;
+its published history remains preserved. The equality below refers only to the
+two pinned October 20 trees, not #30's later head or current HoneyWatch.
+See [current status](CURRENT_PHASE_STATUS.md) for later integration, CI, reviews
+and remaining gates. The original checkpoint narrative below is historical;
+its “remains open” / “review is requested” statements describe October 20.
+
 PR #30's complete candidate is already present in HoneyWatch. This receipt
 records its coverage on the current default branch; the replacement introduces
 no application or tooling changes and retains PR #30 and its published history.
