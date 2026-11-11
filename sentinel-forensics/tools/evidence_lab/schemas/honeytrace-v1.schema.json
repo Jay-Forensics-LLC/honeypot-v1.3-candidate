@@ -1,0 +1,630 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:sentinel:honeytrace:1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract",
+    "entity",
+    "id",
+    "payload"
+  ],
+  "properties": {
+    "contract": {
+      "const": "sentinel.honeytrace/1"
+    },
+    "entity": {
+      "enum": [
+        "case",
+        "source",
+        "observation",
+        "timeline",
+        "association",
+        "finding",
+        "coverage",
+        "error"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "entity": {
+            "const": "case"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "run_id",
+              "parser_version",
+              "tools",
+              "configuration",
+              "privacy",
+              "limitations"
+            ],
+            "properties": {
+              "status": {
+                "type": "string"
+              },
+              "run_id": {
+                "type": "string"
+              },
+              "parser_version": {
+                "type": "string"
+              },
+              "tools": {
+                "type": "object"
+              },
+              "configuration": {
+                "type": "object"
+              },
+              "privacy": {
+                "type": "object"
+              },
+              "limitations": {
+                "type": "array"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "entity": {
+            "const": "source"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "sha256",
+              "size",
+              "kind",
+              "parser_version",
+              "metadata"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "size": {
+                "type": "integer"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "parser_version": {
+                "type": "string"
+              },
+              "metadata": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "entity": {
+            "const": "observation"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "source_id",
+              "ordinal",
+              "kind",
+              "protocol",
+              "context",
+              "time",
+              "data",
+              "provenance",
+              "duplicate_of"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "source_id": {
+                "type": "integer"
+              },
+              "ordinal": {
+                "type": "integer"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "protocol": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string"
+              },
+              "time": {
+                "$ref": "#/$defs/time"
+              },
+              "data": {
+                "type": "object"
+              },
+              "provenance": {
+                "$ref": "#/$defs/provenance"
+              },
+              "duplicate_of": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "entity": {
+            "const": "timeline"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "event_id",
+              "source_id",
+              "ordinal",
+              "kind",
+              "protocol",
+              "context",
+              "original_utc_ns",
+              "utc_ns",
+              "time",
+              "storage",
+              "row_id"
+            ],
+            "properties": {
+              "event_id": {
+                "type": "string"
+              },
+              "source_id": {
+                "type": "integer"
+              },
+              "ordinal": {
+                "type": "integer"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "protocol": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string"
+              },
+              "original_utc_ns": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "utc_ns": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "time": {
+                "$ref": "#/$defs/time"
+              },
+              "storage": {
+                "type": "string"
+              },
+              "row_id": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "entity": {
+            "const": "association"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "relationship",
+              "context",
+              "left_type",
+              "left_value",
+              "right_type",
+              "right_value",
+              "start_ns",
+              "end_ns",
+              "evidence_id",
+              "rule",
+              "rule_version",
+              "confidence",
+              "explanation",
+              "limitations",
+              "conflicts"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "relationship": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string"
+              },
+              "left_type": {
+                "type": "string"
+              },
+              "left_value": {
+                "type": "string"
+              },
+              "right_type": {
+                "type": "string"
+              },
+              "right_value": {
+                "type": "string"
+              },
+              "start_ns": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "end_ns": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "evidence_id": {
+                "type": "integer"
+              },
+              "rule": {
+                "type": "string"
+              },
+              "rule_version": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string"
+              },
+              "explanation": {
+                "type": "string"
+              },
+              "limitations": {
+                "type": "array"
+              },
+              "conflicts": {
+                "type": "array"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "entity": {
+            "const": "finding"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "rule",
+              "rule_version",
+              "context",
+              "start_ns",
+              "end_ns",
+              "severity",
+              "confidence",
+              "explanation",
+              "alternatives",
+              "limitations",
+              "evidence",
+              "metrics"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "rule": {
+                "type": "string"
+              },
+              "rule_version": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string"
+              },
+              "start_ns": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "end_ns": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "severity": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "string"
+              },
+              "explanation": {
+                "type": "string"
+              },
+              "alternatives": {
+                "type": "array"
+              },
+              "limitations": {
+                "type": "array"
+              },
+              "evidence": {
+                "type": "object"
+              },
+              "metrics": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "entity": {
+            "const": "coverage"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "details"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "details": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "entity": {
+            "const": "error"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "source_id",
+              "ordinal",
+              "details"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "source_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "ordinal": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "details": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "time": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "utc_ns",
+        "precision",
+        "timezone",
+        "status",
+        "clock"
+      ],
+      "properties": {
+        "utc_ns": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": -9223372036854775807,
+          "maximum": 9223372036854775807
+        },
+        "precision": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "decimal_digits"
+              ],
+              "properties": {
+                "decimal_digits": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "numerator",
+                "denominator"
+              ],
+              "properties": {
+                "numerator": {
+                  "const": 1
+                },
+                "denominator": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          ]
+        },
+        "timezone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "missing",
+            "unresolved",
+            "normalized",
+            "timezone_unknown",
+            "invalid",
+            "outside_index_time_range"
+          ]
+        },
+        "clock": {
+          "type": "string"
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "source_id",
+        "precision"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "precision": {
+          "enum": [
+            "byte",
+            "logical",
+            "archive_member_logical"
+          ]
+        },
+        "byte_offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "byte_length": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "if": {
+        "properties": {
+          "precision": {
+            "const": "byte"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "byte_offset",
+          "byte_length"
+        ]
+      }
+    }
+  }
+}

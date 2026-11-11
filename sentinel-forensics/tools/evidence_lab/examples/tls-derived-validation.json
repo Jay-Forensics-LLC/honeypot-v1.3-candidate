@@ -1,0 +1,241 @@
+{
+  "coverage": {
+    "batches": 32,
+    "classifications": {
+      "independently_recovered_hello": 128,
+      "not_evaluated": 962,
+      "reference_indeterminate": 4
+    },
+    "derivative_bytes": 11004704,
+    "eligible_candidates": 1094,
+    "evaluation": "BOUNDED_SUBSET",
+    "excluded_candidates": {
+      "batch_selection_cap": 959,
+      "whole_cohort_frame_and_byte_caps": 2,
+      "whole_cohort_frame_cap": 1
+    },
+    "selected_candidates": 132,
+    "selected_frames": 17432,
+    "support_links": 292,
+    "support_original_records_rechecked": 280
+  },
+  "derived_bundle_schema": "sentinel.tls-derived/1",
+  "derived_producer_version": "1.0.1",
+  "findings_generated": 0,
+  "independent_audit": {
+    "cpu_seconds": 5.273810884,
+    "decoder_rerun": false,
+    "full_source_integrity_method": "Saved real11 and completed producer full-source checks plus unchanged preflight metadata; selected original records freshly hashed. No new whole-source hash pass.",
+    "limits_predeclared": {
+      "batch_bytes": 16777216,
+      "batch_frames": 16384,
+      "batches": 32,
+      "candidates": 2048,
+      "frames": 131072,
+      "index_bytes": 3221225472,
+      "members": 4096,
+      "metadata_bytes": 1048576,
+      "receipt_bytes": 1048576,
+      "rss_bytes": 536870912,
+      "seconds": 60,
+      "support_links": 65536
+    },
+    "parent_packets_scanned_for_whole_cohorts": 591565,
+    "peak_own_lifetime_rss_bytes": 96579584,
+    "runs": [
+      {
+        "emitted_native_fields_verified": 640,
+        "reasons": {
+          "complete_source_bytes_and_reference_hello": 128,
+          "complete_source_bytes_without_unambiguous_reference_record": 4
+        },
+        "selected_classifications": {
+          "independently_recovered_hello": 128,
+          "reference_indeterminate": 4
+        },
+        "selected_original_records_verified": 17432,
+        "support_links_verified": 292,
+        "support_original_records_verified": 280
+      },
+      {
+        "emitted_native_fields_verified": 640,
+        "reasons": {
+          "complete_source_bytes_and_reference_hello": 128,
+          "complete_source_bytes_without_unambiguous_reference_record": 4
+        },
+        "selected_classifications": {
+          "independently_recovered_hello": 128,
+          "reference_indeterminate": 4
+        },
+        "selected_original_records_verified": 17432,
+        "support_links_verified": 292,
+        "support_original_records_verified": 280
+      }
+    ],
+    "status": "PASS",
+    "wall_seconds": 5.269974369999545,
+    "whole_cohorts_verified": 128
+  },
+  "independent_oracle_version": "2.0.9",
+  "limitations": [
+    "This is bounded descriptive evidence, not GOAL_PASS, full decoding, decryption, device/person identity or a compromise verdict.",
+    "The complete owner-confirmed dataset is three classic PCAPs; no 30 GB-scale or actual PCAPNG claim.",
+    "Raw 1,825 decoding losses remain unchanged. The optional derived layer does not replace the raw case or clear its losses.",
+    "Source SHA-256 values, keys, exact private identifiers, source times, paths and content/export digests are omitted.",
+    "Measured RSS/disk gates can miss brief peaks and are not OS quotas; caches were not flushed.",
+    "Original Tetra and genuine combined-source clock/network calibration remain unavailable. Public BLE compatibility retains its separately tested revision.",
+    "Only 132 of 1,094 eligible candidates were selected: 128 verified Hello observations, four indeterminate and 962 not evaluated. Counts are not device or full-flow counts.",
+    "Whole-cohort selection preserves both directions and duplicates within source/context/interface/VLAN/family scope. Files are not joined; this first optional version accepts classic PCAP only.",
+    "First/completion times anchor supporting capture packets, retain original precision and reversible configured offsets, and do not calibrate clocks.",
+    "No captured payload files are retained, endpoints contacted, names externally resolved, traffic replayed or new findings generated.",
+    "Independent audit freshly hashed selected records and compared saved decoder fields; full-source integrity uses completed producer/qualification hashes and unchanged fingerprints, not another full-source pass."
+  ],
+  "limits_predeclared": {
+    "batch_bytes": 16777216,
+    "batch_cohorts": 4,
+    "batch_frames": 16384,
+    "candidates": 2048,
+    "decoder_seconds": 60,
+    "max_batches": 32,
+    "packet_rows": 2000000,
+    "predeclared": true,
+    "rss_bytes": 536870912,
+    "scratch_bytes": 67108864,
+    "segments_per_candidate": 512,
+    "support_links": 65536,
+    "support_references": 16384,
+    "timeout_seconds": 120,
+    "total_frames": 131072
+  },
+  "parser_version": "2.0.9",
+  "previous_failed_candidate": {
+    "commit": "1114fd775de67d2135b9991f70640353b7a5094c",
+    "derived_attempt_status": "FAILED",
+    "preserved": true,
+    "reason": "tls_resource_sampling_failed",
+    "retrospectively_regraded": false,
+    "second_run_started": false
+  },
+  "qualified_runtime_commit": "4c8bacc8b7e988693d1747707adb709eaedf8d93",
+  "raw_case_modified": false,
+  "raw_case_status": "QUALIFIED_LIMITATIONS",
+  "raw_decoding_loss_counts": {
+    "tls_reassembly_required": 1094,
+    "unsupported_ethertype": 729,
+    "unsupported_llc_control": 2
+  },
+  "raw_decoding_losses_modified": false,
+  "reproducibility": {
+    "audit_algorithm": "table_tagged_ordered_rows",
+    "audit_exact_human_reports_equal": true,
+    "audit_exact_jsonl_exports_equal": true,
+    "audit_logical_rows_equal_between_runs": true,
+    "audit_stable_manifest_proofs_equal": true,
+    "different_logical_algorithms_compared_to_each_other": false,
+    "workflow_algorithm": "schema_columns_ordered_rows",
+    "workflow_logical_databases_equal_between_runs": true
+  },
+  "runs": [
+    {
+      "independent_observer": {
+        "acceptance_seconds": 120,
+        "combined_sampled_or_parent_hwm_peak_bytes": 286535680,
+        "cpu_system_seconds": 1.132605,
+        "cpu_user_seconds": 33.677051,
+        "parent_lifetime_peak_rss_bytes": 28815360,
+        "reaped_cli_lifetime_peak_rss_bytes": 188964864,
+        "returncode": 0,
+        "sampled_worker_tree_peak_rss_bytes": 257720320,
+        "wall_seconds": 34.72236377700028
+      },
+      "maximum_decoder_batch_wall_seconds": 0.2234967839976889,
+      "producer_resources": {
+        "child_lifetime_peak_rss_bytes": 188964864,
+        "child_system_cpu_seconds": 0.614619,
+        "child_user_cpu_seconds": 1.480816,
+        "combined_cpu_seconds": 34.753427605999995,
+        "exact_owned_terminal_confirmations": 0,
+        "peaks": {
+          "own_lifetime_rss_bytes": 71249920,
+          "sampled_tree_rss_bytes": 259223552,
+          "scratch_bytes": 23076864
+        },
+        "producer_cpu_seconds": 32.657992606,
+        "resource_checks_passed": true,
+        "sampling_failure": null,
+        "sampling_transitions": {
+          "missing_rss_rereads": 2,
+          "positive_terminal_observations": 2
+        },
+        "wall_seconds": 34.65416516000187
+      },
+      "status": "COMPLETE"
+    },
+    {
+      "independent_observer": {
+        "acceptance_seconds": 120,
+        "combined_sampled_or_parent_hwm_peak_bytes": 296185856,
+        "cpu_system_seconds": 1.1687159999999999,
+        "cpu_user_seconds": 33.799896,
+        "parent_lifetime_peak_rss_bytes": 35991552,
+        "reaped_cli_lifetime_peak_rss_bytes": 188964864,
+        "returncode": 0,
+        "sampled_worker_tree_peak_rss_bytes": 260194304,
+        "wall_seconds": 34.88036226300028
+      },
+      "maximum_decoder_batch_wall_seconds": 0.2292746739985887,
+      "producer_resources": {
+        "child_lifetime_peak_rss_bytes": 188485632,
+        "child_system_cpu_seconds": 0.6486649999999999,
+        "child_user_cpu_seconds": 1.508656,
+        "combined_cpu_seconds": 34.911868342,
+        "exact_owned_terminal_confirmations": 1,
+        "peaks": {
+          "own_lifetime_rss_bytes": 71450624,
+          "sampled_tree_rss_bytes": 255913984,
+          "scratch_bytes": 23076864
+        },
+        "producer_cpu_seconds": 32.754547341999995,
+        "resource_checks_passed": true,
+        "sampling_failure": null,
+        "sampling_transitions": {
+          "missing_rss_rereads": 4,
+          "positive_terminal_observations": 2
+        },
+        "wall_seconds": 34.808382136001455
+      },
+      "status": "COMPLETE"
+    }
+  ],
+  "schema": "sentinel.sanitized-tls-derived-validation/1",
+  "scope": "Two independent CLI executions of optional bounded original-record-backed TLS Hello reconstruction; same closed case and explicit source mappings.",
+  "source_bytes": 297151107,
+  "source_files": 3,
+  "source_packets": 591565,
+  "status": "PASS_BOUNDED_SUBSET",
+  "tool_versions": {
+    "tshark": "TShark (Wireshark) 4.6.4."
+  },
+  "validation": {
+    "ci_run": 39981273493,
+    "ci_tshark": "4.2.2",
+    "diagnostic_tests": 31,
+    "independent_local_review_completed": true,
+    "lab_tests": 331,
+    "local_tests": 362,
+    "python_ci": [
+      "3.11",
+      "3.14"
+    ]
+  },
+  "whole_cohorts_verified": 128,
+  "workflow_checks": {
+    "all_input_and_source_hashes_unchanged": true,
+    "all_output_ledgers_verified": true,
+    "all_table_content_reproducible": true,
+    "exact_minimized_exports_reproducible": true,
+    "no_automatic_retry": true,
+    "no_hello_quota": true,
+    "stable_manifests_match_excluding_only_resources_and_batch_wall_seconds": true
+  }
+}

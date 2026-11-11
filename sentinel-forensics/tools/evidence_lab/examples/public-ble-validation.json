@@ -1,0 +1,92 @@
+{
+  "analysis_commit": "13be2ac8bb82ce38521529879594ffd3a05b8c92",
+  "budgets": {
+    "disk_reserve_bytes": 67108864,
+    "peak_rss_bytes": 536870912,
+    "per_worker_seconds": 60,
+    "two_run_output_estimate_bytes": 16777216
+  },
+  "checks": {
+    "all_source_rows_reconciled": true,
+    "checksums_and_contract_valid": true,
+    "minimized_exports_checked": true,
+    "no_identity_associations": true,
+    "pinned_clean_implementation": true,
+    "python_network_access_guarded": true,
+    "reproducible_minimized_export": true,
+    "reproducible_records": true,
+    "source_matches_pinned_receipt": true,
+    "source_unchanged": true,
+    "unanchored_times_retained": true
+  },
+  "integrated_candidate_commit": "13be2ac8bb82ce38521529879594ffd3a05b8c92",
+  "limitations": [
+    "Publisher documents physical-device recording; matching headers do not authenticate acquisition or collector origin.",
+    "Source sample has no device names; name handling/privacy is exercised by invented regression records.",
+    "Timestamp epoch/unit/precision/timezone are unresolved. Numeric address/advertising/channel codes remain uninterpreted.",
+    "Service UUIDs/data, manufacturer identifiers/data, transmit power and individual scanner identity are unavailable in this export.",
+    "Headerless controller CSV, other layouts and general vendor compatibility remain unsupported.",
+    "CSV column reconciliation is not an independent radio or HCI decoder comparison.",
+    "No physical-device identity, owner-private BLE validation or cross-source clock calibration is established.",
+    "Source values/hashes, identifiers, exact timestamps, keys and content/export digests remain outside this aggregate receipt.",
+    "RSS/disk samples may miss brief peaks; resource budgets are measured gates rather than OS quotas."
+  ],
+  "parser_version": "2.0.9",
+  "previous_analysis_commit": "db53b859b570f245ba7eba3a57c28f017e531c75",
+  "profile": "ble-ard.parallel-csv/1",
+  "requalified_after_archive_timestamp_fix": true,
+  "runs": [
+    {
+      "cpu_seconds": 0.015486863999999996,
+      "output_bytes": 538382,
+      "peak_rss_bytes": 31211520,
+      "reconciliation": {
+        "associations": 0,
+        "exact_byte_provenance_rows_verified": 71,
+        "field_mapping_rows_verified": 71,
+        "minimized_export_checked": true,
+        "normalized_timestamps": 0,
+        "observations": 71,
+        "parse_errors": 0,
+        "source_records": 71
+      },
+      "sampled_worker_tree_peak_rss_bytes": 27033600,
+      "wall_seconds": 0.6550807429994165
+    },
+    {
+      "cpu_seconds": 0.014091314,
+      "output_bytes": 538382,
+      "peak_rss_bytes": 33583104,
+      "reconciliation": {
+        "associations": 0,
+        "exact_byte_provenance_rows_verified": 71,
+        "field_mapping_rows_verified": 71,
+        "minimized_export_checked": true,
+        "normalized_timestamps": 0,
+        "observations": 71,
+        "parse_errors": 0,
+        "source_records": 71
+      },
+      "sampled_worker_tree_peak_rss_bytes": 27422720,
+      "wall_seconds": 0.20180068999979994
+    }
+  ],
+  "schema": "sentinel.sanitized-public-radio-validation/1",
+  "scope": "One genuine public raw collector CSV profile; no independent BLE decoding or owner-private BLE claim.",
+  "source_bytes": 3194,
+  "source_files": 1,
+  "source_records": 71,
+  "source_stage": "00_capture (raw occurrences, before cleaned/filtered processing)",
+  "status": "PASS",
+  "upstream": "https://github.com/hujon/BLE-ARD",
+  "upstream_commit": "49c92bb31241f726db020493679b1cbbe6740937",
+  "validation": {
+    "independent_source_semantics_review": true,
+    "local_tests": 273,
+    "native_profile_tests": 8
+  },
+  "versions": {
+    "python": "3.14.4",
+    "sqlite": "3.46.1"
+  }
+}
