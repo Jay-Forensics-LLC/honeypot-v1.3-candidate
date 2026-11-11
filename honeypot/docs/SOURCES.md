@@ -15,7 +15,7 @@ not copied upstream source. Images/packages retain their own upstream licenses.
 - [Compose schema](https://github.com/compose-spec/compose-spec/blob/main/schema/compose-spec.json)
 
 Version tags checked for registry existence: cowrie/cowrie:3.1.4,
-grafana/loki:3.7.9, grafana/alloy:v1.21.2,
+grafana/loki:3.7.9, grafana/grafana:12.4.14, grafana/alloy:v1.21.3,
 python:3.12.13-slim-bookworm. OpenCanary PyPI version 0.9.10 was confirmed.
 The grafana/grafana:12.4.14 digest reference is supplied by Dependabot; registry
 manifest and platform digests were not independently verified in this repair.
