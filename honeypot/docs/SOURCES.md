@@ -14,12 +14,15 @@ not copied upstream source. Images/packages retain their own upstream licenses.
 - [Docker restart policies](https://docs.docker.com/engine/containers/start-containers-automatically/)
 - [Compose schema](https://github.com/compose-spec/compose-spec/blob/main/schema/compose-spec.json)
 
-Version tags checked for registry existence: cowrie/cowrie:3.1.4,
+Version tags declared: cowrie/cowrie:3.1.5,
 grafana/loki:3.7.9, grafana/grafana:12.4.14, grafana/alloy:v1.21.3,
 python:3.12.13-slim-bookworm. OpenCanary PyPI version 0.9.10 was confirmed.
 The grafana/grafana:12.4.14 digest reference is supplied by Dependabot; registry
 manifest and platform digests were not independently verified in this repair.
-Cowrie 3.1.4's registry digest and platform manifests were checked on 2026-11-04.
+Cowrie 3.1.5's registry tag, pinned OCI index and Linux amd64/arm64
+platform-manifest bytes were independently checked on 2026-11-12;
+their SHA-256 digests matched the recorded references. Runtime qualification
+remains separate from registry verification.
 Image references are pinned in .env.example, Compose defaults and Dockerfile
 defaults; docs/IMAGE_REFERENCES.json records the references and verification status.
 Transitive package dependencies can change; target build records should capture
