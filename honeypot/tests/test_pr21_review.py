@@ -54,7 +54,7 @@ class ImageTrust(unittest.TestCase):
     def write_approval(self):
         self.approval_path.write_text(json.dumps(self.document))
 
-    def collect(self, **kwargs):
+    def collect(self, probe_readiness=False, **kwargs):
         def run(root, argv, **kwargs):
             self.commands.append(argv)
             if argv[:2] == ['docker','compose']: value = json.dumps(self.rendered)
@@ -66,6 +66,8 @@ class ImageTrust(unittest.TestCase):
             elif argv[0] == 'nft':
                 if getattr(self, 'guard_missing', False): raise OSError('Synthetic owned table unavailable')
                 value = '{}'
+            elif argv[:2] == ['docker','exec'] and 'urllib.request' in argv[-1]:
+                value = self.http_response(argv)
             elif argv[:2] == ['docker','exec']: value = json.dumps(self.module_hashes)
             elif argv == ['git','rev-parse','HEAD']: value = 'synthetic-reviewed-commit'
             elif argv == ['git','status','--porcelain','--untracked-files=all']: value = ' M configs/images.approved.json' if self.source_dirty else ''
@@ -78,7 +80,7 @@ class ImageTrust(unittest.TestCase):
              patch.object(inventory,'inspect_daemon',return_value={'ok':True}), \
              patch.object(inventory,'evaluate',return_value=getattr(self,'guard_result',{'ok':True,'problems':[],'observed':{},'expected':{}})), \
              patch.object(inventory,'inspect_capture',return_value={'ok':True}):
-            return inventory.collect(self.root,self.source,probe_readiness=False,**kwargs)
+            return inventory.collect(self.root,self.source,probe_readiness=probe_readiness,**kwargs)
 
     def test_exact_reviewed_source_approval_passes_without_runtime_lock(self):
         result = self.collect()

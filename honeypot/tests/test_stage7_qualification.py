@@ -57,12 +57,12 @@ class LokiRecoveryReadiness(unittest.TestCase):
         runtime = {'runtime_root': str(qualification.RUNTIME),
                    'candidate_source_commit': 'rev', 'candidate_source_dirty': False,
                    'image_approval_sha256': 'pin', 'guard': {'ok': True},
-                   'capture': {'ok': True}, 'problems': [
-                       "Command '['docker', 'exec', 'incidentd', 'python', '-B', '-c', "
-                       "'http://loki:3100/ready'] returned non-zero exit status 1.",
-                       'urllib.error.HTTPError: HTTP Error 503']}
+                   'capture': {'ok': True}, 'problems': ['Internal HTTP readiness failed'],
+                   'http_readiness_status': {'loki': 503, 'alloy': 200, 'grafana': 200},
+                   'http_readiness': {'loki': False, 'alloy': True, 'grafana': True}}
         error = ValueError('Runtime observation failed before context validation')
         error.runtime_observation = runtime
+        error.capture_observation = {'ok': True, 'problems': []}
         return error
 
     def test_only_pinned_safe_http_503_uses_existing_window(self):
@@ -80,18 +80,36 @@ class LokiRecoveryReadiness(unittest.TestCase):
                 error.runtime_observation[field] = value
                 with self.subTest(field=field):
                     self.assertFalse(qualification.pending_loki_http_readiness(error))
-            for problem in ('urllib.error.HTTPError: HTTP Error 500',
-                            'urllib.error.HTTPError: HTTP Error 503; other failure'):
+            for problem in ('Other safety failure', '', None):
                 error = self.pending_error()
-                error.runtime_observation['problems'][1] = problem
+                error.runtime_observation['problems'].append(problem)
                 with self.subTest(problem=problem):
                     self.assertFalse(qualification.pending_loki_http_readiness(error))
+
+    def test_missing_or_malformed_capture_observation_never_retries(self):
+        with patch.object(qualification, 'CONTEXT', None):
+            for resources in (None, {}, [], {'ok': False}, {'ok': 1}, {'ok': 'true'}):
+                error = self.pending_error()
+                error.capture_observation = resources
+                with self.subTest(resources=resources):
+                    self.assertFalse(qualification.pending_loki_http_readiness(error))
+            del error.capture_observation
+            self.assertFalse(qualification.pending_loki_http_readiness(error))
+
+    def test_legacy_ambiguous_exception_text_never_retries(self):
+        error = self.pending_error()
+        del error.runtime_observation['http_readiness_status']
+        error.runtime_observation['problems'] = [
+            "Command ['docker', 'exec', 'http://loki:3100/ready'] failed",
+            'urllib.error.HTTPError: HTTP Error 503: Service Unavailable']
+        with patch.object(qualification, 'CONTEXT', None):
+            self.assertFalse(qualification.pending_loki_http_readiness(error))
 
     def test_failed_inventory_reports_observation_before_identity(self):
         runtime = self.pending_error().runtime_observation
         context = Mock()
         with patch.object(qualification, 'collect', return_value=runtime), \
-             patch.object(qualification.live_capture, 'readiness', return_value={}), \
+             patch.object(qualification.live_capture, 'readiness', return_value={'ok': True}), \
              patch.object(qualification, 'CONTEXT', context):
             with self.assertRaisesRegex(ValueError, 'Runtime observation failed before context validation') as caught:
                 qualification.observe()
@@ -100,7 +118,7 @@ class LokiRecoveryReadiness(unittest.TestCase):
             self.assertTrue(qualification.pending_loki_http_readiness(caught.exception))
         context.check_runtime.assert_not_called()
 
-    def test_loki_row_waits_for_503_without_second_restart_or_probe(self):
+    def run_loki_row(self, error, sleep_error=KeyboardInterrupt):
         before = runtime_fixture(True)
         cid = 'a' * 64
         before['containers']['loki']['id'] = cid
@@ -114,7 +132,7 @@ class LokiRecoveryReadiness(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, \
              patch.object(qualification, 'CONTEXT', None), \
              patch.object(qualification, 'observe', side_effect=[(before, {}), (before, {}),
-                                                                 self.pending_error()]) as observe, \
+                                                                 error, error]) as observe, \
              patch.object(qualification, 'strict_compare', return_value={'status': 'PASS'}), \
              patch.object(qualification, 'execution_configuration', return_value=config), \
              patch.object(qualification, 'routes_and_tty', return_value={}), \
@@ -125,19 +143,52 @@ class LokiRecoveryReadiness(unittest.TestCase):
              patch.object(qualification, 'acquire_preservation', return_value={}), \
              patch.object(qualification, 'restart_existing') as restart, \
              patch.object(qualification, 'collect', return_value=current), \
-             patch.object(qualification.time, 'sleep', side_effect=KeyboardInterrupt) as sleep, \
-             patch.object(qualification, 'probe') as probe, \
-             patch.object(qualification, 'postflight', side_effect=lambda row, *args:
-                          row.update(postflight={'status': 'FAILED'})):
+             patch.object(qualification.time, 'sleep', side_effect=sleep_error) as sleep, \
+             patch.object(qualification, 'probe') as probe:
             row = qualification.restart_row('loki', before, base, Path(tmp), [], 4)
+        return row, observe, restart, sleep, probe
+
+    def test_loki_row_waits_for_503_without_second_restart_or_probe(self):
+        row, observe, restart, sleep, probe = self.run_loki_row(self.pending_error())
         self.assertEqual(row['health_recovery_timeout_seconds'], 150)
         self.assertEqual(row['status'], 'ABORTED')
-        self.assertEqual(observe.call_count, 3)
+        self.assertEqual(observe.call_count, 4)
         self.assertIn('LOKI_HTTP_503_WITHIN_EXISTING_RECOVERY_WINDOW',
                       [item.get('status') for item in row['recovery_observations']])
         restart.assert_called_once()
         sleep.assert_called_once_with(2)
         probe.assert_not_called()
+
+    def test_loki_503_expires_at_existing_deadline_without_another_restart(self):
+        with patch.object(qualification.time, 'monotonic', side_effect=[0, 0, 0, 150]):
+            row, observe, restart, sleep, probe = self.run_loki_row(self.pending_error(), sleep_error=None)
+        self.assertEqual(row['status'], 'FAILED')
+        self.assertEqual(row['health_recovery_timeout_seconds'], 150)
+        self.assertIn('Loki HTTP readiness remained 503 within 150 seconds', row['error'])
+        restart.assert_called_once()
+        sleep.assert_called_once_with(2)
+        probe.assert_not_called()
+
+    def test_other_endpoint_or_capture_failure_ends_row_without_retry_or_probe(self):
+        for case in ('alloy', 'grafana', 'low_disk', 'missing_capture', 'stale_capture'):
+            error = self.pending_error()
+            if case in ('alloy', 'grafana'):
+                error.runtime_observation['http_readiness_status'][case] = 503
+                error.runtime_observation['http_readiness'][case] = False
+            else:
+                error.capture_observation = {'ok': False, 'problems': [case]}
+            with self.subTest(case=case):
+                row, observe, restart, sleep, probe = self.run_loki_row(error)
+                self.assertEqual(row['status'], 'FAILED')
+                self.assertEqual(row['postflight']['status'], 'FAILED')
+                self.assertEqual(row['failed_capture_observation'], error.capture_observation)
+                self.assertEqual(row['postflight']['capture_resources'], error.capture_observation)
+                self.assertEqual(observe.call_count, 4)
+                self.assertFalse(any(item.get('status') == 'LOKI_HTTP_503_WITHIN_EXISTING_RECOVERY_WINDOW'
+                                     for item in row['recovery_observations']))
+                restart.assert_called_once()
+                sleep.assert_not_called()
+                probe.assert_not_called()
 
 
 def synthetic_probe(marker='honeytrace-demo-stage7-test'):
