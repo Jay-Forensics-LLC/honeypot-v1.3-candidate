@@ -1,23 +1,23 @@
 {
-  "checked_at": "2026-10-27T02:18:08+00:00",
+  "checked_at": "2026-11-04T05:03:22+00:00",
   "images": [
     {
-      "image": "cowrie/cowrie:3.1.3",
-      "digest": "sha256:69e3317c6ecf8811d18faecb8a2fcedee0af1f0f864b50de07b688c7409f515c",
-      "reference": "cowrie/cowrie:3.1.3@sha256:69e3317c6ecf8811d18faecb8a2fcedee0af1f0f864b50de07b688c7409f515c",
-      "source": "https://hub.docker.com/v2/repositories/cowrie/cowrie/tags/3.1.3",
-      "last_updated": "2026-10-19T03:12:11.777294Z",
-      "verified_at": "2026-10-27",
+      "image": "cowrie/cowrie:3.1.4",
+      "digest": "sha256:baf351038db967704dfa39f7ce860e8875c9456cdab72a9d3257c4247211050d",
+      "reference": "cowrie/cowrie:3.1.4@sha256:baf351038db967704dfa39f7ce860e8875c9456cdab72a9d3257c4247211050d",
+      "source": "https://hub.docker.com/v2/repositories/cowrie/cowrie/tags/3.1.4",
+      "last_updated": "2026-10-26T03:08:18.814121Z",
+      "verified_at": "2026-11-04",
       "platforms": [
         {
           "architecture": "amd64",
           "os": "linux",
-          "digest": "sha256:f9b2c61ae7115169c030816c2dc087a59fcd79e78de2439d272040e8aa89c4cf"
+          "digest": "sha256:4e2d40671691ab7a4af19840918556c62316939e905bfc9ab3fc1f9e1db54e55"
         },
         {
           "architecture": "arm64",
           "os": "linux",
-          "digest": "sha256:f0e75d2660bb581b2543291e46fb786598375cf783f9a8d698f7925a66c22413"
+          "digest": "sha256:dd35964feb5aa0953fb79d832dcce1f432d3e2b7bb0f20cbc079b5354fac26d7"
         }
       ]
     },
@@ -47,60 +47,41 @@
       "checked_at": "2026-10-27T11:40:47.673+00:00"
     },
     {
-      "image": "grafana/grafana:12.4.13",
-      "digest": "sha256:41bbc1b5e04416f81891806076db2a2ff60a5d4da5f78d36a88b033a8c199185",
-      "reference": "grafana/grafana:12.4.13@sha256:41bbc1b5e04416f81891806076db2a2ff60a5d4da5f78d36a88b033a8c199185",
-      "source": "https://hub.docker.com/v2/repositories/grafana/grafana/tags/12.4.13",
-      "checked_at": "2026-10-31T06:55:20Z",
-      "verification_status": "Registry manifest and platform digests verified against Docker Hub.",
-      "last_updated": "2026-10-13T10:11:25.957605Z",
-      "platforms": [
-        {
-          "architecture": "amd64",
-          "os": "linux",
-          "digest": "sha256:f9452baa61968e54fafaaab493a2f97724b66def07a61659897566c6f085b80f"
-        },
-        {
-          "architecture": "arm64",
-          "os": "linux",
-          "digest": "sha256:04ddb75abcf1584ac60149bf75a40b4d0a8dbe40bbdcf0b5c10a1ad6c0562634"
-        },
-        {
-          "architecture": "arm",
-          "os": "linux",
-          "digest": "sha256:3e88438b6f16db1a197bd5fd6b227ddb7c0dfa8e14dd81ce612d249a87b61258"
-        }
-      ]
+      "image": "grafana/grafana:12.4.14",
+      "digest": "sha256:ae509d9ae8c1021ca32ec370a9ca975d40165eda9fccd1e1102d317ff8787cd7",
+      "reference": "grafana/grafana:12.4.14@sha256:ae509d9ae8c1021ca32ec370a9ca975d40165eda9fccd1e1102d317ff8787cd7",
+      "source": "https://hub.docker.com/v2/repositories/grafana/grafana/tags/12.4.14",
+      "verification_status": "Digest reference supplied by Dependabot; registry manifest and platform digests were not independently verified in this repair."
     },
     {
-      "image": "grafana/alloy:v1.21.2",
-      "digest": "sha256:89a5a320168387336b9ac3c850609c3ba7757eadd4ae5f1d819deb35e9854b18",
-      "reference": "grafana/alloy:v1.21.2@sha256:89a5a320168387336b9ac3c850609c3ba7757eadd4ae5f1d819deb35e9854b18",
-      "source": "https://hub.docker.com/v2/repositories/grafana/alloy/tags/v1.21.2",
-      "last_updated": "2026-10-22T21:41:42.334844Z",
+      "image": "grafana/alloy:v1.21.3",
+      "digest": "sha256:8ab871206bd2d8f89277f53abffee5f452a293980788d52f85fa183a87a505a4",
+      "reference": "grafana/alloy:v1.21.3@sha256:8ab871206bd2d8f89277f53abffee5f452a293980788d52f85fa183a87a505a4",
+      "source": "https://hub.docker.com/v2/repositories/grafana/alloy/tags/v1.21.3",
+      "last_updated": "2026-10-28T17:26:52.659836Z",
+      "checked_at": "2026-11-04T05:03:50Z",
       "platforms": [
         {
           "architecture": "amd64",
           "os": "linux",
-          "digest": "sha256:2fc2ae17ed3b712e37047724efd1cdf7a4124016c0b7522ac469dab0ddf8a8d7"
+          "digest": "sha256:5ed61e8ab102bdf590ea3d67c5e29dfb5837f5b4660a1d2a0db4b8160553e9e7"
         },
         {
           "architecture": "ppc64le",
           "os": "linux",
-          "digest": "sha256:2829e773d7eae8a69a4228814c5ce71c8ce5059d98d565d09d2789b203bf3145"
+          "digest": "sha256:118d5b8c7b5a8f973b5feb9c223ed28250684426afa15985d9c411285a6658cd"
         },
         {
           "architecture": "arm64",
           "os": "linux",
-          "digest": "sha256:c760b7384b5f06f05cbd9a6e2cc3e5f60d5527d9437b03017dca0473df2d8c83"
+          "digest": "sha256:c8dec1ae35cf39ffc2291611e8211c3a8c79d560e641b024ffcab9901e5215ff"
         },
         {
           "architecture": "s390x",
           "os": "linux",
-          "digest": "sha256:0cc8b8987ccc85fa4eb9d4e643ee13260d72b88fd4863778c00189b3f00fb38a"
+          "digest": "sha256:dc63a04602a55f6147e2502b45782deb94b0425594f9ce45304785b379f46e81"
         }
-      ],
-      "checked_at": "2026-10-30T21:18:43.376+00:00"
+      ]
     },
     {
       "image": "python:3.12.13-slim-bookworm",
